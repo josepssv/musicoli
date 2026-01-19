@@ -1,21 +1,21 @@
 # Musicoli 🎨🎵
 
-**Musicoli** es una herramienta web para la composición musical asistida, enfocada en la independencia de voces y la visualización mediante colores. Permite componer, editar y reproducir música polifónica directamente desde el navegador.
+**Musicoli** es una herramienta web para la composición basada en compases, enfocada en la independencia de voces y la visualización mediante colores. Permite componer, editar y reproducir música polifónica directamente desde el navegador.
 
 ## ✨ Características Principales
 
 *   **Edición Polifónica**: Soporte completo para 4 voces independientes (Soprano, Contralto, Tenor, Bajo).
 *   **Modos de Edición Especializados**:
-    *   🔴 **Ritmo**: Define la estructura temporal y los patrones rítmicos.
-    *   🎹 **Tonalidad**: Ajusta las escalas, armonías y notas específicas.
-    *   📝 **Lyrics (Letra)**: Añade y sincroniza texto con la música.
-    *   🔊 **Dinámica**: Control preciso del volumen general y mezcla individual por pista.
+    *    **Ritmo**: Define la estructura temporal y los patrones rítmicos.
+    *    **Tonalidad**: Ajusta las escalas, armonías y notas específicas.
+    *    **Lyrics (Letra)**: Añade y sincroniza texto con la música.
+    *    **Dinámica**: Control preciso del volumen general y mezcla individual por pista.
 *   **Sistema de Colores**: Visualización intuitiva donde los colores representan alturas y funciones tonales.
 *   **Reproducción MIDI**: Motor de audio integrado basado en *Soundfont* para una reproducción realista.
 *   **Exportación**: Genera y descarga archivos `.mid` (MIDI) y resúmenes en HTML de tus composiciones.
 *   **Almacenamiento Local**: Guarda tus frases y progresos en el navegador.
 
-## 🚀 Cómo empezar
+##  Cómo empezar
 
 Musicoli está construido con tecnologías web estándar (HTML, CSS, JS) y **no requiere instalación ni procesos de compilación**.
 
@@ -23,7 +23,7 @@ Musicoli está construido con tecnologías web estándar (HTML, CSS, JS) y **no 
 2.  Abre el archivo `index.html` en cualquier navegador web moderno (Chrome, Firefox, Edge).
 3.  ¡Empieza a componer!
 
-## 📂 Estructura del Proyecto
+##  Estructura del Proyecto
 
 *   `index.html`: Punto de entrada de la aplicación. Contiene la estructura de la interfaz.
 *   `musicoli.js`: Núcleo lógico de la aplicación. Maneja el estado (objeto `bdi`), la reproducción y la lógica de edición.
@@ -40,9 +40,10 @@ Musicoli está construido con tecnologías web estándar (HTML, CSS, JS) y **no 
 *   JavaScript (ES6+)
 *   Web Audio API
 
-## 📝 Licencia
+##  Licencia
 
 Este proyecto es de código abierto. Siéntete libre de usarlo, modificarlo y contribuir.
 
 ---
-*Creado con ❤️ y colores.*
+*Hemos usado IA Antigravity*
+
