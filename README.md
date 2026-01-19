@@ -1,6 +1,6 @@
 # Musicoli 🎵🎨
 
-**Musicoli** es una herramienta web para la composición basada en compases, enfocada en la independencia de voces y la visualización mediante colores. Permite componer, editar y reproducir música polifónica directamente desde el navegador.
+**Musicoli** es una herramienta web para la composición musical basada en compases, enfocada en la independencia de voces, el tarareo y la visualización mediante colores. Permite componer, editar y reproducir música polifónica directamente desde el navegador.
 
 ##  Características Principales
 
@@ -46,5 +46,6 @@ Este proyecto es de código abierto. Siéntete libre de usarlo, modificarlo y co
 
 ---
 *Hemos usado IA Antigravity*
+
 
 
