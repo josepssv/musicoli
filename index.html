@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en" class="js-focus-visible" data-js-focus-visible="">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Musicoli - composer">
+  <meta name="keywords" content="Musicoli, composer, music, composer, music, composer">
+  <meta name="author" content="Musicoli">
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="stylesheet" type="text/css" href="mode-styles.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.js"></script>
+  <script src="notepad.js"></script>
+  <script src="metrica.js"></script>
+  <script src="soundfont-player.js"></script>
+  <script src="midiWriter.js"></script>
+  <script src="silaba.js"></script>
+  <script src="perci.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0">
+    </script>
+
+
+
+  <style id="notepad-style">
+    @keyframes np-blink {
+      0% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0
+      }
+
+      100% {
+        opacity: 1
+      }
+    }
+
+
+    .notepad-letter-selected {
+      outline: 2px solid rgba(0, 0, 0, 0.15);
+      box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .notepad-cursor-at {
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.5), inset 0 0 0 1px rgba(0, 123, 255, 0.3);
+    }
+
+    .notepad-newline {
+      display: block;
+      width: 0;
+      height: 0;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="theme-header"
+    style="padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <div style="font-size: 18px; font-weight: bold;">Musicoli</div>
+      <button id="empezar-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        Empezar
+      </button>
+      <button id="undo-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        ←
+      </button>
+      <button id="redo-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        →
+      </button>
+      <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;"
+        title="Borrar compás seleccionado (o último si ninguno seleccionado)">
+        🗑️
+      </button>
+      <select id="keyin" class="theme-btn scale-control"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        <option value="C" selected="">C</option>
+        <option value="C#">C#</option>
+        <option value="D">D</option>
+        <option value="D#">D#</option>
+        <option value="E">E</option>
+        <option value="F">F</option>
+        <option value="F#">F#</option>
+        <option value="G">G</option>
+        <option value="G#">G#</option>
+        <option value="A">A</option>
+        <option value="A#">A#</option>
+        <option value="B">B</option>
+      </select>
+      <button id="mayor" class="theme-btn scale-control"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        Mayor
+      </button>
+      <button id="menor" class="theme-btn scale-control"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 14px;">
+        Menor
+      </button>
+      <button id="cromatica" class="theme-btn scale-control"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 14px;">
+        Cromática
+      </button>
+    </div>
+    <div style="display: flex; gap: 0px; align-items: center;">
+
+      <span>BPM:</span>
+      <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
+        style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
+    </div>
+    <span>Compás: 4/4</span>
+    <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
+      style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+    </div>
+  </header>
+  <div id="example-container"
+    style="background-color: #666; color: white; display: flex; flex-direction:column ; gap: 10px;">
+    <div id="macoti-tracks-container" style="display: flex; flex-direction: column; gap: 0px;">
+      <!-- ROW 1: Soprano (Main Interaction) -->
+      <div class="track-row" style="display: flex; align-items: center; gap: 10px;">
+        <div id="voiceline-s" class="track-label"
+          style="font-size:11px; white-space: nowrap; width: 60px; font-weight: bold; font-family: monospace;">Soprano
+        </div>
+        <div id="notepi6"
+          style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow-x: auto; overflow-y: hidden; pointer-events: auto; flex: 1;">
+        </div>
+        <div id="visual-track-s" class="visual-track-container"
+          style="display: none; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow-x: auto; overflow-y: hidden; pointer-events: none; flex: 1; height: 12px;">
+        </div>
+      </div>
+
+      <!-- ROW 2: Contralto (Visual) -->
+      <div class="track-row" style="display: flex; align-items: center; gap: 10px; margin-top: 0px;">
+        <div id="voiceline-a" class="track-label"
+          style="font-size:11px; white-space: nowrap; width: 60px; font-weight: bold; font-family: monospace;">
+          Contralto
+        </div>
+        <div id="visual-track-a" class="visual-track-container"
+          style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow-x: auto; overflow-y: hidden; pointer-events: none; flex: 1; height: 12px;">
+        </div>
+      </div>
+
+      <!-- ROW 3: Tenor (Visual) -->
+      <div class="track-row" style="display: flex; align-items: center; gap: 10px; margin-top: 0px;">
+        <div id="voiceline-t" class="track-label"
+          style="font-size:11px; white-space: nowrap; width: 60px; font-weight: bold; font-family: monospace;">Tenor
+        </div>
+        <div id="visual-track-t" class="visual-track-container"
+          style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow-x: auto; overflow-y: hidden; pointer-events: none; flex: 1; height: 12px;">
+        </div>
+      </div>
+
+      <!-- ROW 4: Bajo (Visual) -->
+      <div class="track-row" style="display: flex; align-items: center; gap: 10px; margin-top: 0px;">
+        <div id="voiceline-b" class="track-label"
+          style="font-size:11px; white-space: nowrap; width: 60px; font-weight: bold; font-family: monospace;">Bajo
+        </div>
+        <div id="visual-track-b" class="visual-track-container"
+          style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow-x: auto; overflow-y: hidden; pointer-events: none; flex: 1; height: 12px;">
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
+      <midi-visualizer id="staffi" type="staff" style="display: none; color:#000;"> </midi-visualizer>
+      <section id="section15" style="flex: 1; min-width: 300px;color: #000;"><midi-player id="player15" src=""
+          sound-font="" visualizer="#staffi" style="display:block;" data-js-focus-visible=""></midi-player>
+        <div style="display: inline-flex; align-items: center; gap: 10px; margin-left: 10px;">
+          <button id="loop-btn" class="theme-btn"
+            style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+            🔁 Loop OFF
+          </button>
+          <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
+            <a id="title-display"
+              style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
+              title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
+            <span style="display:inline-flex; align-items: center; gap: 2px;">
+              <input id="title-input" type="text"
+                style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
+                value="emotion">
+              <span id="title-extension"
+                style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
+            </span>
+            <a id="expi" style="display:none;"></a>
+          </span>
+          <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
+                        cursor:pointer;
+                        text-decoration:underline;
+                        color:#ddd;
+                        font-family: monospace;
+                        font-size: 14px;" data-listener-attached="true">
+            Resumen
+          </span>
+        </div>
+      </section>
+      <button id="frase-btn" class="theme-btn-accent"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        Frase
+      </button>
+      <input type="text" id="tarareo-input" value="ta ta ta ta"
+        style="width: 250px; font-family: monospace; font-size: 14px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
+      <button id="tarareo-submit" class="theme-btn"
+        style="border: none; padding: 6px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">→</button>
+    </div>
+
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active">Ritmo</button>
+      <button id="mode-tarareo"
+        style="padding: 8px 16px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;display:none;">Tarareo</button>
+      <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad">Tonalidad</button>
+      <button id="mode-dinamica" class="mode-btn mode-btn-dinamica">Dinámica</button>
+      <button id="mode-lyrics" class="mode-btn mode-btn-lyrics">Lyrics</button>
+
+      <!-- Mode Toggle Button (Dependent/Independent) - Circular with lock icon -->
+      <span id="html-mode-toggle"
+        style="display: inline-block; width: 32px; height: 32px; border-radius: 50%; background: #4caf50; margin-left: 15px; cursor: pointer; border: 2px solid #333; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 16px;"
+        title="Modo Dependiente: Las armonías se generan automáticamente&#10;Click para cambiar a Independiente">
+        <span id="html-mode-icon">🔗</span>
+      </span>
+
+
+
+      <label style="font-family: monospace; font-size: 12px; margin-right: 5px;">Editar:</label>
+      <select id="voice-selector"
+        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+        <option value="s" selected="">Soprano</option>
+        <option value="a">Contralto</option>
+        <option value="t">Tenor</option>
+        <option value="b">Bajo</option>
+      </select>
+
+
+
+      <label style="font-family: monospace; font-size: 12px; margin-left: 15px; margin-right: 5px;">Reproducir:</label>
+      <select id="playback-selector"
+        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+        <option value="s" selected="">Soprano</option>
+        <option value="a">Contralto</option>
+        <option value="t">Tenor</option>
+        <option value="b">Bajo</option>
+        <option value="s,a">Soprano + Alto</option>
+        <option value="s,t">Soprano + Tenor</option>
+        <option value="s,b">Soprano + Bajo</option>
+        <option value="a,t">Alto + Tenor</option>
+        <option value="a,b">Alto + Bajo</option>
+        <option value="t,b">Tenor + Bajo</option>
+        <option value="s,a,t">Soprano + Alto + Tenor</option>
+        <option value="s,a,b">Soprano + Alto + Bajo</option>
+        <option value="s,t,b">Soprano + Tenor + Bajo</option>
+        <option value="a,t,b">Alto + Tenor + Bajo</option>
+        <option value="s,a,t,b">Todos</option>
+      </select>
+      <select id="instrument-selector"
+        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+        <optgroup label="Piano">
+          <option value="1" selected>1 - Acoustic Grand Piano</option>
+          <option value="2">2 - Bright Acoustic Piano</option>
+          <option value="3">3 - Electric Grand Piano</option>
+          <option value="4">4 - Honky-tonk Piano</option>
+          <option value="5">5 - Electric Piano 1</option>
+          <option value="6">6 - Electric Piano 2</option>
+          <option value="7">7 - Harpsichord</option>
+          <option value="8">8 - Clavinet</option>
+        </optgroup>
+        <optgroup label="Chromatic Percussion">
+          <option value="9">9 - Celesta</option>
+          <option value="10">10 - Glockenspiel</option>
+          <option value="11">11 - Music Box</option>
+          <option value="12">12 - Vibraphone</option>
+          <option value="13">13 - Marimba</option>
+          <option value="14">14 - Xylophone</option>
+        </optgroup>
+        <optgroup label="Guitar">
+          <option value="25">25 - Acoustic Guitar (nylon)</option>
+          <option value="26">26 - Acoustic Guitar (steel)</option>
+          <option value="27">27 - Electric Guitar (jazz)</option>
+          <option value="28">28 - Electric Guitar (clean)</option>
+          <option value="29">29 - Electric Guitar (muted)</option>
+          <option value="30">30 - Overdriven Guitar</option>
+          <option value="31">31 - Distortion Guitar</option>
+        </optgroup>
+        <optgroup label="Bass">
+          <option value="33">33 - Acoustic Bass</option>
+          <option value="34">34 - Electric Bass (finger)</option>
+          <option value="35">35 - Electric Bass (pick)</option>
+          <option value="36">36 - Fretless Bass</option>
+        </optgroup>
+        <optgroup label="Strings">
+          <option value="41">41 - Violin</option>
+          <option value="42">42 - Viola</option>
+          <option value="43">43 - Cello</option>
+          <option value="44">44 - Contrabass</option>
+          <option value="46">46 - Pizzicato Strings</option>
+          <option value="47">47 - Orchestral Harp</option>
+        </optgroup>
+        <optgroup label="Brass">
+          <option value="57">57 - Trumpet</option>
+          <option value="58">58 - Trombone</option>
+          <option value="59">59 - Tuba</option>
+          <option value="60">60 - Muted Trumpet</option>
+          <option value="61">61 - French Horn</option>
+        </optgroup>
+        <optgroup label="Reed">
+          <option value="65">65 - Soprano Sax</option>
+          <option value="66">66 - Alto Sax</option>
+          <option value="67">67 - Tenor Sax</option>
+          <option value="68">68 - Baritone Sax</option>
+          <option value="69">69 - Oboe</option>
+          <option value="70">70 - English Horn</option>
+          <option value="71">71 - Bassoon</option>
+          <option value="72">72 - Clarinet</option>
+        </optgroup>
+        <optgroup label="Pipe">
+          <option value="73">73 - Piccolo</option>
+          <option value="74">74 - Flute</option>
+          <option value="75">75 - Recorder</option>
+          <option value="76">76 - Pan Flute</option>
+        </optgroup>
+        <optgroup label="Percussion">
+          <option value="perc">🥁 Percussion (Channel 10)</option>
+        </optgroup>
+      </select>
+    </div>
+
+
+
+    <div id="editor-tonalidad" class="mode-editor editor-tonalidad" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 class="mode-editor-title">Editor de Paleta de Tonalidades</h3><select
+          style="padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
+          <option value="RGB">RGB</option>
+          <option value="GREY_SCALE">GREY_SCALE</option>
+          <option value="HSB">HSB</option>
+          <option value="CMYK">CMYK</option>
+          <option value="CMYKB">CMYKB</option>
+        </select>
+        <!-- Harmonize button -->
+
+      </div>
+      <!-- Harmonize button/palette moved here for better visibility -->
+      <!-- Harmonize button/palette moved here for better visibility -->
+      <div id="harmonize-container"
+        style="margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h4
+          style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
+          🎹 ZONA DE ARMONIZACIÓN
+        </h4>
+        <p style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 10px;">
+          Haz clic aquí para generar acompañamiento:
+        </p>
+        <button id="harmonize-btn" class="theme-btn"
+          style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">
+          ✨ Armonizar desde esta voz
+        </button>
+        <button id="harmonize-scale-btn" class="theme-btn"
+          style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">
+          🎼 Ajustar a escala
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">
+        <div></div>
+      </div>
+    </div>
+
+    <div id="editor-tonalidad-ladder" style="display: inline;"></div>
+    <div id="rhythm-color-info-div"
+      style="display: block; align-items: center; gap: 1px; margin: 0px; font-size: 11px; font-family: monospace; background: transparent; padding: 1px; border-radius: 4px; border: none;">
+    </div>
+
+    <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;">
+    </div>
+    <div id="editor-tarareo" style="padding: 15px; background: #f3e5f5; border-radius: 8px; display: none;"></div>
+    <div id="editor-lyrics" class="mode-editor editor-lyrics" style="display: none;">
+      <div style="margin-bottom: 15px;">
+        <h3 class="mode-editor-title">Editor de Lyrics</h3>
+      </div>
+      <div style="padding: 20px; text-align: center; color: #1a1a1a; font-family: monospace;">Configuración
+        de lyrics próximamente...</div>
+    </div>
+
+    <div id="editor-dinamica" style="display: none;">
+      <h3 style="margin-top: 5px; margin-bottom: 20px; font-family: monospace; color: #333;">🎚️ Mezclador de Volúmenes
+      </h3>
+
+      <!-- Master Volume -->
+      <div
+        style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #90caf9; margin-bottom: 20px;">
+        <label for="master-volume"
+          style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 10px; color: #1565c0; font-size: 14px;">
+          🔊 Volumen General
+        </label>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <span style="font-family: monospace; font-size: 12px; color: #666;">Min</span>
+          <input type="range" id="master-volume" min="0" max="100" value="50" oninput="setMasterVolume(this.value)"
+            style="flex-grow: 1; cursor: pointer; height: 8px; border-radius: 4px; background: #2196F3; appearance: auto;">
+          <span style="font-family: monospace; font-size: 12px; color: #666;">Max</span>
+        </div>
+      </div>
+
+      <!-- Track Volumes -->
+      <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
+        <label
+          style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 15px; color: #e65100; font-size: 14px;">
+          🎛️ Mezcla por Pistas
+        </label>
+        <div style="display: flex; justify-content: space-around; text-align: center;">
+
+          <!-- Soprano -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <input type="range" orient="vertical" min="0" max="127" value="100"
+              oninput="updateTrackVolume('s', this.value)"
+              style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+            <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">S</span>
+            <span style="font-family: monospace; color: #666; font-size: 10px;">Soprano</span>
+          </div>
+
+          <!-- Contralto -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <input type="range" orient="vertical" min="0" max="127" value="100"
+              oninput="updateTrackVolume('a', this.value)"
+              style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+            <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">A</span>
+            <span style="font-family: monospace; color: #666; font-size: 10px;">Contralto</span>
+          </div>
+
+          <!-- Tenor -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <input type="range" orient="vertical" min="0" max="127" value="100"
+              oninput="updateTrackVolume('t', this.value)"
+              style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+            <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">T</span>
+            <span style="font-family: monospace; color: #666; font-size: 10px;">Tenor</span>
+          </div>
+
+          <!-- Bajo -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <input type="range" orient="vertical" min="0" max="127" value="100"
+              oninput="updateTrackVolume('b', this.value)"
+              style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+            <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">B</span>
+            <span style="font-family: monospace; color: #666; font-size: 10px;">Bajo</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="codigi" style="display: block;">
+      <label style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 5px;">DBI
+        (JSON):</label>
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <textarea id="bdi-display"
+          style="width: 100%; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+        <button id="update-bdi-btn"
+          style="padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
+          Actualizar
+        </button>
+      </div>
+    </div>
+    <div id="vari">
+      <pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">[]</pre>
+    </div>
+    <br> <br>
+    <div id="jasi">
+      {"index":0,"char":"M","type":"character","color":"hsl(0, 100%,
+      50%)","rgb":null,"padding":{"y":12.5,"x":25},"margin":0,"borderRadius":50,"border":{"width":0,"color":"#000000"},"textColor":"rgb(0,
+      255, 255)"}
+    </div>
+    <button id="export-img-6" class="export-button" style="display: block;">Exportar a PNG</button>
+  </div>
+
+
+  <div id="scale-info-footer"
+    style="position: fixed; bottom: 0; left: 0; width: 100%; background: #aaa; border-top: 1px solid #ccc; padding: 10px; font-family: monospace; font-size: 12px; color: #333; z-index: 1000; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 5px;">
+    <div id="cursorPos" style="position:absolute;top:0;left:4px;">0</div>
+    <div id="nnoti" style="position:absolute;top:0;left:60px;">1</div>
+    <div id="scale-info-text" style="margin-top:10px;">
+    </div>
+    <div id="frases-buttons-container" style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+      <div style="display: inline-flex; align-items: center;"></div>
+    </div>
+  </div>
+
+  <!-- MIDI Editor Modal -->
+  <div id="midi-editor-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 10000; pointer-events: none;">
+    <div id="midi-editor-content"
+      style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); max-width: 500px; width: 90%; pointer-events: auto;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin: -20px -20px 15px -20px; padding: 15px 20px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
+        <h3 id="midi-editor-header"
+          style="margin: 0; font-family: monospace; color: #333; cursor: move; user-select: none; flex: 1;">📝 Editar
+          MIDI
+          del Compás <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span></h3>
+        <button id="midi-editor-close"
+          style="background: transparent; border: none; font-size: 28px; color: #999; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin: -10px -15px -10px 10px; flex-shrink: 0;"
+          onmouseover="this.style.background='#e0e0e0'; this.style.color='#333';"
+          onmouseout="this.style.background='transparent'; this.style.color='#999';" title="Cerrar">×</button>
+      </div>
+      <div id="midi-inputs-container"
+        style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
+        <!-- Inputs will be dynamically generated here -->
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="midi-editor-cancel"
+          style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
+          Cancelar
+        </button>
+        <button id="midi-editor-accept"
+          style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
+          Aplicar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="musicoli.js"></script>
+  <script src="mode-toggle-listener.js"></script>
+  <script src="voice-selector-listener.js"></script>
+
+
+</body>
+
+</html>

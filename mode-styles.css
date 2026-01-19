@@ -1,0 +1,368 @@
+/* ============================================
+   MODE STYLES - Sistema Unificado de Estilos
+   ============================================ */
+
+/* Variables CSS para cada modo basadas en las paletas de las imágenes */
+:root {
+  /* RITMO - Grises (001.png) */
+  --ritmo-primary: #4a4a4a;
+  --ritmo-secondary: #6b6b6b;
+  --ritmo-bg: #2a2a2a;
+  --ritmo-bg-light: #3a3a3a;
+  --ritmo-text: #d0d0d0;
+  --ritmo-text-dark: #f0f0f0;
+  --ritmo-border: #5a5a5a;
+  --ritmo-accent: #7a7a7a;
+  --ritmo-hover: #5a5a5a;
+
+  /* TONALIDAD/MELODÍA - Arcoíris/Multicolor (002.png) - Naranja más oscuro */
+  --tonalidad-primary: #b8600a;
+  --tonalidad-secondary: #d97706;
+  --tonalidad-bg: linear-gradient(135deg, #fff3e0 0%, #ffe4cc 25%, #ffd4a8 50%, #ffc488 75%, #ffb366 100%);
+  --tonalidad-bg-solid: #fff3e0;
+  --tonalidad-bg-light: #fffbf0;
+  --tonalidad-text: #78350f;
+  --tonalidad-text-dark: #92400e;
+  --tonalidad-border: #ffb74d;
+  --tonalidad-accent: #fb923c;
+  --tonalidad-hover: #ea580c;
+
+  /* DINÁMICA - Azules Pastel (003.png) */
+  --dinamica-primary: #7ec8e3;
+  --dinamica-secondary: #a8d8ea;
+  --dinamica-bg: #e8f4f8;
+  --dinamica-bg-light: #f0f8fb;
+  --dinamica-text: #2c5f6f;
+  --dinamica-text-dark: #1e4a57;
+  --dinamica-border: #b8dce8;
+  --dinamica-accent: #9ad3e6;
+  --dinamica-hover: #6bb8d8;
+
+  /* LYRICS - Tonos Piel (004.png) */
+  --lyrics-primary: #d4a574;
+  --lyrics-secondary: #e6b88a;
+  --lyrics-bg: #f5e6d3;
+  --lyrics-bg-light: #faf3ea;
+  --lyrics-text: #8b6f47;
+  --lyrics-text-dark: #6b5435;
+  --lyrics-border: #e0c9a6;
+  --lyrics-accent: #ddb892;
+  --lyrics-hover: #c89968;
+}
+
+/* ============================================
+   THEME MAPPING
+   ============================================ */
+
+body.app-mode-ritmo {
+  --theme-primary: var(--ritmo-primary);
+  --theme-secondary: var(--ritmo-secondary);
+  --theme-bg: var(--ritmo-bg);
+  --theme-bg-light: #333333;
+  /* Darker header for rhythm */
+  --theme-text: var(--ritmo-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--ritmo-border);
+  --theme-accent: var(--ritmo-accent);
+  --theme-hover: var(--ritmo-hover);
+}
+
+body.app-mode-tonalidad {
+  --theme-primary: var(--tonalidad-primary);
+  --theme-secondary: var(--tonalidad-secondary);
+  --theme-bg: var(--tonalidad-bg-solid);
+  --theme-bg-light: var(--tonalidad-secondary);
+  /* Header color */
+  --theme-text: var(--tonalidad-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--tonalidad-border);
+  --theme-accent: var(--tonalidad-accent);
+  --theme-hover: var(--tonalidad-hover);
+}
+
+body.app-mode-dinamica {
+  --theme-primary: var(--dinamica-primary);
+  --theme-secondary: var(--dinamica-secondary);
+  --theme-bg: var(--dinamica-bg);
+  --theme-bg-light: var(--dinamica-text);
+  /* Header color */
+  --theme-text: var(--dinamica-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--dinamica-border);
+  --theme-accent: var(--dinamica-accent);
+  --theme-hover: var(--dinamica-hover);
+  --dinamica-text-light: #e0f7fa;
+  /* Light text for dark backgrounds */
+}
+
+body.app-mode-lyrics {
+  --theme-primary: var(--lyrics-primary);
+  --theme-secondary: var(--lyrics-secondary);
+  --theme-bg: var(--lyrics-bg);
+  --theme-bg-light: var(--lyrics-text-dark);
+  /* Header color */
+  --theme-text: var(--lyrics-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--lyrics-border);
+  --theme-accent: var(--lyrics-accent);
+  --theme-hover: var(--lyrics-hover);
+}
+
+/* ============================================
+   GENERIC THEME CLASSES
+   ============================================ */
+
+.theme-header {
+  background-color: var(--theme-bg-light) !important;
+  color: var(--theme-text-inverse) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.theme-btn {
+  background-color: var(--theme-secondary) !important;
+  color: var(--theme-text-inverse) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease;
+}
+
+.theme-btn:hover {
+  background-color: var(--theme-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.theme-btn-accent {
+  background-color: var(--theme-accent) !important;
+  color: var(--theme-text-inverse) !important;
+}
+
+.theme-btn-danger {
+  /* Keep danger red but maybe muted or styled differently? 
+      For now let's make it theme-based but distinct if needed, 
+      or just use the theme. User requested harmonization.
+      Let's use a variation or just the theme primary.
+   */
+  background-color: var(--theme-primary) !important;
+  filter: brightness(0.9);
+}
+
+
+/* ============================================
+   BOTONES DE MODO
+   ============================================ */
+
+.mode-btn {
+  padding: 8px 16px;
+  font-family: monospace;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  border: 2px solid;
+}
+
+/* Ritmo Button */
+.mode-btn-ritmo {
+  background: var(--ritmo-secondary);
+  color: var(--ritmo-text);
+  border-color: var(--ritmo-border);
+}
+
+.mode-btn-ritmo:hover {
+  background: var(--ritmo-hover);
+}
+
+.mode-btn-ritmo.active {
+  background: var(--ritmo-primary);
+  color: var(--ritmo-text-dark);
+  border-color: var(--ritmo-primary);
+  box-shadow: 0 0 0 3px rgba(44, 44, 44, 0.2);
+}
+
+/* Tonalidad Button */
+.mode-btn-tonalidad {
+  background: var(--tonalidad-bg);
+  color: var(--tonalidad-text);
+  border-color: var(--tonalidad-border);
+}
+
+.mode-btn-tonalidad:hover {
+  background: var(--tonalidad-accent);
+  color: white;
+}
+
+.mode-btn-tonalidad.active {
+  background: var(--tonalidad-primary);
+  color: white;
+  border-color: var(--tonalidad-primary);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+}
+
+/* Dinámica Button */
+.mode-btn-dinamica {
+  background: var(--dinamica-bg);
+  color: var(--dinamica-text);
+  border-color: var(--dinamica-border);
+}
+
+.mode-btn-dinamica:hover {
+  background: var(--dinamica-accent);
+  color: white;
+}
+
+.mode-btn-dinamica.active {
+  background: var(--dinamica-primary);
+  color: white;
+  border-color: var(--dinamica-primary);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+}
+
+/* Lyrics Button */
+.mode-btn-lyrics {
+  background: var(--lyrics-bg);
+  color: var(--lyrics-text);
+  border-color: var(--lyrics-border);
+}
+
+.mode-btn-lyrics:hover {
+  background: var(--lyrics-accent);
+  color: white;
+}
+
+.mode-btn-lyrics.active {
+  background: var(--lyrics-primary);
+  color: white;
+  border-color: var(--lyrics-primary);
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+/* ============================================
+   EDITORES DE MODO
+   ============================================ */
+
+.mode-editor {
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.mode-editor-title {
+  margin: 0 0 15px 0;
+  font-family: monospace;
+}
+
+/* Editor de Ritmo */
+.editor-ritmo {
+  background: var(--ritmo-bg-light);
+  border-color: var(--ritmo-border);
+  color: var(--ritmo-text);
+}
+
+.editor-ritmo .mode-editor-title {
+  color: var(--ritmo-text-dark);
+}
+
+/* Editor de Tonalidad */
+.editor-tonalidad {
+  background: var(--tonalidad-bg-solid);
+  border-color: var(--tonalidad-border);
+  color: var(--tonalidad-text);
+}
+
+.editor-tonalidad .mode-editor-title {
+  color: var(--tonalidad-text-dark);
+}
+
+/* Editor de Dinámica */
+.editor-dinamica {
+  background: var(--dinamica-bg);
+  border-color: var(--dinamica-border);
+  color: var(--dinamica-text);
+}
+
+.editor-dinamica .mode-editor-title {
+  color: var(--dinamica-text-dark);
+}
+
+/* Editor de Lyrics */
+.editor-lyrics {
+  background: var(--lyrics-bg);
+  border-color: var(--lyrics-border);
+  color: var(--lyrics-text);
+}
+
+.editor-lyrics .mode-editor-title {
+  color: var(--lyrics-text-dark);
+}
+
+/* ============================================
+   CONTROLES ESPECÍFICOS DE CADA MODO
+   ============================================ */
+
+/* Controles de Dinámica */
+.editor-dinamica #dinamica-controls {
+  background: var(--dinamica-bg-light);
+  border-color: var(--dinamica-accent);
+}
+
+.editor-dinamica .dinamica-preset {
+  background: var(--dinamica-bg-light);
+  border-color: var(--dinamica-accent);
+  color: var(--dinamica-text);
+}
+
+.editor-dinamica .dinamica-preset:hover {
+  background: var(--dinamica-accent);
+  color: white;
+}
+
+/* ============================================
+   RHYTHM-ONLY BUTTONS
+   ============================================ */
+
+/* Hide rhythm-only buttons when not in rhythm mode */
+body:not(.app-mode-ritmo) .rhythm-only {
+  visibility: hidden;
+}
+
+/* Hide scale controls in Lyrics and Dinamica modes */
+body.app-mode-lyrics .scale-control,
+body.app-mode-dinamica .scale-control {
+  display: none !important;
+}
+
+/* ============================================
+   TRACK MATRIX CONTAINER - Mode Colors
+   ============================================ */
+
+/* Default track matrix styling */
+#track-matrix-container {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  border: 2px solid;
+}
+
+/* Ritmo mode */
+body.app-mode-ritmo #track-matrix-container {
+  background: var(--ritmo-bg-light) !important;
+  border-color: var(--ritmo-border) !important;
+}
+
+/* Tonalidad mode */
+body.app-mode-tonalidad #track-matrix-container {
+  background: var(--tonalidad-bg-solid) !important;
+  border-color: var(--tonalidad-border) !important;
+}
+
+/* Dinámica mode */
+body.app-mode-dinamica #track-matrix-container {
+  background: var(--dinamica-bg) !important;
+  border-color: var(--dinamica-border) !important;
+}
+
+/* Lyrics mode */
+body.app-mode-lyrics #track-matrix-container {
+  background: var(--lyrics-bg) !important;
+  border-color: var(--lyrics-border) !important;
+}

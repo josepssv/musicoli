@@ -1,0 +1,375 @@
+////////////////////
+let trilini = [];
+let trili = [];
+let trilipi = [];
+
+// Generate silence variations for a rhythm pattern
+// Groups variations by number of silences
+// Example: [4,4,4,4] with 1 silence -> [[4,4,4,-4], [4,4,-4,4], [4,-4,4,4], [-4,4,4,4]]
+function generateSilenceVariations(pattern, silenceCount = 1) {
+    const variations = [];
+    const n = pattern.length;
+
+    // Generate all combinations of positions for silences
+    function getCombinations(arr, k) {
+        const result = [];
+
+        function backtrack(start, current) {
+            if (current.length === k) {
+                result.push([...current]);
+                return;
+            }
+
+            for (let i = start; i < arr.length; i++) {
+                current.push(i);
+                backtrack(i + 1, current);
+                current.pop();
+            }
+        }
+
+        backtrack(0, []);
+        return result;
+    }
+
+    // Get all combinations of positions where silences should be
+    const silencePositions = getCombinations([...Array(n).keys()], silenceCount);
+
+    // For each combination, create a variation
+    for (const positions of silencePositions) {
+        const variation = [...pattern];
+        // Make selected positions negative (silence)
+        for (const pos of positions) {
+            variation[pos] = -Math.abs(variation[pos]);
+        }
+        variations.push(variation);
+    }
+
+    return variations;
+}
+
+// Generates all combinatorial possibilities with negative numbers (rests)
+// for a given pattern.
+// matches behavior requested: resti([25, 4, 4])
+function resti(pattern) {
+    let allVariations = [];
+    // Iterate from 1 silence up to all silences (pattern.length)
+    for (let count = 1; count <= pattern.length; count++) {
+        const variations = generateSilenceVariations(pattern, count);
+        allVariations.push(...variations);
+    }
+    return allVariations;
+}
+
+function inimetri(compi = [4, 4]) {
+    if (compi[0] == 2) {
+        trili = [];
+        trilini = [];
+        trili[0] = [];
+        trilini[0] = [];
+        trili[1] = [[2]];
+        trili[2] = [
+            [35, 4],
+            [3, 3],
+            [4, 35],
+        ];
+        trili[3] = [
+            [3, 4, 4],
+            [4, 3, 4],
+            [4, 4, 3],
+        ];
+        trili[4] = [[4, 4, 4, 4]];
+        for (let a = 1; a < trili.length; a++) {
+            trilini[a] = restini(trili[a]);
+        }
+    }
+    if (compi[0] == 3) {
+        trili = [];
+        trilini = [];
+        trili[0] = [];
+        trilini[0] = [];
+        trili[1] = [[25]];
+        trili[2] = [
+            [2, 3],
+            [35, 35],
+            [3, 2],
+        ];
+        trili[3] = [
+            [2, 4, 4],
+            [35, 3, 4],
+            [35, 4, 3],
+            [3, 35, 4],
+            [3, 3, 3],
+            [3, 4, 35],
+            [4, 2, 4],
+            [4, 35, 3],
+            [4, 3, 35],
+            [4, 4, 2],
+        ];
+        trili[4] = [
+            [35, 4, 4, 4],
+            [3, 3, 4, 4],
+            [3, 4, 3, 4],
+            [3, 4, 4, 3],
+            [4, 35, 4, 4],
+            [4, 3, 3, 4],
+            [4, 3, 4, 3],
+            [4, 4, 35, 4],
+            [4, 4, 3, 3],
+            [4, 4, 4, 35],
+        ];
+        trili[5] = [
+            [3, 4, 4, 4, 4],
+            [4, 3, 4, 4, 4],
+            [4, 4, 3, 4, 4],
+            [4, 4, 4, 3, 4],
+            [4, 4, 4, 4, 3],
+        ];
+        trili[6] = [[4, 4, 4, 4, 4, 4]];
+
+        for (let a = 1; a < trili.length; a++) {
+            trilini[a] = restini(trili[a]);
+        }
+    }
+
+    if (compi[0] == 4) {
+        //fili[3]=[[2,1,1],[1,2,1],[1,1,2]]
+        trili = [];
+        trilini = [];
+        trili[0] = [];
+        trilini[0] = [];
+        trili[1] = [[1]];
+        trili[2] = [
+            [25, 3],
+            [2, 2],
+            [3, 25],
+        ];
+        trili[3] = [
+            [25, 4, 4],
+            [2, 35, 4],
+            [2, 3, 3],
+            [2, 4, 35],
+            [35, 2, 4],
+            [35, 35, 3],
+            [35, 3, 35],
+            [35, 4, 2],
+            [3, 2, 3],
+            [3, 35, 35],
+            [3, 3, 2],
+            [4, 25, 4],
+            [4, 2, 35],
+            [4, 35, 2],
+            [4, 4, 25],
+        ];
+        trili[4] = [
+            [2, 3, 4, 4],
+            [2, 4, 3, 4],
+            [2, 4, 4, 3],
+            [35, 35, 4, 4],
+            [35, 3, 3, 4],
+            [35, 3, 4, 3],
+            [35, 4, 35, 4],
+            [35, 4, 3, 3],
+            [35, 4, 4, 35],
+            [3, 2, 4, 4],
+            [3, 35, 3, 4],
+            [3, 35, 4, 3],
+            [3, 3, 35, 4],
+            [3, 3, 3, 3],
+            [3, 3, 4, 35],
+            [3, 4, 2, 4],
+            [3, 4, 35, 3],
+            [3, 4, 3, 35],
+            [3, 4, 4, 2],
+            [4, 2, 3, 4],
+            [4, 2, 4, 3],
+            [4, 35, 35, 4],
+            [4, 35, 3, 3],
+            [4, 35, 4, 35],
+            [4, 3, 2, 4],
+            [4, 3, 35, 3],
+            [4, 3, 3, 35],
+            [4, 3, 4, 2],
+            [4, 4, 2, 3],
+            [4, 4, 35, 35],
+            [4, 4, 3, 2],
+        ];
+        trili[5] = [
+            [2, 4, 4, 4, 4],
+            [3, 3, 3, 4, 4],
+            [3, 3, 4, 3, 4],
+            [3, 3, 4, 4, 3],
+            [3, 4, 3, 3, 4],
+            [3, 4, 3, 4, 3],
+            [3, 4, 4, 3, 3],
+            [4, 2, 4, 4, 4],
+            [4, 3, 3, 3, 4],
+            [4, 3, 3, 4, 3],
+            [4, 3, 4, 3, 3],
+            [4, 4, 2, 4, 4],
+            [4, 4, 3, 3, 3],
+            [4, 4, 4, 2, 4],
+            [4, 4, 4, 4, 2],
+        ];
+        trili[6] = [
+            [3, 3, 4, 4, 4, 4],
+            [3, 4, 3, 4, 4, 4],
+            [3, 4, 4, 3, 4, 4],
+            [3, 4, 4, 4, 3, 4],
+            [3, 4, 4, 4, 4, 3],
+            [4, 3, 3, 4, 4, 4],
+            [4, 3, 4, 3, 4, 4],
+            [4, 3, 4, 4, 3, 4],
+            [4, 3, 4, 4, 4, 3],
+            [4, 4, 3, 3, 4, 4],
+            [4, 4, 3, 4, 3, 4],
+            [4, 4, 3, 4, 4, 3],
+            [4, 4, 4, 3, 3, 4],
+            [4, 4, 4, 3, 4, 3],
+            [4, 4, 4, 4, 3, 3],
+        ];
+        trili[7] = [
+            [3, 4, 4, 4, 4, 4, 4],
+            [4, 3, 4, 4, 4, 4, 4],
+            [4, 4, 3, 4, 4, 4, 4],
+            [4, 4, 4, 3, 4, 4, 4],
+            [4, 4, 4, 4, 3, 4, 4],
+            [4, 4, 4, 4, 4, 3, 4],
+            [4, 4, 4, 4, 4, 4, 3],
+        ];
+        trili[8] = [[4, 4, 4, 4, 4, 4, 4, 4]];
+        //trili[9] = [[5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]];
+        trili[16] = [[5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]];
+
+        for (let a = 1; a < trili.length; a++) {
+            //trilini[a] = filini[a]
+            trilini[a] = restini(trili[a]);
+            trilipi[a] = trili[a];
+        }
+        //console.log(JSON.stringify(trilini[5]))
+    }
+}
+
+function restini(tri) {
+    return tri.map((fila) =>
+        fila.map((elemento) => {
+            if (elemento >= 10) {
+                let decenas = Math.floor(elemento / 10);
+                let unidades = elemento % 10;
+                return (decenas - 1) * 10 + unidades;
+            } else if (elemento <= -10) {
+                // Handle dotted rests (e.g. -25 for dotted half rest)
+                let absElemento = Math.abs(elemento);
+                let decenas = Math.floor(absElemento / 10);
+                let unidades = absElemento % 10;
+                // Apply same logic as positive but keep negative sign
+                // 25 -> 15. So -25 -> -15.
+                return -((decenas - 1) * 10 + unidades);
+            } else if (elemento < 0) {
+                // Handle simple rests (e.g. -3 for quarter rest)
+                // -3 should map to -2 (so abs(-2) = 2 -> Quarter)
+                // -4 should map to -3 (so abs(-3) = 3 -> Eighth)
+                return elemento + 1;
+            } else {
+                return elemento - 1;
+            }
+        })
+    );
+}
+
+inimetri();
+
+function convernai(cadena, sonis, duribi, numero = 4) {
+    const mapa = {
+        0: "&#xE1D2;&nbsp;&nbsp;&nbsp;", // Redonda
+        1: "&#xE1D2;&nbsp;&nbsp;&nbsp;", // Redonda (si 1 es redonda en trilipi)
+        2: "&#xE1D3;&nbsp;&nbsp;&nbsp;", // Blanca
+        25: "&#xE1D3;&nbsp;&nbsp;&nbsp;&nbsp;", // Blanca con puntillo
+        3: "&#xE1D5;&nbsp;&nbsp;&nbsp;", // Negra
+        35: "&#xE1D5;&nbsp;&nbsp;&nbsp;&nbsp;", // Negra con puntillo
+        4: "&#xE1D7;&nbsp;&nbsp;&nbsp;", // Corchea
+        45: "&#xE1D7;&nbsp;&nbsp;&nbsp;&nbsp;", // Corchea con puntillo
+        5: "&#xE1D9;&nbsp;&nbsp;&nbsp;", // Semicorchea
+        "-1": "&#xE4E3;&nbsp;&nbsp;&nbsp;", // restWhole
+        "-2": "&#xE4E4;&nbsp;&nbsp;&nbsp;", // restHalf
+        "-25": "&#xE4E4;&nbsp;&nbsp;&nbsp;&nbsp;", // restHalf dotted
+        "-3": "&#xE4E5;&nbsp;&nbsp;&nbsp;", // restQuarter
+        "-35": "&#xE4E5;&nbsp;&nbsp;&nbsp;&nbsp;", // restQuarter dotted
+        "-4": "&#xE4E6;&nbsp;&nbsp;&nbsp;", // rest8th
+        "-45": "&#xE4E6;&nbsp;&nbsp;&nbsp;&nbsp;", // rest8th dotted
+    };
+
+    const altTres = {
+        a: "&#xE1D7;&nbsp;&nbsp;&nbsp;", //sola corchea (flagged)
+        b: "", //negra code_inicio (Start beam? This might need adjustment but keeping consistent with "head" style if that's what it was)
+        // Actually, if we are beaming 4s (eighths), we want beam start/continue/end.
+        // But the user said "negras salían redondas" which implies noteheads.
+        // Let's stick to the requested mapping.
+        c: "", //corchealine_noInicio
+        d: "&nbsp;&nbsp;&nbsp;", //corchea 8th line_final
+        e: "", //semicorchealine_noInicio
+        f: "&nbsp;&nbsp;&nbsp;", //semicorchea 16th line_final
+        sa: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", //rest 0
+        sb: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", //rest 1
+        sc: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", // rest 2
+        sd: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", // rest3
+    };
+
+    let opiA = '<span class="m3 colai">';
+    let opiB = '<span class="m3 colai colei">';
+
+    let ialti = sonis.map((num) => (num === 0 ? opiB : opiA));
+    let silai = sonis.map((num) => (num === 0 ? 0 : 1));
+
+    const elementos = cadena; //cadena.split("_").map(Number);
+    //console.log('S '+JSON.stringify(sonis))
+    //console.log('D '+JSON.stringify(elementos))
+    return elementos
+        .map((num, idx, arr) => {
+            if (num === numero) {
+                // Determinamos si el número está solo
+                const anterior = arr[idx - 1];
+                const siguiente = arr[idx + 1];
+
+                if (
+                    (anterior === undefined || anterior !== numero) && // No hay el número antes
+                    (siguiente === undefined || siguiente !== numero) // No hay el número después
+                ) {
+                    if (silai[idx] == 0) {
+                        return ialti[idx] + altTres["a"] + "</span>";
+                    } else {
+                        return ialti[idx] + altTres["a"] + "</span>";
+                    }
+                } else if (
+                    anterior !== numero && // No hay el número antes
+                    siguiente === numero // Hay el número después
+                ) {
+                    //
+                    if (silai[idx] == 0) {
+                        return ialti[idx] + altTres["b"] + "</span>";
+                    } else {
+                        return ialti[idx] + altTres["b"] + "</span>";
+                    }
+                } else if (
+                    anterior === numero && // Hay el número antes
+                    (siguiente === undefined || siguiente !== numero) // No hay el número después
+                ) {
+                    if (silai[idx] == 0) {
+                        return ialti[idx] + altTres["d"] + "</span>";
+                    } else {
+                        return ialti[idx] + altTres["d"] + "</span>";
+                    }
+                } else {
+                    if (silai[idx] == 0) {
+                        return ialti[idx] + altTres["c"] + "</span>";
+                    } else {
+                        return ialti[idx] + altTres["c"] + "</span>";
+                    }
+                }
+            } else if (mapa[num.toString()] !== undefined) {
+                return ialti[idx] + mapa[num.toString()] + "</span>";
+            } else {
+                return ialti[idx] + num + "</span>"; // Si no coincide, se deja el número tal cual
+            }
+        })
+        .join("");
+}

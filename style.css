@@ -1,0 +1,272 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, Arial, sans-serif;
+  color: #000;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+}
+
+main,
+#example-container {
+  padding: 10px;
+  background-color: #555555;
+}
+
+
+
+canvas {
+  display: block;
+}
+
+@font-face {
+  font-family: "Bravura";
+  src: url("Bravura.ttf") format("woff2"), url("Bravura.ttf") format("woff"),
+    url("Bravura.ttf") format("truetype");
+}
+
+.custom-select {
+  font-feature-settings: "liga" 0, "clig" 0;
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
+  position: relative;
+  width: 130px;
+  font-family: "Bravura";
+  line-height: 1.4;
+  padding: 12px 5px;
+  display: inline-block;
+  vertical-align: middle;
+  height: 20px;
+  font-size: 32px;
+}
+
+.selected-option {
+  padding: 2px 10px;
+  border: 0px solid #ccc;
+  cursor: pointer;
+  background-color: #f9f9f9;
+  height: 30px;
+}
+
+.options {
+  display: block;
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 400px;
+  border: 0px solid #ccc;
+  border-top: none;
+  background-color: #fff;
+  list-style: none;
+  padding: 0;
+  margin: 5px;
+  z-index: 1000;
+
+}
+
+.options li {
+  font-family: "Bravura", sans-serif !important;
+  font-size: 18px;
+  height: 30px;
+  line-height: 34px;
+  padding: 2px 7px;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 0px solid #ccc;
+  align-items: center;
+  justify-content: center;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.options li:hover {
+  background-color: #f1f1f1;
+}
+
+/* Rhythm pattern buttons with silences - inverted colors */
+.options li.has-silence {
+  background-color: #000;
+  color: #fff;
+}
+
+.options li.has-silence:hover {
+  background-color: #333;
+}
+
+.custom-select.open .options {
+  display: block;
+}
+
+.m3 {
+  font-family: "Bravura", sans-serif !important;
+  font-size: 20px;
+  height: 30px;
+  line-height: 34px;
+  padding: 2px 0px;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 0px solid #ccc;
+  align-items: center;
+  justify-content: center;
+  display: inline-block;
+  overflow: hidden;
+  background-color: #2c2c2c;
+}
+
+.colai {
+  color: #ffffff;
+
+}
+
+.colei {
+  color: #888;
+}
+
+.sipi {
+  cursor: pointer;
+}
+
+/* Track Matrix Styles */
+.track-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 11px;
+  table-layout: auto;
+}
+
+.track-matrix-measure-header {
+  text-align: center;
+  font-size: 9px;
+  color: #666;
+  padding: 2px;
+  font-weight: bold;
+  background: #e0e0e0;
+  border: 1px solid #ccc;
+}
+
+.track-matrix-voice-label {
+  font-weight: bold;
+  padding: 4px 8px;
+  text-align: center;
+  background: #ddd;
+  border: 1px solid #ccc;
+  min-width: 30px;
+  font-size: 10px;
+}
+
+.track-matrix-cell {
+  min-width: 20px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #999;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.track-matrix-cell:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  position: relative;
+}
+
+.track-matrix-selected-voice {
+  outline: 3px solid #2196F3;
+  outline-offset: -3px;
+}
+
+.track-matrix-container-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+
+/* Track Matrix Styles */
+#track-matrix-container {
+  display: block;
+  margin: 10px 0;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.track-matrix-header {
+  display: flex;
+  margin-bottom: 5px;
+  padding-left: 70px;
+}
+
+.track-matrix-measure-num {
+  width: 32px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 10px;
+  color: #666;
+  font-weight: bold;
+}
+
+.track-matrix-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.track-matrix-label {
+  width: 60px;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 12px;
+  text-align: right;
+  padding-right: 10px;
+  color: #333;
+}
+
+.track-matrix-cell {
+  width: 30px;
+  height: 25px;
+  margin: 1px;
+  border: 1px solid #999;
+  cursor: pointer;
+  transition: transform 0.1s, border 0.1s;
+  box-sizing: border-box;
+}
+
+.track-matrix-cell:hover {
+  transform: scale(1.1);
+  border: 2px solid #333;
+}
+
+.track-matrix-cell.selected {
+  border: 3px solid #FF9800;
+  box-shadow: 0 0 5px rgba(255, 152, 0, 0.5);
+}
+
+.track-matrix-cell.playing {
+  border: 3px solid #4CAF50;
+  animation: pulse 0.5s infinite;
+}
+
+.track-matrix-cell.editing {
+  border: 3px dashed #2196F3;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
