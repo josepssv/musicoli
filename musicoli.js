@@ -188,67 +188,142 @@ function redoBdi() {
  * @returns {string} - CSS color string (hsl) or linear-gradient string.
  */
 function midiToColor(midiInput) {
-    if (!midiInput) return '#cccccc';
-
-    // Handle array input (polyphony)
+    // Normalize input to sorted array of valid MIDI notes
+    let notes = [];
     if (Array.isArray(midiInput)) {
-        // Filter valid notes (positive MIDI numbers)
-        const validNotes = midiInput.filter(n => typeof n === 'number' && n > 0);
-
-        if (validNotes.length === 0) return '#cccccc'; // No valid notes -> gray
-        if (validNotes.length === 1) return midiToColor(validNotes[0]); // Single note -> single color
-
-        // Multiple notes -> Create Gradient
-        // Sort notes to make gradient consistent (e.g. low to high pitch)
-        validNotes.sort((a, b) => a - b);
-
-        const colors = validNotes.map(n => midiToColor(n));
-
-        // Build linear-gradient string
-        return `linear-gradient(to right, ${colors.join(', ')})`;
+        notes = midiInput.filter(n => typeof n === 'number' && n > 0).sort((a, b) => a - b);
+    } else {
+        const n = Number(midiInput);
+        if (!isNaN(n) && n > 0) notes = [n];
     }
 
-    // Handle single number input
-    const midi = Number(midiInput);
-    if (isNaN(midi) || midi <= 0) return '#cccccc';
+    if (notes.length === 0) return '#cccccc';
 
-    // RGB Sine Wave Mapping (Pastel/Desaturated)
-    // We use a sine wave for each component (R, G, B) with different phases.
-    // Center ~200 and Width ~55 ensures values stay high (145-255), creating light/pastel colors.
+    // Helper: Map MIDI to 0-255 Value
+    // Range ~36 (C2) to ~84 (C6), extended slightly to avoid clipping too early
+    const midiToVal = (m) => Math.max(0, Math.min(255, Math.round(((m - 36) / 48) * 255)));
 
-    // Brightness Modulation based on Pitch (Low notes = Darker)
-    // Map MIDI 36 (C2) -> ~0.4 brightness
-    // Map MIDI 84 (C6) -> ~1.0 brightness
-    const minMidiBrightness = 36;
-    const maxMidiBrightness = 96;
-    let brightness = 0.4 + 0.6 * ((midi - minMidiBrightness) / (maxMidiBrightness - minMidiBrightness));
+    // POLYPHONY LOGIC
+    // 1 Note: Gray (v, v, v)
+    if (notes.length === 1) {
+        const v = midiToVal(notes[0]);
+        return `rgb(${v}, ${v}, ${v})`;
+    }
 
-    // Clamp brightness between 0.3 and 1.0
-    brightness = Math.max(0.3, Math.min(1.0, brightness));
+    // 2 Notes: RG (v1, v2, 0)
+    if (notes.length === 2) {
+        const v1 = midiToVal(notes[0]);
+        const v2 = midiToVal(notes[1]);
+        return `rgb(${v1}, ${v2}, 0)`;
+    }
 
-    const frequency = 0.3; // Controls how fast the color changes (0.1 is slow, 0.3 is moderate)
-    const center = 200;    // High center -> Lighter colors
-    const width = 55;      // Variation range
+    // 3 Notes: RGB (v1, v2, v3)
+    if (notes.length === 3) {
+        const v1 = midiToVal(notes[0]);
+        const v2 = midiToVal(notes[1]);
+        const v3 = midiToVal(notes[2]);
+        return `rgb(${v1}, ${v2}, ${v3})`;
+    }
 
-    // Apply brightness to the final RGB components
-    const r = Math.round((Math.sin(frequency * midi + 0) * width + center) * brightness);
-    const g = Math.round((Math.sin(frequency * midi + 2) * width + center) * brightness);
-    const b = Math.round((Math.sin(frequency * midi + 4) * width + center) * brightness);
+    // 4 Notes: Gradient RGB -> R00
+    if (notes.length === 4) {
+        const c1 = `rgb(${midiToVal(notes[0])}, ${midiToVal(notes[1])}, ${midiToVal(notes[2])})`;
+        const c2 = `rgb(${midiToVal(notes[3])}, 0, 0)`;
+        return `linear-gradient(to right, ${c1}, ${c2})`;
+    }
 
-    return `rgb(${r}, ${g}, ${b})`;
+    // 5 Notes: Gradient RGB -> RG0
+    if (notes.length === 5) {
+        const c1 = `rgb(${midiToVal(notes[0])}, ${midiToVal(notes[1])}, ${midiToVal(notes[2])})`;
+        const c2 = `rgb(${midiToVal(notes[3])}, ${midiToVal(notes[4])}, 0)`;
+        return `linear-gradient(to right, ${c1}, ${c2})`;
+    }
 
-    /* 
-    // OLD HSL LOGIC (Preserved for reference)
-    // Map MIDI pitch to Hue
-    const minMidi = 36;
-    const maxMidi = 84;
-    let hue = ((midi - minMidi) / (maxMidi - minMidi)) * 300;
-    hue = hue % 360;
-    if (hue < 0) hue += 360;
-    return `hsl(${Math.round(hue)}, 70%, 50%)`;
-    */
+    // 6 Notes: Gradient RGB -> RGB
+    if (notes.length === 6) {
+        const c1 = `rgb(${midiToVal(notes[0])}, ${midiToVal(notes[1])}, ${midiToVal(notes[2])})`;
+        const c2 = `rgb(${midiToVal(notes[3])}, ${midiToVal(notes[4])}, ${midiToVal(notes[5])})`;
+        return `linear-gradient(to right, ${c1}, ${c2})`;
+    }
+
+    // 7+ Notes: Gradient RGB -> RGB -> R00 (Pattern Extension)
+    if (notes.length >= 7) {
+        const c1 = `rgb(${midiToVal(notes[0])}, ${midiToVal(notes[1])}, ${midiToVal(notes[2])})`;
+        const c2 = `rgb(${midiToVal(notes[3])}, ${midiToVal(notes[4])}, ${midiToVal(notes[5])})`;
+        // For remaining notes (7th onwards), take the next logical chunk or just the 7th
+        const remaining = notes.slice(6);
+        // Simple heuristic: just use the 7th for the last stop to avoid infinite complexity
+        const v7 = midiToVal(notes[6]);
+        const c3 = `rgb(${v7}, 0, 0)`; // R00
+
+        return `linear-gradient(to right, ${c1}, ${c2}, ${c3})`;
+    }
+
+    return '#cccccc';
 }
 
+
+// ========================================
+// MIDI TO COLOR FUNCTION
+// ========================================
+
+/**
+ * Gets the color for a specific measure and voice based on its MIDI content.
+ * @param {number} measureIndex - Index of the measure
+ * @param {string} voiceKey - Voice key ('s', 'a', 't', 'b')
+ * @returns {string} - CSS color string
+ */
+function getMeasureVoiceColor(measureIndex, voiceKey) {
+    const measures = window.bdi && window.bdi.bar ? window.bdi.bar : [];
+    if (measureIndex >= measures.length) return 'transparent';
+    const measure = measures[measureIndex];
+    if (!measure) return '#cccccc';
+
+    // 1. Find the specific voice data
+    let voiceData;
+    if (measure.voci && Array.isArray(measure.voci)) {
+        // Standard structure: voci is an array of objects {nami: 's', nimidi: [...], ...}
+        voiceData = measure.voci.find(v => v.nami === voiceKey);
+    } else if (measure.voci) {
+        // Legacy/Alternative structure: voci is an object { 's': {...}, ... }
+        voiceData = measure.voci[voiceKey];
+    }
+
+    // 2. If no voice data or no notes, return gray
+    if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
+        return '#cccccc';
+    }
+
+    // 3. Calculate color from MIDI notes
+    // Filter out 0 or negative values (rests/placeholders)
+    const notes = voiceData.nimidi.filter(n => typeof n === 'number' && n > 0);
+
+    if (notes.length === 0) return '#cccccc';
+
+    return midiToColor(notes);
+}
+
+/**
+ * Applies the MIDI coloring logic to the global Notepad instance (np6/notepi6)
+ */
+function applyNotepadColoring() {
+    if (!window.np6) return;
+
+    // Get current voice from selector or global variable
+    const voiceSelector = document.getElementById('voice-selector');
+    const currentVoice = voiceSelector ? voiceSelector.value : (window.currentVoice || 's');
+
+    console.log(`🎨 applyNotepadColoring for voice: ${currentVoice}`);
+
+    // Set the color function on the Notepad
+    window.np6.setColorFunc((char, index) => {
+        // Notepad index corresponds to measure index in this context (one span per measure)
+        return getMeasureVoiceColor(index, currentVoice);
+    });
+
+    // Force a recolor
+    window.np6.recolor();
+}
 
 // ========================================
 // VISUAL TRACK MATRIX FUNCTIONS (NEW LAYOUT)
@@ -292,6 +367,9 @@ function updateTrackLayout(currentVoice) {
             }
         }
     });
+
+    // 3. Update Notepad coloring to match new voice
+    applyNotepadColoring();
 }
 
 /**
@@ -299,11 +377,12 @@ function updateTrackLayout(currentVoice) {
  * synchronizing width with Notepad
  */
 function renderVisualTracks() {
-    console.log('🎨 Rendering visual tracks...');
+    console.log('🎨 renderVisualTracks CALLED');
 
     // Get current voice to exclude it
     const voiceSelector = document.getElementById('voice-selector');
     const currentVoice = voiceSelector ? voiceSelector.value : 's';
+    console.log(`   -> Current Voice: ${currentVoice}`);
 
     // Ensure layout is correct (idempotent)
     updateTrackLayout(currentVoice);
@@ -317,7 +396,10 @@ function renderVisualTracks() {
     };
 
     // Sanity check
-    if (!containers['s']) return;
+    if (!containers['s']) {
+        console.warn('⚠️ Visual track containers not found!');
+        return;
+    }
 
     // Reset styles for ALL containers
     Object.values(containers).forEach(c => {
@@ -329,36 +411,29 @@ function renderVisualTracks() {
         c.style.paddingBottom = '0px';
         c.style.lineHeight = '0';
         c.style.fontSize = '0px';
+        // Explicitly ensure display is flex unless hidden by updateTrackLayout logic (which sets display: none for active)
+        // updateTrackLayout already handles showing/hiding.
     });
 
     // Check if np6/BDI ready
-    if (!window.np6 || !window.np6.letterNodes || window.np6.letterNodes.length === 0) return;
+    if (!window.np6 || !window.np6.letterNodes || window.np6.letterNodes.length === 0) {
+        console.warn('⚠️ Notepad (np6) not ready or empty. Retrying in 100ms...');
+        setTimeout(renderVisualTracks, 100);
+        return;
+    }
+    console.log(`   -> Notepad Ready. LetterNodes: ${window.np6.letterNodes.length}`);
+
     const measures = window.bdi && window.bdi.bar ? window.bdi.bar : [];
+
 
     // Get widths from Notepad
     const spanWidths = window.np6.getSpanWidths();
     const nodes = window.np6.letterNodes.filter(n => n.tagName !== 'BR');
 
-    // Helper: Get Color (NOW USES midiToColor)
+    // Helper: Get Color (Calculates from MIDI notes using algorithm)
+    // NOW USING GLOBAL FUNCTION getMeasureVoiceColor
     const getVoiceColor = (measureIndex, voiceKey) => {
-        if (measureIndex >= measures.length) return 'transparent';
-        const measure = measures[measureIndex];
-        if (!measure || !measure.voci) return '#cccccc';
-
-        // Support array structure only effectively
-        let voiceData;
-        if (Array.isArray(measure.voci)) {
-            voiceData = measure.voci.find(v => v.nami === voiceKey);
-        } else {
-            voiceData = measure.voci[voiceKey];
-        }
-
-        if (!voiceData || !voiceData.nimidi) return '#cccccc';
-        const notes = voiceData.nimidi.filter(v => v > 0);
-        if (notes.length === 0) return '#cccccc';
-
-        // Use the new midiToColor function
-        return midiToColor(notes);
+        return getMeasureVoiceColor(measureIndex, voiceKey);
     };
 
     // Iterate measures/nodes
@@ -376,12 +451,18 @@ function renderVisualTracks() {
             const container = containers[key];
             if (!container) return;
 
-            const span = document.createElement('div');
+            const span = document.createElement('span');
+            // Ensure box-sizing is border-box so padding/border doesn't add width
+            span.style.boxSizing = 'border-box';
+
             span.style.width = width + 'px';
             span.style.minWidth = width + 'px';
             span.style.height = '100%';
-            span.style.marginLeft = marginLeft;
-            span.style.marginRight = marginRight;
+
+            // Remove lateral margins to compress tracks
+            span.style.marginLeft = '0px';
+            span.style.marginRight = '0px';
+
             span.style.marginTop = '0px';
             span.style.marginBottom = '0px';
             span.style.display = 'inline-block';
@@ -449,6 +530,9 @@ function updateAfterBdiChange() {
     } else {
         console.error('❌ [DIAGNOSTIC] window.applyTextLayer function not found!');
     }
+
+    // Update Notepad Coloring
+    applyNotepadColoring();
 
     // Update MIDI player with new data
     if (typeof window.traki !== 'undefined' && window.traki.length > 0) {
@@ -7683,8 +7767,16 @@ function getSelectedTonesMidi() {
 window.getSelectedTonesMidi = getSelectedTonesMidi;
 
 
+// Caches to prevent API flooding
+const translationCache = new Map();
+const colorApiCache = new Map();
+
 // Translate text from English to Spanish using Google Translate API
 async function traducirOnline(text) {
+    if (translationCache.has(text)) {
+        return translationCache.get(text);
+    }
+
     // Codificamos el texto para la URL (ej. "Dark Olive Green" -> "Dark%20Olive%20Green")
     const encodedText = encodeURIComponent(text);
     // URL del servicio de traducción (inglés 'en' a español 'es')
@@ -7697,7 +7789,9 @@ async function traducirOnline(text) {
         // El resultado de la traducción está típicamente en data[0][0][0]
         // Ejemplo: [['Verde oliva oscuro'], 'Dark Olive Green', null, null, 1, null, [['Dark Olive Green']]]
         if (data && data[0] && data[0][0] && data[0][0][0]) {
-            return data[0][0][0];
+            const result = data[0][0][0];
+            translationCache.set(text, result);
+            return result;
         }
         return text; // Devolver el original si la traducción falla
     } catch (error) {
@@ -7707,17 +7801,45 @@ async function traducirOnline(text) {
 }
 
 // Fetch color name from thecolorapi
+// Fetch color name from thecolorapi
 async function consulti(r, g, b) {
+    const key = `${r},${g},${b}`;
+    if (colorApiCache.has(key)) {
+        return colorApiCache.get(key);
+    }
+
     const url = `https://www.thecolorapi.com/id?rgb=rgb(${r},${g},${b})`;
     try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Error en la red: ${response.statusText}`);
+
+        // Check if response is OK
+        if (!response.ok) {
+            console.warn(`⚠️ TheColorAPI returned status ${response.status}`);
+            return null;
+        }
+
+        // Check Content-Type (avoid parsing HTML as JSON)
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.warn(`⚠️ TheColorAPI returned non-JSON content: ${contentType}`);
+            // Reset cache for this key so we can try again later? Or cache null to avoid spamming?
+            // Let's return null without caching to allow retry
+            return null;
+        }
+
         const data = await response.json();
-        return { nombre: data.name.value, hex: data.hex.clean };
+        const result = {
+            nombre: data.name.value,
+            imagen: data.image.bare
+        };
+        colorApiCache.set(key, result);
+        return result;
     } catch (error) {
-        return null;
+        console.error("Error al consultar la API de color:", error);
+        return null; // Handle error gracefully
     }
 }
+
 
 // Convert RGB to CMYKW
 function rgbToCMYKW(r, g, b, blackIntensity = 1, whiteThreshold = 0.8) {
@@ -12730,10 +12852,23 @@ ${codigos.join('\n  ')}
             }
 
             let text = voiceData.tarari || ''; // Use tarari from voice or item
-            let color = item.hexi;
-            if (!color && item.coli && Array.isArray(item.coli) && item.coli.length >= 3) {
-                color = `rgb(${item.coli[0]}, ${item.coli[1]}, ${item.coli[2]})`;
+
+            // MUSICOLI REFACTOR: Calculate color from MIDI notes (Notepad Algorithm)
+            // Instead of using stored item.hexi, we interpret the current MIDI numbers
+            let color;
+            const activeNotes = (voiceData.nimidi || []).filter(n => typeof n === 'number' && n > 0);
+
+            if (activeNotes.length > 0) {
+                color = midiToColor(activeNotes);
+            } else {
+                // Fallback if no notes (rest) - use item.hexi or default
+                color = item.hexi;
+
+                if (!color && item.coli && Array.isArray(item.coli) && item.coli.length >= 3) {
+                    color = `rgb(${item.coli[0]}, ${item.coli[1]}, ${item.coli[2]})`;
+                }
             }
+
             if (!color) color = '#e0e0e0';
 
             // Retrieve extra info
@@ -13597,6 +13732,7 @@ if (typeof updateTrackLayout === 'function') {
     // Allow time for other inits then render
     setTimeout(() => {
         if (typeof renderVisualTracks === 'function') renderVisualTracks();
+        if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
     }, 500);
 }
 
