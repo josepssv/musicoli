@@ -65,23 +65,50 @@
     style="padding: 8px 20px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
     <div style="display: flex; align-items: center; gap: 15px;">
       <div style="font-size: 18px; font-weight: bold;">Musicoli</div>
-      <button id="empezar-btn" class="theme-btn rhythm-only"
-        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
-        Empezar
-      </button>
-      <button id="undo-btn" class="theme-btn rhythm-only"
-        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
-        ←
-      </button>
-      <button id="redo-btn" class="theme-btn rhythm-only"
-        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
-        →
-      </button>
-      <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
-        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;"
-        title="Borrar compás seleccionado (o último si ninguno seleccionado)">
-        🗑️
-      </button>
+      <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active"
+        style="padding: 5px 12px; font-size: 12px;">Ritmo</button>
+      <button id="mode-tarareo"
+        style="padding: 5px 12px; font-size: 12px; font-family: monospace; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold; display:none;">Tarareo</button>
+      <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad"
+        style="padding: 5px 12px; font-size: 12px;">Melodía</button>
+      <button id="mode-dinamica" class="mode-btn mode-btn-dinamica"
+        style="padding: 5px 12px; font-size: 12px;">Dinámica</button>
+      <button id="mode-lyrics" class="mode-btn mode-btn-lyrics"
+        style="padding: 5px 12px; font-size: 12px;">Lyrics</button>
+      <button id="mode-instrumentacion" class="mode-btn mode-btn-instrumentacion"
+        style="padding: 5px 12px; font-size: 12px;">Instrumentación</button>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <span>BPM:</span>
+      <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
+        style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
+      <span>Compás: 4/4</span>
+      <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
+        style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+    </div>
+  </header>
+
+  <!-- Header 2: Edition Buttons -->
+  <div class="mode-header-2"
+    style="padding: 6px 20px; display: flex; gap: 8px; align-items: center; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: #555;">
+    <button id="empezar-btn" class="theme-btn rhythm-only"
+      style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+      Empezar
+    </button>
+    <button id="undo-btn" class="theme-btn rhythm-only"
+      style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+      ←
+    </button>
+    <button id="redo-btn" class="theme-btn rhythm-only"
+      style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+      →
+    </button>
+    <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
+      style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;"
+      title="Borrar compás seleccionado (o último si ninguno seleccionado)">
+      🗑️
+    </button>
+    <span id="escoci" style="display: none; margin-left: 20px;">
       <select id="keyin" class="theme-btn scale-control"
         style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
         <option value="C" selected="">C</option>
@@ -109,18 +136,8 @@
         style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 14px;">
         Cromática
       </button>
-    </div>
-    <div style="display: flex; gap: 0px; align-items: center;">
-
-      <span>BPM:</span>
-      <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
-        style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
-    </div>
-    <span>Compás: 4/4</span>
-    <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
-      style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
-    </div>
-  </header>
+    </span>
+  </div>
   <div id="example-container"
     style="background-color: #666; color: white; display: flex; flex-direction:column ; gap: 10px;">
     <div id="macoti-tracks-container" style="display: flex; flex-direction: column; gap: 0px;">
@@ -168,167 +185,144 @@
         </div>
       </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
-      <midi-visualizer id="staffi" type="staff" style="display: none; color:#000;"> </midi-visualizer>
-      <section id="section15" style="flex: 1; min-width: 300px;color: #000;"><midi-player id="player15" src=""
-          sound-font="" visualizer="#staffi" style="display:block;" data-js-focus-visible=""></midi-player>
-        <div style="display: inline-flex; align-items: center; gap: 10px; margin-left: 10px;">
-          <button id="loop-btn" class="theme-btn"
-            style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-            🔁 Loop OFF
-          </button>
-          <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
-            <a id="title-display"
-              style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
-              title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
-            <span style="display:inline-flex; align-items: center; gap: 2px;">
-              <input id="title-input" type="text"
-                style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
-                value="emotion">
-              <span id="title-extension"
-                style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
+    <!-- Player Row with Two Columns -->
+    <div style="display: flex; gap: 10px; margin-top: 10px; align-items: flex-start;">
+      <!-- LEFT COLUMN: Player Controls -->
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+        <midi-visualizer id="staffi" type="staff" style="display: none; color:#000;"> </midi-visualizer>
+        <section id="section15" style="color: #000;">
+          <midi-player id="player15" src="" sound-font="" visualizer="#staffi" style="display:block;"
+            data-js-focus-visible=""></midi-player>
+          <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px; flex-wrap: wrap;">
+            <button id="loop-btn" class="theme-btn"
+              style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+              🔁 Loop OFF
+            </button>
+            <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
+              <a id="title-display"
+                style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
+                title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
+              <span style="display:inline-flex; align-items: center; gap: 2px;">
+                <input id="title-input" type="text"
+                  style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
+                  value="emotion">
+                <span id="title-extension"
+                  style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
+              </span>
+              <a id="expi" style="display:none;"></a>
             </span>
-            <a id="expi" style="display:none;"></a>
-          </span>
-          <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
-                        cursor:pointer;
-                        text-decoration:underline;
-                        color:#ddd;
-                        font-family: monospace;
-                        font-size: 14px;" data-listener-attached="true">
-            Resumen
+            <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
+                          cursor:pointer;
+                          text-decoration:underline;
+                          color:#ddd;
+                          font-family: monospace;
+                          font-size: 14px;" data-listener-attached="true">
+              Resumen
+            </span>
+
+
+          </div>
+        </section>
+
+        <!-- RHYTHM CONTROLS: 8 buttons, patterns, and scales -->
+        <div id="rhythm-controls-container" style="display: flex; flex-direction: column; gap: 5px;">
+          <div id="editor-tonalidad-ladder" style="display: inline;"></div>
+          <div id="rhythm-color-info-div"
+            style="display: block; align-items: center; gap: 1px; margin: 0px; font-size: 11px; font-family: monospace; background: transparent; padding: 1px; border-radius: 4px; border: none;">
+          </div>
+          <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;"></div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+          <!-- Mode Toggle Button (Dependent/Independent) - Hidden, only in modal -->
+          <span id="html-mode-toggle"
+            style="display: none; width: 32px; height: 32px; border-radius: 50%; background: #4caf50; cursor: pointer; border: 2px solid #333; box-shadow: 0 2px 4px rgba(0,0,0,0.2); align-items: center; justify-content: center; font-size: 16px;"
+            title="Modo Dependiente: Las armonías se generan automáticamente&#10;Click para cambiar a Independiente">
+            <span id="html-mode-icon">🔗</span>
           </span>
         </div>
-      </section>
-      <button id="frase-btn" class="theme-btn-accent"
-        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
-        Frase
-      </button>
-      <input type="text" id="tarareo-input" value="ta ta ta ta"
-        style="width: 250px; font-family: monospace; font-size: 14px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
-      <button id="tarareo-submit" class="theme-btn"
-        style="border: none; padding: 6px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">→</button>
+
+        <!-- Voice and Playback Selectors -->
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <label style="display:none;font-family: monospace; font-size: 12px; margin-right: 5px;">Editar:</label>
+          <select id="voice-selector"
+            style="display:none;padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+            <option value="s" selected="">Soprano</option>
+            <option value="a">Contralto</option>
+            <option value="t">Tenor</option>
+            <option value="b">Bajo</option>
+          </select>
+
+          <label
+            style="display:none;font-family: monospace; font-size: 12px; margin-left: 15px; margin-right: 5px;">Reproducir:</label>
+          <select id="playback-selector"
+            style="display:none;padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+            <option value="s" selected="">Soprano</option>
+            <option value="a">Contralto</option>
+            <option value="t">Tenor</option>
+            <option value="b">Bajo</option>
+            <option value="s,a">Soprano + Alto</option>
+            <option value="s,t">Soprano + Tenor</option>
+            <option value="s,b">Soprano + Bajo</option>
+            <option value="a,t">Alto + Tenor</option>
+            <option value="a,b">Alto + Bajo</option>
+            <option value="t,b">Tenor + Bajo</option>
+            <option value="s,a,t">Soprano + Alto + Tenor</option>
+            <option value="s,a,b">Soprano + Alto + Bajo</option>
+            <option value="s,t,b">Soprano + Tenor + Bajo</option>
+            <option value="a,t,b">Alto + Tenor + Bajo</option>
+            <option value="s,a,t,b">Todos</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- MIDDLE COLUMN: Silence Variations (Narrow) -->
+      <div id="silence-variations-column"
+        style="width: 90px; background: #f5f5f5; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        <h4
+          style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #666; font-weight: bold;">
+          Variaciones
+        </h4>
+        <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;">
+          <!-- Variations will be dynamically generated here -->
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Modal Display (Fixed) -->
+      <div id="modal-display-container"
+        style="width: 500px; background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+        <!-- MIDI Editor Content (Always Visible) -->
+        <div id="midi-editor-content" style="display: flex; flex-direction: column; height: 100%;">
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
+            <h3 id="midi-editor-header"
+              style="margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; flex: 1;">📝
+              Editar
+              MIDI
+              del Compás <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span></h3>
+          </div>
+          <div style="padding: 20px;">
+            <div id="midi-inputs-container"
+              style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
+              <!-- Inputs will be dynamically generated here -->
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+              <button id="midi-editor-cancel"
+                style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
+                Cancelar
+              </button>
+              <button id="midi-editor-accept"
+                style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
 
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active">Ritmo</button>
-      <button id="mode-tarareo"
-        style="padding: 8px 16px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;display:none;">Tarareo</button>
-      <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad">Tonalidad</button>
-      <button id="mode-dinamica" class="mode-btn mode-btn-dinamica">Dinámica</button>
-      <button id="mode-lyrics" class="mode-btn mode-btn-lyrics">Lyrics</button>
 
-      <!-- Mode Toggle Button (Dependent/Independent) - Circular with lock icon -->
-      <span id="html-mode-toggle"
-        style="display: inline-block; width: 32px; height: 32px; border-radius: 50%; background: #4caf50; margin-left: 15px; cursor: pointer; border: 2px solid #333; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 16px;"
-        title="Modo Dependiente: Las armonías se generan automáticamente&#10;Click para cambiar a Independiente">
-        <span id="html-mode-icon">🔗</span>
-      </span>
-
-
-
-      <label style="font-family: monospace; font-size: 12px; margin-right: 5px;">Editar:</label>
-      <select id="voice-selector"
-        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
-        <option value="s" selected="">Soprano</option>
-        <option value="a">Contralto</option>
-        <option value="t">Tenor</option>
-        <option value="b">Bajo</option>
-      </select>
-
-
-
-      <label style="font-family: monospace; font-size: 12px; margin-left: 15px; margin-right: 5px;">Reproducir:</label>
-      <select id="playback-selector"
-        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
-        <option value="s" selected="">Soprano</option>
-        <option value="a">Contralto</option>
-        <option value="t">Tenor</option>
-        <option value="b">Bajo</option>
-        <option value="s,a">Soprano + Alto</option>
-        <option value="s,t">Soprano + Tenor</option>
-        <option value="s,b">Soprano + Bajo</option>
-        <option value="a,t">Alto + Tenor</option>
-        <option value="a,b">Alto + Bajo</option>
-        <option value="t,b">Tenor + Bajo</option>
-        <option value="s,a,t">Soprano + Alto + Tenor</option>
-        <option value="s,a,b">Soprano + Alto + Bajo</option>
-        <option value="s,t,b">Soprano + Tenor + Bajo</option>
-        <option value="a,t,b">Alto + Tenor + Bajo</option>
-        <option value="s,a,t,b">Todos</option>
-      </select>
-      <select id="instrument-selector"
-        style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
-        <optgroup label="Piano">
-          <option value="1" selected>1 - Acoustic Grand Piano</option>
-          <option value="2">2 - Bright Acoustic Piano</option>
-          <option value="3">3 - Electric Grand Piano</option>
-          <option value="4">4 - Honky-tonk Piano</option>
-          <option value="5">5 - Electric Piano 1</option>
-          <option value="6">6 - Electric Piano 2</option>
-          <option value="7">7 - Harpsichord</option>
-          <option value="8">8 - Clavinet</option>
-        </optgroup>
-        <optgroup label="Chromatic Percussion">
-          <option value="9">9 - Celesta</option>
-          <option value="10">10 - Glockenspiel</option>
-          <option value="11">11 - Music Box</option>
-          <option value="12">12 - Vibraphone</option>
-          <option value="13">13 - Marimba</option>
-          <option value="14">14 - Xylophone</option>
-        </optgroup>
-        <optgroup label="Guitar">
-          <option value="25">25 - Acoustic Guitar (nylon)</option>
-          <option value="26">26 - Acoustic Guitar (steel)</option>
-          <option value="27">27 - Electric Guitar (jazz)</option>
-          <option value="28">28 - Electric Guitar (clean)</option>
-          <option value="29">29 - Electric Guitar (muted)</option>
-          <option value="30">30 - Overdriven Guitar</option>
-          <option value="31">31 - Distortion Guitar</option>
-        </optgroup>
-        <optgroup label="Bass">
-          <option value="33">33 - Acoustic Bass</option>
-          <option value="34">34 - Electric Bass (finger)</option>
-          <option value="35">35 - Electric Bass (pick)</option>
-          <option value="36">36 - Fretless Bass</option>
-        </optgroup>
-        <optgroup label="Strings">
-          <option value="41">41 - Violin</option>
-          <option value="42">42 - Viola</option>
-          <option value="43">43 - Cello</option>
-          <option value="44">44 - Contrabass</option>
-          <option value="46">46 - Pizzicato Strings</option>
-          <option value="47">47 - Orchestral Harp</option>
-        </optgroup>
-        <optgroup label="Brass">
-          <option value="57">57 - Trumpet</option>
-          <option value="58">58 - Trombone</option>
-          <option value="59">59 - Tuba</option>
-          <option value="60">60 - Muted Trumpet</option>
-          <option value="61">61 - French Horn</option>
-        </optgroup>
-        <optgroup label="Reed">
-          <option value="65">65 - Soprano Sax</option>
-          <option value="66">66 - Alto Sax</option>
-          <option value="67">67 - Tenor Sax</option>
-          <option value="68">68 - Baritone Sax</option>
-          <option value="69">69 - Oboe</option>
-          <option value="70">70 - English Horn</option>
-          <option value="71">71 - Bassoon</option>
-          <option value="72">72 - Clarinet</option>
-        </optgroup>
-        <optgroup label="Pipe">
-          <option value="73">73 - Piccolo</option>
-          <option value="74">74 - Flute</option>
-          <option value="75">75 - Recorder</option>
-          <option value="76">76 - Pan Flute</option>
-        </optgroup>
-        <optgroup label="Percussion">
-          <option value="perc">🥁 Percussion (Channel 10)</option>
-        </optgroup>
-      </select>
-    </div>
 
 
 
@@ -371,13 +365,10 @@
       </div>
     </div>
 
-    <div id="editor-tonalidad-ladder" style="display: inline;"></div>
-    <div id="rhythm-color-info-div"
-      style="display: block; align-items: center; gap: 1px; margin: 0px; font-size: 11px; font-family: monospace; background: transparent; padding: 1px; border-radius: 4px; border: none;">
-    </div>
 
-    <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;">
-    </div>
+
+
+
     <div id="editor-tarareo" style="padding: 15px; background: #f3e5f5; border-radius: 8px; display: none;"></div>
     <div id="editor-lyrics" class="mode-editor editor-lyrics" style="display: none;">
       <div style="margin-bottom: 15px;">
@@ -454,6 +445,98 @@
       </div>
     </div>
 
+    <div id="editor-instrumentacion" class="mode-editor editor-instrumentacion" style="display: none;">
+      <div style="margin-bottom: 15px;">
+        <h3 class="mode-editor-title">🎺 Editor de Instrumentación</h3>
+      </div>
+      <div style="padding: 20px; text-align: center; color: #5b21b6; font-family: monospace;">
+        <select id="instrument-selector"
+          style="padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+          <optgroup label="Percussion">
+            <option value="perc">🥁 Percussion (Channel 10)</option>
+          </optgroup>
+          <optgroup label="Piano">
+            <option value="1" selected>1 - Acoustic Grand Piano</option>
+            <option value="2">2 - Bright Acoustic Piano</option>
+            <option value="3">3 - Electric Grand Piano</option>
+            <option value="4">4 - Honky-tonk Piano</option>
+            <option value="5">5 - Electric Piano 1</option>
+            <option value="6">6 - Electric Piano 2</option>
+            <option value="7">7 - Harpsichord</option>
+            <option value="8">8 - Clavinet</option>
+          </optgroup>
+          <optgroup label="Chromatic Percussion">
+            <option value="9">9 - Celesta</option>
+            <option value="10">10 - Glockenspiel</option>
+            <option value="11">11 - Music Box</option>
+            <option value="12">12 - Vibraphone</option>
+            <option value="13">13 - Marimba</option>
+            <option value="14">14 - Xylophone</option>
+          </optgroup>
+          <optgroup label="Guitar">
+            <option value="25">25 - Acoustic Guitar (nylon)</option>
+            <option value="26">26 - Acoustic Guitar (steel)</option>
+            <option value="27">27 - Electric Guitar (jazz)</option>
+            <option value="28">28 - Electric Guitar (clean)</option>
+            <option value="29">29 - Electric Guitar (muted)</option>
+            <option value="30">30 - Overdriven Guitar</option>
+            <option value="31">31 - Distortion Guitar</option>
+          </optgroup>
+          <optgroup label="Bass">
+            <option value="33">33 - Acoustic Bass</option>
+            <option value="34">34 - Electric Bass (finger)</option>
+            <option value="35">35 - Electric Bass (pick)</option>
+            <option value="36">36 - Fretless Bass</option>
+          </optgroup>
+          <optgroup label="Strings">
+            <option value="41">41 - Violin</option>
+            <option value="42">42 - Viola</option>
+            <option value="43">43 - Cello</option>
+            <option value="44">44 - Contrabass</option>
+            <option value="46">46 - Pizzicato Strings</option>
+            <option value="47">47 - Orchestral Harp</option>
+          </optgroup>
+          <optgroup label="Brass">
+            <option value="57">57 - Trumpet</option>
+            <option value="58">58 - Trombone</option>
+            <option value="59">59 - Tuba</option>
+            <option value="60">60 - Muted Trumpet</option>
+            <option value="61">61 - French Horn</option>
+          </optgroup>
+          <optgroup label="Reed">
+            <option value="65">65 - Soprano Sax</option>
+            <option value="66">66 - Alto Sax</option>
+            <option value="67">67 - Tenor Sax</option>
+            <option value="68">68 - Baritone Sax</option>
+            <option value="69">69 - Oboe</option>
+            <option value="70">70 - English Horn</option>
+            <option value="71">71 - Bassoon</option>
+            <option value="72">72 - Clarinet</option>
+          </optgroup>
+          <optgroup label="Pipe">
+            <option value="73">73 - Piccolo</option>
+            <option value="74">74 - Flute</option>
+            <option value="75">75 - Recorder</option>
+            <option value="76">76 - Pan Flute</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <!-- Tarareo Input Section -->
+    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+      <button id="frase-btn" class="theme-btn-accent"
+        style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">
+        Frase
+      </button>
+
+      <input type="text" id="tarareo-input" value="ta ta ta ta"
+        style="width: 250px; font-family: monospace; font-size: 14px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
+
+      <button id="tarareo-submit" class="theme-btn"
+        style="border: none; padding: 6px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">→</button>
+    </div>
+
     <div id="codigi" style="display: block;">
       <label style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 5px;">DBI
         (JSON):</label>
@@ -490,42 +573,13 @@
     </div>
   </div>
 
-  <!-- MIDI Editor Modal -->
-  <div id="midi-editor-modal"
-    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 10000; pointer-events: none;">
-    <div id="midi-editor-content"
-      style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); max-width: 500px; width: 90%; pointer-events: auto;">
-      <div
-        style="display: flex; justify-content: space-between; align-items: center; margin: -20px -20px 15px -20px; padding: 15px 20px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
-        <h3 id="midi-editor-header"
-          style="margin: 0; font-family: monospace; color: #333; cursor: move; user-select: none; flex: 1;">📝 Editar
-          MIDI
-          del Compás <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span></h3>
-        <button id="midi-editor-close"
-          style="background: transparent; border: none; font-size: 28px; color: #999; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin: -10px -15px -10px 10px; flex-shrink: 0;"
-          onmouseover="this.style.background='#e0e0e0'; this.style.color='#333';"
-          onmouseout="this.style.background='transparent'; this.style.color='#999';" title="Cerrar">×</button>
-      </div>
-      <div id="midi-inputs-container"
-        style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; margin-bottom: 15px;">
-        <!-- Inputs will be dynamically generated here -->
-      </div>
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button id="midi-editor-cancel"
-          style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
-          Cancelar
-        </button>
-        <button id="midi-editor-accept"
-          style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">
-          Aplicar
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- MIDI Editor Modal (deprecated - now in right column) -->
+  <div id="midi-editor-modal" style="display: none;"></div>
 
   <script src="musicoli.js"></script>
   <script src="mode-toggle-listener.js"></script>
   <script src="voice-selector-listener.js"></script>
+  <script src="playback-control.js"></script>
 
 
 </body>

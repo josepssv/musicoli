@@ -48,6 +48,17 @@
   --lyrics-border: #e0c9a6;
   --lyrics-accent: #ddb892;
   --lyrics-hover: #c89968;
+
+  /* INSTRUMENTACIÓN - Púrpuras/Violetas */
+  --instrumentacion-primary: #7c3aed;
+  --instrumentacion-secondary: #a78bfa;
+  --instrumentacion-bg: #f3e8ff;
+  --instrumentacion-bg-light: #8b5cf6;
+  --instrumentacion-text: #5b21b6;
+  --instrumentacion-text-dark: #4c1d95;
+  --instrumentacion-border: #c4b5fd;
+  --instrumentacion-accent: #a78bfa;
+  --instrumentacion-hover: #6d28d9;
 }
 
 /* ============================================
@@ -106,6 +117,19 @@ body.app-mode-lyrics {
   --theme-border: var(--lyrics-border);
   --theme-accent: var(--lyrics-accent);
   --theme-hover: var(--lyrics-hover);
+}
+
+body.app-mode-instrumentacion {
+  --theme-primary: var(--instrumentacion-primary);
+  --theme-secondary: var(--instrumentacion-secondary);
+  --theme-bg: var(--instrumentacion-bg);
+  --theme-bg-light: var(--instrumentacion-bg-light);
+  /* Header color */
+  --theme-text: var(--instrumentacion-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--instrumentacion-border);
+  --theme-accent: var(--instrumentacion-accent);
+  --theme-hover: var(--instrumentacion-hover);
 }
 
 /* ============================================
@@ -237,6 +261,25 @@ body.app-mode-lyrics {
   box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
 }
 
+/* Instrumentación Button */
+.mode-btn-instrumentacion {
+  background: var(--instrumentacion-bg);
+  color: var(--instrumentacion-text);
+  border-color: var(--instrumentacion-border);
+}
+
+.mode-btn-instrumentacion:hover {
+  background: var(--instrumentacion-accent);
+  color: white;
+}
+
+.mode-btn-instrumentacion.active {
+  background: var(--instrumentacion-primary);
+  color: white;
+  border-color: var(--instrumentacion-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
 /* ============================================
    EDITORES DE MODO
    ============================================ */
@@ -295,6 +338,17 @@ body.app-mode-lyrics {
 
 .editor-lyrics .mode-editor-title {
   color: var(--lyrics-text-dark);
+}
+
+/* Editor de Instrumentación */
+.editor-instrumentacion {
+  background: var(--instrumentacion-bg);
+  border-color: var(--instrumentacion-border);
+  color: var(--instrumentacion-text);
+}
+
+.editor-instrumentacion .mode-editor-title {
+  color: var(--instrumentacion-text-dark);
 }
 
 /* ============================================
@@ -365,4 +419,10 @@ body.app-mode-dinamica #track-matrix-container {
 body.app-mode-lyrics #track-matrix-container {
   background: var(--lyrics-bg) !important;
   border-color: var(--lyrics-border) !important;
+}
+
+/* Instrumentación mode */
+body.app-mode-instrumentacion #track-matrix-container {
+  background: var(--instrumentacion-bg) !important;
+  border-color: var(--instrumentacion-border) !important;
 }

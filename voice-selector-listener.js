@@ -5,9 +5,15 @@
         voiceSelector.addEventListener('change', function () {
             console.log('🔄 Voice selector changed to:', this.value);
 
-            // Update the track matrix to reflect the new selected voice
-            if (typeof renderTrackMatrix === 'function') {
-                renderTrackMatrix();
+            // Update the visual tracks to reflect the new selected voice
+            if (typeof renderVisualTracks === 'function') {
+                renderVisualTracks();
+            }
+
+            // Update Notepad coloring to reflect the new voice's MIDI notes
+            if (typeof applyNotepadColoring === 'function') {
+                applyNotepadColoring();
+                console.log('🎨 Applied Notepad coloring for voice:', this.value);
             }
 
             // Update voiceline display

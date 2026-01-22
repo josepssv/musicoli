@@ -242,14 +242,17 @@ function inimetri(compi = [4, 4]) {
 
         for (let a = 1; a < trili.length; a++) {
             //trilini[a] = filini[a]
-            trilini[a] = restini(trili[a]);
-            trilipi[a] = trili[a];
+            if (trili[a]) { // Only process defined indices
+                trilini[a] = restini(trili[a]);
+                trilipi[a] = trili[a];
+            }
         }
         //console.log(JSON.stringify(trilini[5]))
     }
 }
 
 function restini(tri) {
+    if (!tri) return []; // Safety check for sparse arrays
     return tri.map((fila) =>
         fila.map((elemento) => {
             if (elemento >= 10) {

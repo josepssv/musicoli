@@ -28,17 +28,17 @@ if (htmlModeToggle) {
         // Toggle mode (using global variable, same as existing code)
         if (voiceEditMode === 'dependent') {
             voiceEditMode = 'independent';
-            console.log('📝 Modo de edición cambiado a: INDEPENDIENTE');
-            console.log('   → Cada pista se edita por separado');
+            // console.log('📝 Modo de edición cambiado a: INDEPENDIENTE');
+            // console.log('   → Cada pista se edita por separado');
         } else {
             voiceEditMode = 'dependent';
-            console.log('📝 Modo de edición cambiado a: DEPENDIENTE');
-            console.log('   → Las armonías se generan automáticamente');
+            // console.log('📝 Modo de edición cambiado a: DEPENDIENTE');
+            // console.log('   → Las armonías se generan automáticamente');
         }
 
         // Update button appearance
         updateButtonAppearance();
 
-        console.log('✅ Mode changed to:', voiceEditMode);
+        // console.log('✅ Mode changed to:', voiceEditMode);
     });
 }

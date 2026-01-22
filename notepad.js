@@ -484,7 +484,16 @@ class Notepad {
         if (node.tagName === 'BR') continue;
 
         node.style.backgroundColor = 'transparent';
-        node.style.color = textColor;
+
+        // MUSICOLI FIX: Always use black for Bravura musical notation
+        const ch = node.textContent;
+        const charCode = ch && ch.length > 0 ? ch.charCodeAt(0) : 0;
+        if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+          node.style.color = '#000000'; // Force black for musical notation
+        } else {
+          node.style.color = textColor;
+        }
+
         node.style.border = 'none';
         node.dataset.plain = 'true';
       }
@@ -855,7 +864,16 @@ class Notepad {
       // Respetar nodos planos
       if (n.dataset.plain === 'true') {
         n.style.backgroundColor = 'transparent';
-        n.style.color = this._plainTextColor;
+
+        // MUSICOLI FIX: Always use black for Bravura musical notation
+        const ch = n.textContent;
+        const charCode = ch && ch.length > 0 ? ch.charCodeAt(0) : 0;
+        if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+          n.style.color = '#000000'; // Force black for musical notation
+        } else {
+          n.style.color = this._plainTextColor;
+        }
+
         n.style.border = 'none';
         continue;
       }
@@ -1031,7 +1049,14 @@ class Notepad {
       if (!n || n.tagName === 'BR') continue;
       // Solo cambiar color si no es plano
       if (n.dataset.plain !== 'true') {
-        n.style.color = color;
+        // MUSICOLI FIX: Always use black for Bravura musical notation
+        const ch = n.textContent;
+        const charCode = ch && ch.length > 0 ? ch.charCodeAt(0) : 0;
+        if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+          n.style.color = '#000000'; // Force black for musical notation
+        } else {
+          n.style.color = color;
+        }
       }
     }
   }
@@ -1832,7 +1857,15 @@ class Notepad {
     if (isPlainMode) {
       // Plain mode: transparent background, black text, no border
       span.style.backgroundColor = 'transparent';
-      span.style.color = this._plainTextColor;
+
+      // MUSICOLI FIX: Always use black for Bravura musical notation
+      const charCode = ch.charCodeAt(0);
+      if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+        span.style.color = '#000000'; // Force black for musical notation
+      } else {
+        span.style.color = this._plainTextColor;
+      }
+
       span.style.border = 'none';
       span.dataset.plain = 'true';
     } else {
@@ -2012,6 +2045,13 @@ class Notepad {
   }
 
   _resolveTextColor(ch, index, bgColor) {
+    // MUSICOLI FIX: Always use black for Bravura musical notation characters
+    // Check if the character is a Bravura music symbol (Unicode range E000-F8FF is Private Use Area)
+    const charCode = ch.charCodeAt(0);
+    if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+      return '#000000'; // Always black for musical notation
+    }
+
     if (typeof this.opts.textColorFunc === 'function') {
       try {
         const c = this.opts.textColorFunc(ch, index, bgColor);
