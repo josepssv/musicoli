@@ -1,0 +1,45 @@
+/* ============================================
+   MASTER SCROLLBAR STYLES
+   ============================================ */
+#master-scroll-container {
+    width: 100%;
+    height: 14px;
+    /* Barra delgada */
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-top: 5px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 7px;
+}
+
+#master-scroll-content {
+    height: 1px;
+    /* El ancho se establecerá dinámicamente con JS */
+}
+
+/* Personalización de la barra de scroll para Webkit (Chrome, Edge, Safari) */
+#master-scroll-container::-webkit-scrollbar {
+    height: 10px;
+}
+
+#master-scroll-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 5px;
+}
+
+#master-scroll-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+
+#master-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Sincronización de márgenes para alinear con los tracks */
+.master-scroll-wrapper {
+    display: flex;
+    padding-left: 70px;
+    /* Mismo padding que tienen los tracks para los labels (60px ancho + 10px gap) */
+    padding-right: 0px;
+}

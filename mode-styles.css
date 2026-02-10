@@ -59,6 +59,17 @@
   --instrumentacion-border: #c4b5fd;
   --instrumentacion-accent: #a78bfa;
   --instrumentacion-hover: #6d28d9;
+
+  /* COMPOSICION - blancos */
+  --composicion-primary: #9e9e9e;
+  --composicion-secondary: #bdbdbd;
+  --composicion-bg: #ffffff;
+  --composicion-bg-light: #f5f5f5;
+  --composicion-text: #424242;
+  --composicion-text-dark: #212121;
+  --composicion-border: #e0e0e0;
+  --composicion-accent: #757575;
+  --composicion-hover: #616161;
 }
 
 /* ============================================
@@ -130,6 +141,20 @@ body.app-mode-instrumentacion {
   --theme-border: var(--instrumentacion-border);
   --theme-accent: var(--instrumentacion-accent);
   --theme-hover: var(--instrumentacion-hover);
+}
+
+
+body.app-mode-composicion {
+  --theme-primary: var(--composicion-primary);
+  --theme-secondary: var(--composicion-secondary);
+  --theme-bg: var(--composicion-bg);
+  --theme-bg-light: var(--composicion-bg-light);
+  /* Header color */
+  --theme-text: var(--composicion-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--composicion-border);
+  --theme-accent: var(--composicion-accent);
+  --theme-hover: var(--composicion-hover);
 }
 
 /* ============================================
@@ -280,6 +305,26 @@ body.app-mode-instrumentacion {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
 
+
+/* composición Button */
+.mode-btn-composicion {
+  background: var(--composicion-bg);
+  color: var(--composicion-text);
+  border-color: var(--composicion-border);
+}
+
+.mode-btn-composicion:hover {
+  background: var(--composicion-accent);
+  color: white;
+}
+
+.mode-btn-composicion.active {
+  background: var(--composicion-primary);
+  color: white;
+  border-color: var(--composicion-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
 /* ============================================
    EDITORES DE MODO
    ============================================ */
@@ -351,6 +396,17 @@ body.app-mode-instrumentacion {
   color: var(--instrumentacion-text-dark);
 }
 
+/* Editor de Instrumentación */
+.editor-composicion {
+  background: var(--composicion-bg);
+  border-color: var(--composicion-border);
+  color: var(--composicion-text);
+}
+
+.editor-composicion .mode-editor-title {
+  color: var(--composicion-text-dark);
+}
+
 /* ============================================
    CONTROLES ESPECÍFICOS DE CADA MODO
    ============================================ */
@@ -379,6 +435,11 @@ body.app-mode-instrumentacion {
 /* Hide rhythm-only buttons when not in rhythm mode */
 body:not(.app-mode-ritmo) .rhythm-only {
   visibility: hidden;
+}
+
+/* MUSICOLI: Empezar button visible in Composicion mode */
+body.app-mode-composicion #empezar-btn {
+  visibility: visible !important;
 }
 
 /* Hide scale controls in Lyrics and Dinamica modes */
@@ -425,4 +486,65 @@ body.app-mode-lyrics #track-matrix-container {
 body.app-mode-instrumentacion #track-matrix-container {
   background: var(--instrumentacion-bg) !important;
   border-color: var(--instrumentacion-border) !important;
+}
+
+/* Composicion mode: Hide the visual editor/workspace tracks only */
+/* body.app-mode-composicion #track-matrix-container, NO - keep visible */
+body.app-mode-composicion #macoti-tracks-container {
+  /* display: none !important;  <- REMOVED to show notepad in composition mode */
+  display: flex !important;
+}
+
+/* Compasi   */
+.compasi {
+  margin: 0 !important;
+  /* Asegurar que no tenga margen incluso si se selecciona */
+}
+
+/* MUSICOLI: Ensure Modal Apply Button is Visible */
+#midi-editor-accept {
+  display: inline-block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: #4CAF50 !important;
+  color: white !important;
+  z-index: 9999;
+}
+
+/* Opcional: Asegurar que el margen se resetee también al hacer focus/active si notepad.js añade algo 
+.compasi:focus,
+.compasi:active,
+.compasi[style*="outline"] {
+  margin: 0 !important;
+
+/* REFACTOR: Generic Mode Panel Visibility */
+.mode-panel {
+  display: none;
+}
+
+.mode-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* MUSICOLI: Explicit Control for Shared Ladder Visibility */
+/* Default hidden */
+#editor-tonalidad-ladder {
+  display: none !important;
+  margin-bottom: 5px;
+  /* Add spacing */
+}
+
+/* Show in Ritmo Mode */
+body.app-mode-ritmo #editor-tonalidad-ladder {
+  display: inline-block !important;
+  /* Keep original inline-ish or block behavior */
+  width: 100%;
+  /* Ensure it takes width if block */
+}
+
+/* Show in Tonalidad Mode */
+body.app-mode-tonalidad #editor-tonalidad-ladder {
+  display: inline-block !important;
+  width: 100%;
 }

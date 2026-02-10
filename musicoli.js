@@ -69,6 +69,42 @@ bdi.metadata =
 bdi.bar = []
 //let bdi = []
 //let bdi = [{ "idi": 5345507.300786394, "numi": 0, "nami": "Perla Negra", "coli": [3, 10, 14, 255], "hexi": "#030A0E", "pinti": { "c": 1, "m": 1, "y": 1, "k": 0.868, "w": 0 }, "nimidi": [84, 84, 84, 79, 48], "timis": [3, 2, 2, 3, 2], "tipis": [4, 3, 3, 4, 3], "dinami": [64,64,64,64,64],"chordi": false }]
+
+///////////////////////////////////////
+// GLOBAL TRACKS CONFIGURATION
+// Array de objetos con la configuración de cada pista
+///////////////////////////////////////
+let tracksConfig = [
+    {
+        key: 's',                  // Clave de la voz (permanente)
+        permanentName: 'Soprano',  // Nombre permanente (permanente)
+        displayName: 'pianoS',     // Nombre que aparece en el visualizador (editable)
+        instrument: 1,             // Número de instrumento MIDI (editable)
+        percussion: false          // Flag de percusión (editable)
+    },
+    {
+        key: 'a',
+        permanentName: 'Alto',
+        displayName: 'pianoA',
+        instrument: 1,
+        percussion: false
+    },
+    {
+        key: 't',
+        permanentName: 'Tenor',
+        displayName: 'pianoT',
+        instrument: 1,
+        percussion: false
+    },
+    {
+        key: 'b',
+        permanentName: 'Bajo',
+        displayName: 'pianoB',
+        instrument: 1,
+        percussion: false
+    }
+];
+
 ///////////////////////////////////////
 let bpmValue = 60 * 2;
 let traki = [];
@@ -85,11 +121,21 @@ let divi; // Notepad container
 // Selected measure index for deletion
 let currentGroup = 1;
 let paterni = 1
-let selectedMeasureIndex = -1;
+window.selectedMeasureIndex = -1; // Global measure selection index
 let currentEditMode = 'ritmo'; // 'ritmo', 'tonalidad', or 'lyrics'
 let voiceEditMode = 'dependent'; // 'dependent' | 'independent' - Mode for voice editing
 let currentPattern = trilipi[currentGroup] ? trilipi[currentGroup][paterni] : null; // [3, 3, 3, 3] - Four quarter notes
 let lastSelectedGrayMidi = null; // Store last selected gray tone MIDI for saturated buttons synchronization
+
+// Initialize Language
+if (typeof setLanguage === 'function') {
+    setLanguage('es');
+    console.log('🌍 Language initialized: ES');
+}
+
+// MIDI Editor Mode: 'measure' (default) or 'note'
+window.midiEditingLevel = 'measure';
+
 
 // History system for undo/redo
 let bdiHistory = [];
@@ -101,6 +147,25 @@ const escalasNotas = {
     cromatica: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  // Todas las notas
 };
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+// Function to update visibility of notisi/notidi based on midiEditingLevel
+window.updateMidiEditingLevelVisibility = function () {
+    const notisi = document.getElementById('notisi');
+    const notidi = document.getElementById('notidi');
+
+    // In 'measure' mode, both should be visible
+    if (window.midiEditingLevel === 'measure') {
+        if (notisi) notisi.style.display = 'flex';
+        if (notidi) notidi.style.display = 'flex';
+        // console.log('👀 MIDI Editor Level: MEASURE (notisi & notidi visible)');
+    }
+    // In 'note' mode, we focus on precise edits (Left/Notisi) and hide bulk generators (Right/Notidi)
+    else if (window.midiEditingLevel === 'note') {
+        if (notisi) notisi.style.display = 'flex';
+        if (notidi) notidi.style.display = 'none';
+        // console.log('👀 MIDI Editor Level: NOTE (notisi visible, notidi hidden)');
+    }
+};
 
 // Function to validate measure index
 function isValidMeasureIndex(index) {
@@ -239,7 +304,14 @@ function getMeasureVoiceColor(measureIndex, voiceKey) {
 
     // 2. If no voice data or no notes, return gray
     if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
-        return '#cccccc';
+        return '#000000';
+    }
+
+    // 2.5 Check for silence based on tipis (Enforce visual silence)
+    // If all durations are negative, the measure is silent -> Gray color
+    if (voiceData.tipis && Array.isArray(voiceData.tipis) && voiceData.tipis.length > 0) {
+        const isSilent = voiceData.tipis.every(t => t < 0);
+        if (isSilent) return '#000000';
     }
 
     // 3. Calculate color from MIDI notes using scale-based algorithm
@@ -381,38 +453,119 @@ function applyNotepadColoring() {
 /**
  * Updates the DOM layout to place the Notepad in the current voice's row
  * and show visual tracks for other voices.
+ * Handles the Split View (Labels separate from Content)
  * @param {string} currentVoice code ('s', 'a', 't', 'b')
  */
 function updateTrackLayout(currentVoice) {
     const voiceMap = {
-        's': { rowId: 'voiceline-s', visualId: 'visual-track-s' },
-        'a': { rowId: 'voiceline-a', visualId: 'visual-track-a' },
-        't': { rowId: 'voiceline-t', visualId: 'visual-track-t' },
-        'b': { rowId: 'voiceline-b', visualId: 'visual-track-b' }
+        's': { labelWrapperId: 'label-wrapper-s', contentRowId: 'content-row-s', visualId: 'visual-track-s', labelId: 'voiceline-s' },
+        'a': { labelWrapperId: 'label-wrapper-a', contentRowId: 'content-row-a', visualId: 'visual-track-a', labelId: 'voiceline-a' },
+        't': { labelWrapperId: 'label-wrapper-t', contentRowId: 'content-row-t', visualId: 'visual-track-t', labelId: 'voiceline-t' },
+        'b': { labelWrapperId: 'label-wrapper-b', contentRowId: 'content-row-b', visualId: 'visual-track-b', labelId: 'voiceline-b' }
     };
 
     const notepad = document.getElementById('notepi6');
     if (!notepad) return;
 
-    // 1. Move Notepad to target row
+    // 1. Move Notepad to target content row
     const target = voiceMap[currentVoice] || voiceMap['s']; // Default to soprano
-    // Get row element (parent of the label)
-    const labelEl = document.getElementById(target.rowId);
-    if (labelEl && labelEl.parentNode) {
-        // Append notepad to this row
-        // Note: appendChild moves it from previous location
-        labelEl.parentNode.appendChild(notepad);
-        notepad.style.display = 'flex'; // Ensure visible
+    const contentRowEl = document.getElementById(target.contentRowId);
+
+    if (contentRowEl) {
+        // Move notepad to this content row
+        // Using prepend to ensure it sits before visual track if needed (though visual track is hidden for active)
+        contentRowEl.insertBefore(notepad, contentRowEl.firstChild);
+        notepad.style.setProperty('display', 'none', 'important'); // Force hide overriding CSS !important
     }
 
-    // 2. Toggle visibility of visual tracks
+    // 2. Iterate all voices to Sync Heights and Toggle Visuals
     Object.keys(voiceMap).forEach(key => {
-        const visualContainer = document.getElementById(voiceMap[key].visualId);
-        if (visualContainer) {
+        const config = voiceMap[key];
+        const labelWrapper = document.getElementById(config.labelWrapperId);
+        const contentRow = document.getElementById(config.contentRowId);
+        const visualContainer = document.getElementById(config.visualId);
+        const label = document.getElementById(config.labelId);
+
+        if (labelWrapper) labelWrapper.style.boxSizing = 'border-box';
+        if (contentRow) contentRow.style.boxSizing = 'border-box';
+
+        // Highlight Active Label
+        if (label) {
             if (key === currentVoice) {
-                visualContainer.style.display = 'none'; // Hide visual track for active voice
+                label.style.backgroundColor = 'transparent'; // Wrapper handles bg? No label wrapper has no bg color set in HTML, inherited from column? 
+                // Actually labels column is #666. Let's make text brighter.
+                label.style.color = '#fff';
+                label.style.textShadow = '0 0 2px rgba(255,255,255,0.5)';
             } else {
-                visualContainer.style.display = 'flex'; // Show visual track for others
+                label.style.color = '#ccc';
+                label.style.textShadow = 'none';
+            }
+        }
+
+        const trackHeight = '28.8px';
+
+        // Apply shared layout properties to all tracks
+        if (labelWrapper) {
+            labelWrapper.style.height = trackHeight;
+            labelWrapper.style.minHeight = trackHeight;
+            labelWrapper.style.maxHeight = trackHeight;
+            labelWrapper.style.margin = '0';
+            labelWrapper.style.padding = '0';
+            labelWrapper.style.boxSizing = 'border-box';
+            labelWrapper.style.display = 'flex';
+            labelWrapper.style.alignItems = 'center';
+        }
+        if (contentRow) {
+            contentRow.style.height = trackHeight;
+            contentRow.style.minHeight = trackHeight;
+            contentRow.style.maxHeight = trackHeight;
+            contentRow.style.margin = '0';
+            contentRow.style.padding = '0';
+            contentRow.style.boxSizing = 'border-box';
+            contentRow.style.display = 'flex';
+            contentRow.style.alignItems = 'center';
+        }
+
+        if (key === currentVoice) {
+            // ACTIVE VOICE STATE
+            if (labelWrapper) {
+                // CROSSHAIR: Row lines
+                labelWrapper.style.borderTop = '1px solid rgba(255, 215, 0, 0.6)';
+                labelWrapper.style.borderBottom = '1px solid rgba(255, 215, 0, 0.6)';
+                labelWrapper.style.backgroundColor = 'rgba(255, 215, 0, 0.05)'; // Subtle highlight
+            }
+            if (contentRow) {
+                // CROSSHAIR: Row lines
+                contentRow.style.borderTop = '1px solid rgba(255, 215, 0, 0.6)';
+                contentRow.style.borderBottom = '1px solid rgba(255, 215, 0, 0.6)';
+                contentRow.style.backgroundColor = 'rgba(255, 215, 0, 0.05)';
+                contentRow.style.alignItems = 'center'; // Keep centered
+            }
+
+            // Visuals: Show
+            if (visualContainer) {
+                visualContainer.style.display = 'flex';
+                visualContainer.style.height = '100.1%'; // Fill row height (with slight overlap)
+                visualContainer.style.alignItems = 'stretch';
+            }
+        } else {
+            // INACTIVE VOICE STATE
+            if (labelWrapper) {
+                labelWrapper.style.borderTop = 'none';
+                labelWrapper.style.borderBottom = 'none';
+                labelWrapper.style.backgroundColor = 'transparent';
+            }
+            if (contentRow) {
+                contentRow.style.borderTop = 'none';
+                contentRow.style.borderBottom = 'none';
+                contentRow.style.backgroundColor = 'transparent';
+            }
+
+            // Visuals: Show
+            if (visualContainer) {
+                visualContainer.style.display = 'flex';
+                visualContainer.style.height = '100.1%';
+                visualContainer.style.alignItems = 'stretch';
             }
         }
     });
@@ -425,13 +578,41 @@ function updateTrackLayout(currentVoice) {
  * Render the visual tracks for ALL non-active voices
  * synchronizing width with Notepad
  */
-function renderVisualTracks() {
-    // console.log('🎨 renderVisualTracks CALLED');
+/**
+ * MUSICOLI: Calculates the required width for a measure based on the maximum number
+ * of notes across ALL 4 voices (S, A, T, B) for THIS specific measure index.
+ * This is precalculated before rendering layers to ensure perfect horizontal alignment.
+ */
+function getRequiredMeasureWidth(measureIndex) {
+    const measure = window.bdi && window.bdi.bar ? window.bdi.bar[measureIndex] : null;
+    if (!measure) return 40;
 
+    let maxNotes = 0;
+
+    // Check all voices in the BDI structure (S, A, T, B) for this measure
+    if (measure.voci && Array.isArray(measure.voci)) {
+        measure.voci.forEach(v => {
+            if (v.tipis) {
+                // Count notes and rests (values < 100). Bar lines (100) are ignored.
+                const noteCount = v.tipis.filter(t => Math.abs(t) < 100).length;
+                if (noteCount > maxNotes) maxNotes = noteCount;
+            }
+        });
+    } else if (measure.tipis) {
+        // Fallback for legacy structure
+        maxNotes = measure.tipis.filter(t => Math.abs(t) < 100).length;
+    }
+
+    // 40px is the absolute minimum (e.g. for silence).
+    // For more notes, we use 18px per note + 20px padding to ensure Bravura symbols fit well.
+    const calculatedWidth = (maxNotes * 18) + 20;
+    return Math.max(40, calculatedWidth);
+}
+
+function renderVisualTracks() {
     // Get current voice to exclude it
     const voiceSelector = document.getElementById('voice-selector');
     const currentVoice = voiceSelector ? voiceSelector.value : 's';
-    // console.log(`   -> Current Voice: ${currentVoice}`);
 
     // Ensure layout is correct (idempotent)
     updateTrackLayout(currentVoice);
@@ -469,20 +650,13 @@ function renderVisualTracks() {
         // updateTrackLayout already handles showing/hiding.
     });
 
-    // Check if np6/BDI ready
-    if (!window.np6 || !window.np6.letterNodes || window.np6.letterNodes.length === 0) {
-        //console.warn('⚠️ Notepad (np6) not ready or empty. Retrying in 100ms...');
-        setTimeout(renderVisualTracks, 100);
-        return;
-    }
-    // console.log(`   -> Notepad Ready. LetterNodes: ${window.np6.letterNodes.length}`);
-
     const measures = window.bdi && window.bdi.bar ? window.bdi.bar : [];
 
 
     // Get widths from Notepad
-    const spanWidths = window.np6.getSpanWidths();
-    const nodes = window.np6.letterNodes.filter(n => n.tagName !== 'BR');
+    // const spanWidths = window.np6.getSpanWidths(); (Unused)
+    // const nodes = window.np6.letterNodes.filter(n => n.tagName !== 'BR'); (Unused)
+
 
     // Helper: Get Color (Calculates from MIDI notes using algorithm)
     // NOW USING GLOBAL FUNCTION getMeasureVoiceColor
@@ -490,28 +664,35 @@ function renderVisualTracks() {
         return getMeasureVoiceColor(measureIndex, voiceKey);
     };
 
-    // Iterate measures/nodes
-    nodes.forEach((node, index) => {
-        const width = spanWidths[index];
-        const style = window.getComputedStyle(node);
-        const marginLeft = style.marginLeft;
-        const marginRight = style.marginRight;
+    // Iterate measures
+    for (let index = 0; index < measures.length; index++) {
+        // Use the same precalculated width function for perfect coordination
+        const width = getRequiredMeasureWidth(index);
+
+        // Check if this is the selected measure
+        const isSelected = (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex === index);
 
         // Iterate voices
         Object.keys(containers).forEach(key => {
-            // Skip the active voice (it's the notepad)
-            if (key === currentVoice) return;
+            // Skip the active voice (it's the notepad) - DISABLED TO ALLOW PARALLEL RENDERING
+            // if (key === currentVoice) return;
+            // Now we render ALL voices into visual tracks. 
+            // The visibility is controlled by updateTrackLayout (which hides active visual track)
+            // This prepares for replacing Notepad with visual track + custom editor.
 
             const container = containers[key];
             if (!container) return;
 
             const span = document.createElement('span');
-            // Ensure box-sizing is border-box so padding/border doesn't add width
+            // Ensure box-sizing is border-box
             span.style.boxSizing = 'border-box';
 
             span.style.width = width + 'px';
             span.style.minWidth = width + 'px';
             span.style.height = '100%';
+
+            // CRITICAL FIX: Reset font-size to visible size (parent has 0px)
+            span.style.fontSize = '12px';
 
             // Remove lateral margins to compress tracks
             span.style.marginLeft = '0px';
@@ -519,9 +700,49 @@ function renderVisualTracks() {
 
             span.style.marginTop = '0px';
             span.style.marginBottom = '0px';
-            span.style.display = 'inline-block';
+            span.style.display = 'inline-flex';
+            span.style.flexDirection = 'column';
+            span.style.justifyContent = 'center';
+            span.style.alignItems = 'center';
             span.style.verticalAlign = 'top';
             span.style.borderRadius = '2px';
+            span.style.position = 'relative';
+
+            // Get voice data for this measure
+            const measure = measures[index];
+            let voiceData = null;
+            let nimidi = [];
+            let tipis = [];
+
+            // Extract voice-specific data
+            if (measure.voci) {
+                if (Array.isArray(measure.voci)) {
+                    voiceData = measure.voci.find(v => v.nami === key);
+                } else {
+                    // Object structure support (new format from addMeasureWithMode)
+                    voiceData = measure.voci[key];
+                }
+
+                if (voiceData) {
+                    nimidi = voiceData.nimidi || [];
+                    tipis = voiceData.tipis || [];
+                }
+            }
+
+            // If this voice has no data, check if there's data in the measure root
+            // (for backwards compatibility or when voice data isn't separated)
+            if (nimidi.length === 0 && measure.nimidi && Array.isArray(measure.nimidi)) {
+                // Only use root data if we're looking at the soprano voice or if no voices are defined
+                if (key === 's' || !measure.voci || measure.voci.length === 0) {
+                    nimidi = measure.nimidi || [];
+                    tipis = measure.tipis || [];
+                }
+            }
+
+            // FALLBACK: If we have notes but no rhythm, assume quarter notes (3) so we can render something
+            if (nimidi.length > 0 && tipis.length === 0) {
+                tipis = new Array(nimidi.length).fill(3);
+            }
 
             // Apply color (now supports gradients via background)
             const colorValue = getVoiceColor(index, key);
@@ -533,12 +754,200 @@ function renderVisualTracks() {
                 span.style.backgroundColor = colorValue;
             }
 
-            span.style.border = '1px solid rgba(0,0,0,0.1)';
-            span.title = `Measure ${index + 1} - ${key.toUpperCase()}`;
+            // CROSSHAIR SYSTEM: Differentiate selection
+            const isSelectedColumn = (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex === index);
+            const isActiveTrack = isSelectedColumn && (key === currentVoice);
+
+            if (isActiveTrack) {
+                // ACTIVE CELL: prominent border as before
+                span.style.border = '3px solid #FFD700';
+                span.style.outline = '2px solid rgba(255, 215, 0, 0.5)';
+                span.style.boxShadow = '0 0 8px rgba(255, 215, 0, 0.6)';
+                span.style.opacity = '1';
+                span.style.zIndex = '35'; // Higher z-index for active track
+            } else if (isSelectedColumn) {
+                // COLUMN HIGHLIGHT: Thin vertical lines
+                span.style.borderLeft = '1px solid rgba(255, 215, 0, 0.8)';
+                span.style.borderRight = '1px solid rgba(255, 215, 0, 0.8)';
+                span.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+                span.style.borderBottom = '1px solid rgba(0,0,0,0.1)';
+                span.style.opacity = '1';
+                span.style.zIndex = '30';
+            } else {
+                // DEFAULT STATE
+                span.style.border = '1px solid rgba(0,0,0,0.1)';
+                span.style.opacity = '0.85';
+                span.style.zIndex = '10';
+            }
+
+            // POS level logic moved to after innerHTML assignment to prevent overwriting
+
+            // Generate Bravura notation if we have data
+            let bravuraNotation = '';
+
+            // SECURITY: Ensure rhythm data exists if notes exist
+            if (nimidi.length > 0 && (!tipis || tipis.length === 0)) {
+                tipis = new Array(nimidi.length).fill(3);
+            }
+
+            if (tipis.length > 0 && typeof renderPattern === 'function' && typeof window.noteMap !== 'undefined') {
+                try {
+                    bravuraNotation = renderPattern(window.noteMap, tipis);
+                } catch (e) { console.error('RenderPattern failed:', e); }
+            }
+
+            // REMOVED FALLBACK: If renderPattern fails, show NOTHING instead of wrong notes.
+            // This helps diagnose if the issue is empty generation vs wrong generation.
+
+            // CREATIVE FALLBACK: Visual Melody if renderPattern fails or returns empty
+            let customVisualNotation = '';
+            if ((!bravuraNotation || bravuraNotation.length === 0) && nimidi.length > 0) {
+                // Calculate pitch range for melodic contour
+                const validNotes = nimidi.filter(n => typeof n === 'number' && n > 0);
+                const minNote = validNotes.length > 0 ? Math.min(...validNotes) : 60;
+                const maxNote = validNotes.length > 0 ? Math.max(...validNotes) : 72;
+                const noteRange = Math.max(maxNote - minNote, 12);
+
+                const noteElements = nimidi.map((note, i) => {
+                    // MUSICOLI CODES: 1=Whole, 2=Half, 3=Quarter, 4=8th, 5=16th
+                    // 25=Half+Dot, 35=Quarter+Dot
+                    const code = (tipis && tipis[i]) ? parseInt(tipis[i]) : 3;
+                    const isRest = note <= 0 || code < 0; // Check BOTH note value AND duration sign
+
+                    let char = '';
+                    let dot = '';
+                    let baseCode = Math.abs(code);
+
+                    // Handle Dots (codes 25, 35)
+                    if (baseCode === 25 || baseCode === 35) {
+                        // Add margin to dot for better spacing
+                        dot = `<span style="margin-left: 3px;">\uE1E7</span>`;
+                        baseCode = (baseCode === 25) ? 2 : 3;
+                    }
+
+                    if (isRest) {
+                        switch (baseCode) {
+                            case 1: char = '\uE4E3'; break; // Whole Rest
+                            case 2: char = '\uE4E4'; break; // Half Rest
+                            case 3: char = '\uE4E5'; break; // Quarter Rest
+                            case 4: char = '\uE4E6'; break; // 8th Rest
+                            case 5: char = '\uE4E7'; break; // 16th Rest
+                            default: char = '\uE4E5';
+                        }
+                    } else {
+                        switch (baseCode) {
+                            case 1: char = '\uE1D2'; break; // Whole Note
+                            case 2: char = '\uE1D3'; break; // Half Note
+                            case 3: char = '\uE1D5'; break; // Quarter Note
+                            case 4: char = '\uE1D7'; break; // 8th Note
+                            case 5: char = '\uE1D9'; break; // 16th Note
+                            default: char = '\uE1D5';
+                        }
+                    }
+
+                    // Melodic styling: Adjusted vertical spread
+                    let yOffset = 0;
+                    if (!isRest && note > 0) {
+                        const normalized = (note - minNote) / noteRange;
+                        yOffset = (normalized * 8) - 4; // Tight spread (-4 to +4)
+                    }
+
+                    // Tight span width (auto or very small) + small margin
+                    return `<span style="display:inline-block; transform: translateY(${-yOffset}px); margin: 0 1px; text-align: center;">${char}${dot}</span>`;
+                }).join('');
+
+                // Center alignment + gap for "Notes more together"
+                customVisualNotation = `<div style="display: flex; justify-content: center; align-items: center; width: 100%; pointer-events: none; gap: 2px;">${noteElements}</div>`;
+            }
+
+            // Generate MIDI numbers display
+            let midiNumbers = '';
+            if (nimidi.length > 0) {
+                if (tipis && tipis.length === nimidi.length) {
+                    midiNumbers = nimidi.map((note, idx) => {
+                        return tipis[idx] < 0 ? '-' : note;
+                    }).join(' ');
+                } else {
+                    midiNumbers = nimidi.join(' ');
+                }
+            }
+
+            // Determine text color based on background
+            let textColor = '#000000';
+            if (colorValue && !colorValue.startsWith('linear-gradient')) {
+                const rgbMatch = colorValue.match(/\d+/g);
+                if (rgbMatch) {
+                    const brightness = (parseInt(rgbMatch[0]) * 299 + parseInt(rgbMatch[1]) * 587 + parseInt(rgbMatch[2]) * 114) / 1000;
+                    textColor = brightness > 125 ? '#000000' : '#ffffff';
+                }
+            }
+
+            // Build the content HTML
+            const measureNumber = index + 1;
+            const numberStyle = 'position: absolute; top: 0; left: 0; font-size: 9px; font-weight: bold; color: #fff; background: rgba(0,0,0,0.5); padding: 0px 2px; cursor: default; user-select: none; z-index: 2; line-height: 1;';
+
+            // LOGIC: Show detailed content for ALL measures (active/inactive) per user request
+            // FORCE CENTERING with Absolute Positioning to conquer Bravura's weird metrics
+            // overflow: visible is CRITICAL for Bravura in small containers
+            span.style.overflow = 'visible';
+
+            span.innerHTML = `
+                <div style="${numberStyle}">${measureNumber}</div>
+                <div style="
+                    position: absolute; 
+                    top: 60%; /* Slightly lower baseline to accommodate upward stems */
+                    left: 0; 
+                    width: 100%; 
+                    transform: translateY(-50%); 
+                    font-family: 'Bravura'; 
+                    font-size: 14px; /* Reduced to Tiny (14px) */
+                    line-height: 1; 
+                    text-align: center; 
+                    color: ${textColor};
+                    pointer-events: none;
+                    white-space: nowrap;
+                ">${bravuraNotation || customVisualNotation || ''}</div>
+            `;
+
+            // RED CURSOR SYSTEM: Show insertion gap (POS level)
+            // Rendered at the end of loop to ensure it's not overwritten by innerHTML assignment
+            // Use both local and window variables to be safe as they might be out of sync
+            const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : voiceEditMode;
+            const showRedCursor = (currentMode === 'dependent') || (key === currentVoice);
+            if (showRedCursor) {
+                // Determine if we show cursor on left of this measure or right (if at end)
+                const isAtEnd = (window.selectedMeasureIndex === measures.length);
+                const showOnLeft = (window.selectedMeasureIndex === index);
+                const showOnRight = isAtEnd && index === measures.length - 1;
+
+                if (showOnLeft || showOnRight) {
+                    const cursorLine = document.createElement('div');
+                    cursorLine.style.position = 'absolute';
+                    cursorLine.style.top = '0';
+                    cursorLine.style.width = '3px';
+                    cursorLine.style.height = '100%';
+                    cursorLine.style.backgroundColor = '#ff0000';
+                    cursorLine.style.zIndex = '100';
+                    cursorLine.style.pointerEvents = 'none';
+                    cursorLine.style.animation = 'np-blink 1s steps(2) infinite';
+
+                    if (showOnLeft) {
+                        cursorLine.style.left = '-1.5px';
+                    } else {
+                        cursorLine.style.right = '-1.5px';
+                    }
+                    span.appendChild(cursorLine);
+
+                    // CRITICAL: Ensure span has overflow visible to show the overlapping line
+                    span.style.overflow = 'visible';
+                }
+            }
+
+            span.title = `Measure ${measureNumber} - ${key.toUpperCase()}${isSelected ? ' (SELECTED)' : ''}${nimidi.length > 0 ? '\nMIDI: ' + nimidi.join(', ') : ''}${tipis.length > 0 ? '\nRhythm: ' + tipis.join(', ') : ''}`;
             span.style.pointerEvents = 'auto';
             span.style.cursor = 'pointer';
 
-            span.onclick = () => {
+            span.onclick = (e) => {
                 // Switch voice logic
                 if (voiceSelector && voiceSelector.value !== key) {
                     voiceSelector.value = key;
@@ -547,15 +956,96 @@ function renderVisualTracks() {
                     if (typeof window.currentVoice !== 'undefined') window.currentVoice = key;
                 }
                 // Select measure
-                selectedMeasureIndex = index;
-                if (typeof window.openMidiEditor === 'function') {
-                    window.openMidiEditor(index);
+                const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+                if (index === bdiRef.length - 1) {
+                    const rect = span.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    // Si clicamos en el último 30% del último compás, ponemos el cursor al final
+                    if (x > rect.width * 0.7) {
+                        window.selectedMeasureIndex = bdiRef.length;
+                    } else {
+                        window.selectedMeasureIndex = index;
+                    }
+                } else {
+                    window.selectedMeasureIndex = index;
+                }
+
+                if (window.np6) window.np6.cursorPos = window.selectedMeasureIndex;
+
+                if (typeof window.openMidiEditor === 'function' && window.selectedMeasureIndex < bdiRef.length) {
+                    window.openMidiEditor(window.selectedMeasureIndex);
+                }
+
+                // Re-render to update visual selection
+                renderVisualTracks();
+                if (typeof window.updateScoreIndicators === 'function') {
+                    window.updateScoreIndicators();
                 }
             };
 
             container.appendChild(span);
         });
+    }
+
+    // NEW: Handle empty score or clicking background to set cursor at the end
+    Object.keys(containers).forEach(key => {
+        const container = containers[key];
+        if (!container) return;
+
+        // 1. Add click listener to container to select "END of score" (insertion gap at end)
+        container.style.pointerEvents = 'auto';
+        container.style.cursor = 'cell'; // Indicate insertion capability
+        container.onclick = (e) => {
+            // Only trigger if clicking the container directly, not a measure span
+            if (e.target === container) {
+                const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+                window.selectedMeasureIndex = bdiRef.length;
+                if (window.np6) window.np6.cursorPos = bdiRef.length;
+                renderVisualTracks();
+                if (typeof window.updateScoreIndicators === 'function') {
+                    window.updateScoreIndicators();
+                }
+            }
+        };
+
+        // 2. Render a red cursor if score is empty and this voice/mode should show it
+        if (measures.length === 0) {
+            const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : voiceEditMode;
+            const showRedCursor = (currentMode === 'dependent') || (key === currentVoice);
+            if (showRedCursor && (window.selectedMeasureIndex === -1 || window.selectedMeasureIndex === 0 || typeof window.selectedMeasureIndex === 'undefined')) {
+                const cursorSpan = document.createElement('span');
+                cursorSpan.style.width = '3px';
+                cursorSpan.style.height = '100%';
+                cursorSpan.style.backgroundColor = '#ff0000';
+                cursorSpan.style.display = 'inline-block';
+                cursorSpan.style.marginLeft = '2px';
+                cursorSpan.style.animation = 'np-blink 1s steps(2) infinite';
+                container.appendChild(cursorSpan);
+            }
+        }
     });
+
+    // Handle clicking the viewport background to set cursor at the end
+    const viewport = document.getElementById('tracks-scroll-viewport');
+    if (viewport) {
+        viewport.onclick = (e) => {
+            // If clicking directly on viewport or the tracks container or a content row
+            // (but not on a measure span)
+            if (e.target === viewport ||
+                e.target.id === 'macoti-tracks-container' ||
+                e.target.classList.contains('content-row')) {
+
+                const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+                window.selectedMeasureIndex = bdiRef.length;
+                if (window.np6) window.np6.cursorPos = bdiRef.length;
+
+                renderVisualTracks();
+                if (typeof window.updateScoreIndicators === 'function') {
+                    window.updateScoreIndicators();
+                }
+            }
+        };
+    }
 }
 
 // Helper function to update all systems after bdi change
@@ -605,8 +1095,8 @@ function updateAfterBdiChange() {
     setTimeout(renderVisualTracks, 50);
 
 
-    // Reset selection
-    selectedMeasureIndex = -1;
+    // Reset selection - DISABLED because we want to preserve selection after adding/editing measures
+    // selectedMeasureIndex = -1;
 }
 
 
@@ -1043,6 +1533,102 @@ async function createTonalidadEditor(notepadInstance, containerId) {
         grid.appendChild(itemDiv);
     }
 
+    // --- INJECT HARMONIZATION & ONDA TOOL ---
+    const toolsContainer = document.createElement('div');
+    toolsContainer.style.marginBottom = '20px'; // Spacing after tools, before palette
+    toolsContainer.innerHTML = `
+        <div id="harmonize-container" style="padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h4 style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
+                🎹 ZONA DE ARMONIZACIÓN
+            </h4>
+            <p style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 10px;">
+                Haz clic aquí para generar acompañamiento:
+            </p>
+            <button id="harmonize-btn" class="theme-btn" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">
+                ✨ Armonizar desde esta voz
+            </button>
+            <button id="harmonize-scale-btn" class="theme-btn" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">
+                🎼 Ajustar a escala
+            </button>
+
+            <!-- ONDA TOOL (Integrated) -->
+            <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
+                🌊 Onda (Modulación)
+            </h4>
+            
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="Amplitud máxima en pasos de escala">Amp (Max):</label>
+                <select id="onda-amp" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="12">12</option>
+                </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 5px;">
+                <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="Longitud de ciclo en notas">Ciclo (Notas):</label>
+                <select id="onda-freq" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                    <option value="4">4 notas</option>
+                    <option value="8" selected>8 notas</option>
+                    <option value="12">12 notas</option>
+                    <option value="16">16 notas</option>
+                    <option value="24">24 notas</option>
+                    <option value="32">32 notas</option>
+                </select>
+                </div>
+
+                <button id="onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
+                style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                🌊 Aplicar
+                </button>
+                
+
+            </div>
+
+            <!-- PHRASE TOOLS (Restored) -->
+            <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
+                🔁 Frase / Composición
+            </h4>
+            
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
+                    <input type="number" id="transpose-amount" value="0" style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
+                </div>
+
+                <select id="transpose-unit" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                    <option value="scale">Escala</option>
+                    <option value="semitone">Semitonos</option>
+                </select>
+
+                <button class="theme-btn" onclick="triggerTranspose(); return false;" 
+                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    Trasponer
+                </button>
+
+                <button class="theme-btn" onclick="triggerDuplicate(); return false;" 
+                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    Duplicar
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(toolsContainer);
+
+    // Re-attach listeners for the Harmonize button
+    if (typeof attachHarmonizeListeners === 'function') {
+        attachHarmonizeListeners();
+    }
+
     container.appendChild(grid);
 
     // Update all color values when mode changes
@@ -1297,6 +1883,67 @@ function addMonochromaticIntervalsToLadder() {
 
     // Interval 0: Only Ascending (monochromatic single notes)
     addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, 0, 'ascending', null, false);
+
+    // MUSICOLI: Button for Whole Rest (Redonda) when in Group 1
+    if (typeof currentGroup !== 'undefined' && currentGroup === 1) {
+        const btnRestRedonda = document.createElement('span');
+        btnRestRedonda.textContent = '\uD834\uDD3B'; // Whole Rest Symbol
+        btnRestRedonda.style.display = 'inline-block';
+        btnRestRedonda.style.width = '25px';
+        btnRestRedonda.style.height = '25px';
+        btnRestRedonda.style.textAlign = 'center';
+        btnRestRedonda.style.lineHeight = '28px'; // Adjust for Bravura vertical alignment
+        btnRestRedonda.style.border = '1px solid #777';
+        btnRestRedonda.style.borderRadius = '3px';
+        btnRestRedonda.style.marginLeft = '10px';
+        btnRestRedonda.style.marginRight = '10px';
+        btnRestRedonda.style.cursor = 'pointer';
+        btnRestRedonda.style.backgroundColor = '#000000'; // Black background
+        btnRestRedonda.style.color = '#ffffff'; // White symbol
+        btnRestRedonda.style.fontFamily = 'Bravura';
+        btnRestRedonda.style.fontSize = '20px';
+        btnRestRedonda.title = 'Silencio de Redonda';
+
+        btnRestRedonda.onmouseenter = () => { btnRestRedonda.style.backgroundColor = '#333'; };
+        btnRestRedonda.onmouseleave = () => { btnRestRedonda.style.backgroundColor = '#000'; };
+
+        btnRestRedonda.onclick = () => {
+            const variation = [-4];
+            if (typeof currentPattern !== 'undefined') currentPattern = variation;
+
+            // Populate Modal Inputs
+            const rhythmInput = document.getElementById('rhythm-values-input');
+            const midiInput = document.getElementById('midi-single-input');
+
+            // Get default pitch
+            const vSelector = document.getElementById('voice-selector');
+            const curVoice = vSelector ? vSelector.value : 's';
+            const defaultPitches = { 's': 72, 'a': 67, 't': 60, 'b': 55 };
+            const pitch = defaultPitches[curVoice] || 72;
+
+            // Map to MIDI (0 for rest)
+            const newMidi = [0];
+
+            if (rhythmInput) {
+                rhythmInput.value = variation.join(' ');
+                rhythmInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            if (midiInput) {
+                midiInput.value = newMidi.join(' ');
+                midiInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            // Show accept button
+            if (typeof acceptBtn !== 'undefined' && acceptBtn) {
+                acceptBtn.style.display = 'block';
+            } else {
+                const btn = document.getElementById('rhythm-notation-button');
+                if (btn) btn.style.display = 'block';
+            }
+        };
+
+        ladder.appendChild(btnRestRedonda);
+    }
 
     // Spacer after monochromatic section
     const spacer0 = document.createElement('span');
@@ -1559,6 +2206,38 @@ function openSilenceVariationsModal() {
                         // Store pattern for playback
                         currentPattern = variation;
 
+                        // MUSICOLI: Update Modal Editor Inputs
+                        const rhythmInput = document.getElementById('rhythm-values-input');
+                        const midiInput = document.getElementById('midi-single-input');
+
+                        if (rhythmInput || midiInput) {
+                            // 1. Get current voice for default pitch
+                            const vSelector = document.getElementById('voice-selector');
+                            const curVoice = vSelector ? vSelector.value : 's';
+                            const defaultPitches = { 's': 72, 'a': 67, 't': 60, 'b': 55 };
+                            const pitch = defaultPitches[curVoice] || 72;
+
+                            // 2. Map variation (rhythm) to MIDI notes
+                            // Positive duration -> pitch, Negative (rest) -> 0
+                            const newMidi = variation.map(v => v > 0 ? pitch : 0);
+
+                            // 3. Update Rhythm Input
+                            if (rhythmInput) {
+                                rhythmInput.value = variation.join(' ');
+                                rhythmInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                            // Also update global state directly as fallback
+                            if (typeof window.currentEditingRhythmValues !== 'undefined') {
+                                window.currentEditingRhythmValues = [...variation];
+                            }
+
+                            // 4. Update MIDI Input
+                            if (midiInput) {
+                                midiInput.value = newMidi.join(' ');
+                                midiInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
+                        }
+
                         // Clear selection
                         content.querySelectorAll('div').forEach(c => {
                             // Reset styling based on type
@@ -1620,8 +2299,7 @@ function openSilenceVariationsModal() {
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
 
-    // Make modal draggable
-    makeDraggable(modalContent, header);
+
 
     // Close modal when clicking outside
     modal.onclick = (e) => {
@@ -1663,7 +2341,7 @@ function makeDraggable(element, handle) {
 }
 
 // Add ternary intervals (3-note patterns, intervals 1-7) to the ladder
-function addAllIntervalsToLadder3() {
+function addAllIntervalsToLadder3(limitNoteCount = null) {
 
     const { scaleNotesInRange, vocalRange, scaleName } = ininoti();
     const ladder = document.getElementById('editor-tonalidad-ladder');
@@ -1749,7 +2427,7 @@ function addAllIntervalsToLadder3() {
         intervalWrapper.style.verticalAlign = 'top';
 
         // Ascending (Green)
-        addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false);
+        addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false, limitNoteCount);
 
         // Small gap between Asc/Desc
         const spacer = document.createElement('span');
@@ -1758,7 +2436,7 @@ function addAllIntervalsToLadder3() {
         intervalWrapper.appendChild(spacer);
 
         // Descending (Red)
-        addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false);
+        addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false, limitNoteCount);
 
         // Append wrapper to main container
         container.appendChild(intervalWrapper);
@@ -1920,6 +2598,8 @@ function addScaleWithInterval4(allNotesInRange, vocalRange, scaleName, interval,
 
 function addClickHandler4(span, color1R, color1G, color1B, color2Gray, firstNote, secondNote, thirdNote, fourthNote, midiPattern, direction, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(midiPattern)) return;
+
         const container = document.getElementById('selected-tones-container');
         if (!container) return;
 
@@ -2027,8 +2707,46 @@ function getContrastColor(color) {
     return (yiq >= 128) ? 'black' : 'white';
 }
 
+// Helper to format tooltip with detailed note info (MIDI, ABC, Solfeo)
+function formatTooltipNotes(midiList, limitNoteCount = null) {
+    const toABC = (midi) => {
+        if (midi <= 0) return 'Rest';
+        const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const oct = Math.floor(midi / 12) - 1;
+        return names[midi % 12] + oct;
+    };
+    const toSolfeo = (midi) => {
+        if (midi <= 0) return 'Sil';
+        const names = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+        const oct = Math.floor(midi / 12) - 1;
+        return names[midi % 12] + oct;
+    };
+
+    let notesToShow = midiList;
+    let prefix = "Notas: ";
+
+    if (limitNoteCount !== null) {
+        const validNotes = midiList.filter(m => m > 0);
+        if (validNotes.length > 0) {
+            let notesToSend = validNotes.slice(0, limitNoteCount);
+            while (notesToSend.length < limitNoteCount) {
+                notesToSend.push(validNotes[validNotes.length - 1]);
+            }
+            notesToShow = notesToSend;
+            prefix = "Notas a enviar: ";
+        }
+    }
+
+    const details = notesToShow.map(m => {
+        if (m <= 0) return 'Sil';
+        return `${m}(${toABC(m)}/${toSolfeo(m)})`;
+    }).join(' ');
+
+    return prefix + details;
+}
+
 // Add six-interval scales (6-note patterns with gradient of 2 colors) to the ladder
-function addSixIntervalsToLadder() {
+function addSixIntervalsToLadder(limitNoteCount = null) {
     const { scaleNotesInRange, vocalRange, scaleName } = ininoti();
     const ladder = document.getElementById('editor-tonalidad-ladder');
     if (!ladder) return;
@@ -2129,7 +2847,7 @@ function addSixIntervalsToLadder() {
 
         // Ascending (Green border)
         // Pass 'intervalWrapper' as targetElement
-        addScaleWithInterval6_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false, sharedPatterns);
+        addScaleWithInterval6_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false, sharedPatterns, limitNoteCount);
 
         // Small gap between Asc/Desc
         const spacer = document.createElement('span');
@@ -2138,7 +2856,7 @@ function addSixIntervalsToLadder() {
         intervalWrapper.appendChild(spacer);
 
         // Descending (Red border)
-        addScaleWithInterval6_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false, sharedPatterns);
+        addScaleWithInterval6_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false, sharedPatterns, limitNoteCount);
 
         // Append wrapper to main container
         container.appendChild(intervalWrapper);
@@ -2146,7 +2864,7 @@ function addSixIntervalsToLadder() {
 }
 
 // Función para crear spans con intervalo específico y dirección para 6 notas con gradiente (2 colores)
-function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true, sharedPatterns = null) {
+function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true, sharedPatterns = null, limitNoteCount = null) {
     const generatedPatterns = sharedPatterns || new Set();
     // Validar parámetros
     if (interval < 0) interval = 0;
@@ -2267,7 +2985,17 @@ function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, int
             }
             span.textContent = label;
 
-            span.title = `6 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] Verde scendente (intervalo ${interval})`;
+            // Tooltip logic
+            let baseTooltip = `6 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] Verde scendente (intervalo ${interval})`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandler6(span, { r: color1R, g: color1G, b: color1B }, { r: color2R, g: color2G, b: color2B }, notes, interval);
@@ -2352,7 +3080,17 @@ function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, int
             }
             span.textContent = label;
 
-            span.title = `6 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] Rojo descendente (intervalo ${interval})`;
+            // Tooltip logic
+            let baseTooltip = `6 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] Rojo descendente (intervalo ${interval})`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandler6(span, { r: color1R, g: color1G, b: color1B }, { r: color2R, g: color2G, b: color2B }, notes, interval);
@@ -2364,6 +3102,8 @@ function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, int
 
 function addClickHandler6(span, rgb1, rgb2, notes, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(notes.map(n => n.midi))) return;
+
         const container = document.getElementById('selected-tones-container');
         if (!container) return;
 
@@ -2453,13 +3193,55 @@ function addClickHandler6(span, rgb1, rgb2, notes, interval) {
     });
 }
 
+// Click handler for 9-note patterns
+function addClickHandler9(span, rgb1, rgb2, rgb3, notes, interval) {
+    span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(notes.map(n => n.midi))) return;
+
+        // En modo ritmo, comportamiento normal (agregar a paleta de colores)
+        const container = document.getElementById('selected-tones-container');
+        if (!container) return;
+
+        // Similar logic to addClickHandler6, but with 3 colors
+        // For now, just log that this is not fully implemented for rhythm mode
+        console.log('🎨 9-note pattern clicked in rhythm mode - not fully implemented');
+    });
+}
+
+// Click handler for 3-note patterns
+function addClickHandler3(span, rgb1, notes, interval) {
+    span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(notes.map(n => n.midi))) return;
+
+        // En modo ritmo, comportamiento normal (agregar a paleta de colores)
+        const container = document.getElementById('selected-tones-container');
+        if (!container) return;
+
+        // Similar logic to addClickHandler4/6
+        console.log('🎨 3-note pattern clicked in rhythm mode - not fully implemented');
+    });
+}
+
+// Click handler for monochromatic scale buttons
+function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midiPattern, direction, interval) {
+    span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(midiPattern)) return;
+
+        // En modo ritmo, comportamiento normal (agregar a paleta de colores)
+        const container = document.getElementById('selected-tones-container');
+        if (!container) return;
+
+        console.log('🎨 Monochromatic scale button clicked in rhythm mode - not fully implemented');
+    });
+}
+
 
 
 
 
 // Add six-interval scales (6-note patterns with gradient of 2 colors) to the ladder
 // Add nine-interval scales (9-note patterns with gradient of 3 colors) to the ladder
-function addNineIntervalsToLadder() {
+function addNineIntervalsToLadder(limitNoteCount = null) {
     const { scaleNotesInRange, vocalRange, scaleName } = ininoti();
     const ladder = document.getElementById('editor-tonalidad-ladder');
     if (!ladder) return;
@@ -2547,7 +3329,7 @@ function addNineIntervalsToLadder() {
         intervalWrapper.style.verticalAlign = 'top';
 
         // Ascending (Green border)
-        addScaleWithInterval9_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false, sharedPatterns);
+        addScaleWithInterval9_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'ascending', intervalWrapper, false, sharedPatterns, limitNoteCount);
 
         // Small gap between Asc/Desc
         const spacer = document.createElement('span');
@@ -2556,7 +3338,7 @@ function addNineIntervalsToLadder() {
         intervalWrapper.appendChild(spacer);
 
         // Descending (Red border)
-        addScaleWithInterval9_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false, sharedPatterns);
+        addScaleWithInterval9_Fixed(scaleNotesInRange, vocalRange, scaleName, i, 'descending', intervalWrapper, false, sharedPatterns, limitNoteCount);
 
         // Append wrapper to main container
         container.appendChild(intervalWrapper);
@@ -2564,7 +3346,7 @@ function addNineIntervalsToLadder() {
 }
 
 // Función para crear spans con intervalo específico y dirección para 6 notas con gradiente (2 colores)
-function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true, sharedPatterns = null) {
+function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true, sharedPatterns = null, limitNoteCount = null) {
     const generatedPatterns = sharedPatterns || new Set();
     // Validar parámetros
     if (interval < 0) interval = 0;
@@ -2685,7 +3467,17 @@ function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, int
             }
             span.textContent = label;
 
-            span.title = `9 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] RGB3: [${midiList.slice(6, 9)}] Verde ascendente (intervalo ${interval})`;
+            // Tooltip logic
+            let baseTooltip = `9 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] RGB3: [${midiList.slice(6, 9)}] Verde ascendente (intervalo ${interval})`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandler9(span, { r: color1R, g: color1G, b: color1B }, { r: color2R, g: color2G, b: color2B }, { r: color3R, g: color3G, b: color3B }, notes, interval);
@@ -2777,7 +3569,17 @@ function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, int
             }
             span.textContent = label;
 
-            span.title = `9 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] RGB3: [${midiList.slice(6, 9)}] Rojo descendente (intervalo ${interval})`;
+            // Tooltip logic
+            let baseTooltip = `9 notas (gradiente) RGB1: [${midiList.slice(0, 3)}] RGB2: [${midiList.slice(3, 6)}] RGB3: [${midiList.slice(6, 9)}] Rojo descendente (intervalo ${interval})`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandler9(span, { r: color1R, g: color1G, b: color1B }, { r: color2R, g: color2G, b: color2B }, { r: color3R, g: color3G, b: color3B }, notes, interval);
@@ -2789,6 +3591,8 @@ function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, int
 
 function addClickHandler9(span, rgb1, rgb2, rgb3, notes, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(notes.map(n => n.midi))) return;
+
         const container = document.getElementById('selected-tones-container');
         if (!container) return;
 
@@ -3037,9 +3841,16 @@ function makeladi02(hexi) {
 }
 
 
+
 // Update chromatic semitones in the tonalidad ladder
 function makeladi(hexi = '#ff0000') {
     const ladderElement = document.getElementById('editor-tonalidad-ladder');
+
+    // Update color info visibility based on mode
+    if (typeof window.updateRhythmColorInfoVisibility === 'function') {
+        window.updateRhythmColorInfoVisibility();
+    }
+
     if (!ladderElement) return;
     const { allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName } = ininoti()
     // Clear everything first
@@ -3099,12 +3910,25 @@ function makeladi(hexi = '#ff0000') {
                 } else {
                     currentGroup = i;
                 }
+
+                // MUSICOLI: Hide silence variations column when changing note count
+                const silenceColumn = document.getElementById('silence-variations-column');
+                if (silenceColumn) {
+                    silenceColumn.style.display = 'none';
+                }
+
                 makeladi();
             };
             selectorContainer.appendChild(btn);
         }
     }
-    ladderElement.appendChild(selectorContainer);
+    // Check global mode early for UI decisions
+    const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode :
+        (typeof currentEditMode !== 'undefined' ? currentEditMode : 'ritmo');
+
+    if (mode !== 'tonalidad') {
+        ladderElement.appendChild(selectorContainer);
+    }
 
     // ========== LINE 2: Rhythm Patterns ==========
     const rhythmSlot = document.createElement('div');
@@ -3118,35 +3942,92 @@ function makeladi(hexi = '#ff0000') {
     if (window.rhythmEditorContent) {
         rhythmSlot.appendChild(window.rhythmEditorContent);
     }
-    ladderElement.appendChild(rhythmSlot);
-
-    // ========== LINE 3: Monochromatic Scale (always visible) ==========
-    monocromati()
-
-    // Add line break after monochromatic scale
-    const br = document.createElement('br');
-    br.style.lineHeight = '0.5';
-    br.style.fontSize = '8px';
-    ladderElement.appendChild(br);
-
-    // ========== LINE 4: Generated scale based on note count ==========
-    if (currentGroup == 1) {
-        // 1 note selected: Only monochromatic scale visible (no additional scales)
-    }
-    else if (currentGroup == 2 || currentGroup == 3) {
-        // 2-3 notes selected: Add 3-note scale
-        addAllIntervalsToLadder3();
-    }
-    else if (currentGroup >= 4 && currentGroup <= 6) {
-        // 4-6 notes selected: Add 6-note scale
-        addSixIntervalsToLadder();
-    }
-    else if (currentGroup >= 7 && currentGroup <= 8) {
-        // 7-8 notes selected: Add 9-note scale
-        addNineIntervalsToLadder();
+    if (mode !== 'tonalidad') {
+        ladderElement.appendChild(rhythmSlot);
     }
 
-    wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName)
+    // Show scales only in 'Melodía' (tonalidad) mode or 'Ritmo' mode with Percussion
+    let scalesVisible = false;
+
+    // mode variable is already defined above
+
+    if (mode === 'tonalidad') {
+        scalesVisible = true;
+    } else if (mode === 'ritmo') {
+        // Check for percussion
+        if (window.bdi && window.bdi.metadata && window.bdi.metadata.voices) {
+            const vData = window.bdi.metadata.voices[window.currentVoice || 's'];
+            // Check boolean percussion or instrument string code if used
+            if (vData && (vData.percussion === true || vData.instrument === 'perc')) {
+                scalesVisible = true;
+            }
+        }
+    } else {
+        // Default based on original logic (else case was scalesVisible=true in original)
+        // But if mode is unrelated, maybe false? 
+        // Original code had: } else { scalesVisible = true; } 
+        // We'll keep it true for safety unless specifically excluded.
+        scalesVisible = true;
+    }
+
+    if (scalesVisible) {
+        // ========== LINE 4: Generated scale based on note count ==========
+        // En modo tonalidad, usar el número de notas del compás actual
+        let noteCount = currentGroup;
+
+        if (mode === 'tonalidad' && window.currentEditingMeasureIndex >= 0) {
+            const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+            if (measure) {
+                // Obtener la voz activa
+                const voiceSelector = document.getElementById('voice-selector');
+                const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                // Obtener los datos de la voz
+                let voiceData = null;
+                if (measure.voci && Array.isArray(measure.voci)) {
+                    voiceData = measure.voci.find(v => v.nami === voiceCode);
+                }
+
+                // Usar el número de notas del compás (nimidi)
+                if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
+                    noteCount = voiceData.nimidi.length;
+                    console.log(`🎵 Modo Tonalidad: Generando escalera para ${noteCount} notas del compás #${window.currentEditingMeasureIndex + 1}`);
+                }
+            }
+        }
+
+        // ========== LINE 3: Monochromatic Scale ==========
+        monocromati(noteCount);
+
+        // Add line break after monochromatic scale
+        const br = document.createElement('br');
+        br.style.lineHeight = '0.5';
+        br.style.fontSize = '8px';
+        ladderElement.appendChild(br);
+
+
+        if (noteCount == 1) {
+            // 1 note selected: Only monochromatic scale visible (no additional scales)
+        }
+        else if (noteCount == 2 || noteCount == 3) {
+            // 2-3 notes selected: Add 3-note scale
+            addAllIntervalsToLadder3(noteCount);
+        }
+        else if (noteCount >= 4 && noteCount <= 6) {
+            // 4-6 notes selected: Add 6-note scale
+            addSixIntervalsToLadder(noteCount);
+        }
+        else if (noteCount >= 7 && noteCount <= 8) {
+            // 7-8 notes selected: Add 9-note scale
+            addNineIntervalsToLadder(noteCount);
+        }
+
+    }
+
+    // Always update scale info in footer and header2, even if scale buttons are hidden (e.g. in Rhythm mode)
+    wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName);
 }
 
 // Get vocal range for the selected voice
@@ -3182,7 +4063,8 @@ function midiToScientific(midiNote) {
 // Función para mapear MIDI a RGB
 function midiToRgb(midi, midiMin, midiMax) { return Math.round(50 + ((midi - midiMin) / (midiMax - midiMin)) * (255 - 50)) }
 
-function monocromati() {
+// Update chromatic semitones in the tonalidad ladder
+function monocromati(limitNoteCount = null) {
 
     const { allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName } = ininoti()
     const currentIntervals = scaleIntervals[scaleName] || scaleIntervals.mayor;
@@ -3372,7 +4254,18 @@ function monocromati() {
         span.style.transform = `skewY(-${skewAngle}deg)`;
 
         //span.textContent = '';
-        span.title = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${firstNote.midi}, ${secondNote.midi}, ${firstNote.midi}] Verde ascendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+        // Tooltip logic
+        const midiList = [firstNote.midi, secondNote.midi, thirdNote.midi];
+        let baseTooltip = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${firstNote.midi}, ${secondNote.midi}, ${firstNote.midi}] Verde ascendente (intervalo ${interval})`;
+        let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+        if (limitNoteCount !== null) {
+            const validNotes = midiList.filter(m => m > 0);
+            if (validNotes.length > 0) {
+                tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+            }
+        }
+        span.title = tooltipText;
         let octi = ' '
         if (firstNote.midi == 48 || firstNote.midi == 60 || thirdNote.midi == 72 || firstNote.midi == 84) {
             octi = '.';
@@ -3385,7 +4278,7 @@ function monocromati() {
         }
 
         span.textContent = octi + firstNote.midi;
-        span.title = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${firstNote.midi}, ${secondNote.midi}, ${thirdNote.midi}] Rojo descendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+        span.title = tooltipText;
 
         // Añadir manejador de clic
         addClickHandlerScale(span, redValue, greenValue, blueValue, [firstNote, secondNote, thirdNote], [firstNote.midi, secondNote.midi, thirdNote.midi], direction, interval);
@@ -3397,7 +4290,7 @@ function monocromati() {
 }
 
 // Función modificada para soportar padding de silencios y toggle
-function addScaleWithInterval3(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true) {
+function addScaleWithInterval3(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true, limitNoteCount = null) {
     // Validar parámetros
     if (interval < 0) interval = 0;
 
@@ -3495,7 +4388,18 @@ function addScaleWithInterval3(allNotesInRange, vocalRange, scaleName, interval,
                 span.textContent = octi + firstNote.midi;
             }
 
-            span.title = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${firstNote.midi}, ${secondNote.midi}, ${thirdNote.midi}] Verde ascendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+            // Tooltip logic
+            const midiList = [firstNote.midi, secondNote.midi, thirdNote.midi];
+            let baseTooltip = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${midiList}] Verde ascendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandlerScale(span, redValue, greenValue, blueValue, notes, [firstNote.midi, secondNote.midi, thirdNote.midi], direction, interval);
@@ -3567,7 +4471,18 @@ function addScaleWithInterval3(allNotesInRange, vocalRange, scaleName, interval,
                 span.textContent = octi + firstNote.midi;
             }
 
-            span.title = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${firstNote.midi}, ${secondNote.midi}, ${thirdNote.midi}] Rojo descendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+            // Tooltip logic
+            const midiList = [firstNote.midi, secondNote.midi, thirdNote.midi];
+            let baseTooltip = `3notasConsecutivas RGB: (${redValue}, ${greenValue}, ${blueValue}) MIDI: [${midiList}] Rojo descendente (intervalo ${interval}): ${firstNote.scientific}-${secondNote.scientific}`;
+            let tooltipText = baseTooltip + '\n' + formatTooltipNotes(midiList, null);
+
+            if (limitNoteCount !== null) {
+                const validNotes = midiList.filter(m => m > 0);
+                if (validNotes.length > 0) {
+                    tooltipText = formatTooltipNotes(midiList, limitNoteCount);
+                }
+            }
+            span.title = tooltipText;
 
             // Añadir manejador de clic
             addClickHandlerScale(span, redValue, greenValue, blueValue, notes, [firstNote.midi, secondNote.midi, thirdNote.midi], direction, interval);
@@ -3579,6 +4494,8 @@ function addScaleWithInterval3(allNotesInRange, vocalRange, scaleName, interval,
 
 function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midiPattern, direction, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(midiPattern)) return;
+
         // NEW: Check if modal is open in rhythm mode
         if (typeof window.isModalOpenInRhythmMode === 'function' && window.isModalOpenInRhythmMode()) {
             // Load data into modal input instead of bdi/player
@@ -3736,8 +4653,37 @@ function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midi
             };
 
             // Add to bdi.bar (append new measure)
+            // Add to bdi.bar (append new measure)
             if (window.bdi && window.bdi.bar) {
-                window.bdi.bar.push(measureData);
+                // Use addMeasureWithMode logic to respect insertion point and voice mode
+                // Synchronize with notepad cursor if possible
+                if (typeof window.np6 !== 'undefined' && window.np6 && typeof window.selectedMeasureIndex === 'undefined') {
+                    window.selectedMeasureIndex = window.np6.cursorPos;
+                }
+
+                const insertIdx = (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0)
+                    ? window.selectedMeasureIndex
+                    : window.bdi.bar.length;
+
+                if (typeof window.addMeasureWithMode === 'function') {
+                    window.addMeasureWithMode(measureData, null, insertIdx);
+
+                    // Update selection to next measure so subsequent clicks append
+                    const newIndex = insertIdx + 1;
+                    window.selectedMeasureIndex = newIndex;
+
+                    // Force update notepad cursor to match
+                    if (typeof window.np6 !== 'undefined' && window.np6) {
+                        window.np6.cursorPos = newIndex;
+                    }
+                } else {
+                    // Fallback
+                    if (insertIdx < window.bdi.bar.length) {
+                        window.bdi.bar.splice(insertIdx, 0, measureData);
+                    } else {
+                        window.bdi.bar.push(measureData);
+                    }
+                }
 
                 // Save state for undo/redo
                 if (typeof saveBdiState === 'function') {
@@ -3746,7 +4692,15 @@ function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midi
 
                 // Update all systems (notepad, player, visual tracks)
                 if (typeof updateAfterBdiChange === 'function') {
+                    // Pass the new cursor position to ensure applyTextLayer uses it
+                    // This relies on applyTextLayer checking np6.cursorPos or us setting it before
                     updateAfterBdiChange();
+                }
+
+                // Explicitly seek applyTextLayer to ensure cursor update
+                if (typeof window.applyTextLayer === 'function') {
+                    // We already set np6.cursorPos above, but applyTextLayer might reset it if not handled carefully.
+                    // The fix in step 210 handles saving/restoring, so we are good.
                 }
             }
         }
@@ -3913,9 +4867,98 @@ function addScaleWithInterval(allNotesInRange, vocalRange, scaleName, interval, 
 // Para cualquier intervalo 'n': step = 2 * n
 // Esto garantiza que no haya superposición entre los pares y que la distribución sea uniforme.
 
-// Función auxiliar para manejar clics (se mantiene igual)
+// Helper to handle scale clicks in Tonalidad/Melodía mode
+window.handleTonalidadClick = function (midiPattern) {
+    console.log('🔍 handleTonalidadClick called (línea 4318)');
+    console.log('   midiPattern:', midiPattern);
+    console.log('   window.currentEditMode:', window.currentEditMode);
+    console.log('   window.currentEditingMeasureIndex:', window.currentEditingMeasureIndex);
+
+    // Check mode
+    const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode :
+        (typeof currentEditMode !== 'undefined' ? currentEditMode : 'ritmo');
+
+    if (mode === 'tonalidad') {
+        console.log('   ✅ In tonalidad mode');
+
+        // Verificar que estamos editando un compás
+        if (window.currentEditingMeasureIndex < 0) {
+            console.log('   ❌ No measure being edited');
+            return false;
+        }
+
+        const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+        if (!measure) {
+            console.log('   ❌ Measure not found');
+            return false;
+        }
+
+        // Obtener la voz activa
+        const voiceSelector = document.getElementById('voice-selector');
+        const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+        const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+        const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+        // Obtener los datos de la voz
+        let voiceData = null;
+        if (measure.voci && Array.isArray(measure.voci)) {
+            voiceData = measure.voci.find(v => v.nami === voiceCode);
+        }
+
+        if (!voiceData || !voiceData.nimidi) {
+            console.log('   ❌ Voice data not found');
+            return false;
+        }
+
+        // Obtener el número de notas del compás actual
+        const targetNoteCount = voiceData.nimidi.length;
+        console.log('   ✅ Target note count:', targetNoteCount);
+
+        // Filtrar el patrón para tomar solo targetNoteCount notas (excluyendo silencios/0s)
+        const validNotes = midiPattern.filter(midi => midi > 0);
+
+        if (validNotes.length === 0) {
+            console.warn('   ⚠️ Patrón sin notas válidas');
+            return false;
+        }
+
+        // Tomar solo las primeras targetNoteCount notas
+        let notesToSend = validNotes.slice(0, targetNoteCount);
+
+        // Si no hay suficientes notas, repetir la última
+        while (notesToSend.length < targetNoteCount) {
+            notesToSend.push(validNotes[validNotes.length - 1]);
+        }
+
+        console.log(`   🎵 Enviando ${notesToSend.length} notas (de ${midiPattern.length} en el patrón)`);
+        console.log(`   Patrón original: [${midiPattern.join(', ')}]`);
+        console.log(`   Notas enviadas: [${notesToSend.join(', ')}]`);
+
+        const input = document.getElementById('midi-single-input');
+        if (input) {
+            // Update the input value with the correct number of notes
+            const newValue = notesToSend.join(' ');
+            input.value = newValue;
+
+            // Trigger input event to update visualizer and internal state
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // Visual feedback
+            input.style.transition = 'background-color 0.2s';
+            input.style.backgroundColor = '#ffe0b2'; // Light orange
+            setTimeout(() => input.style.backgroundColor = '', 300);
+
+            console.log('   ✅ Melodía Mode: Updated modal notes to', newValue);
+            return true; // Handled
+        }
+    }
+    return false; // Not handled
+};
+
 function addClickHandler(span, redValue, greenValue, blueValue, firstNote, secondNote, midiPattern, direction, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick(midiPattern)) return;
+
         const hexColor = '#' +
             redValue.toString(16).padStart(2, '0') +
             greenValue.toString(16).padStart(2, '0') +
@@ -3999,8 +5042,38 @@ function addClickHandler(span, redValue, greenValue, blueValue, firstNote, secon
             };
 
             // Add to bdi.bar (append new measure)
+            // Add to bdi.bar (append new measure)
+            // Add to bdi.bar (append new measure)
             if (window.bdi && window.bdi.bar) {
-                window.bdi.bar.push(measureData);
+                // Use addMeasureWithMode logic to respect insertion point and voice mode
+                // Synchronize with notepad cursor if possible
+                if (typeof window.np6 !== 'undefined' && window.np6 && typeof window.selectedMeasureIndex === 'undefined') {
+                    window.selectedMeasureIndex = window.np6.cursorPos;
+                }
+
+                const insertIdx = (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0)
+                    ? window.selectedMeasureIndex
+                    : window.bdi.bar.length;
+
+                if (typeof window.addMeasureWithMode === 'function') {
+                    window.addMeasureWithMode(measureData, null, insertIdx);
+
+                    // Update selection to next measure so subsequent clicks append
+                    const newIndex = insertIdx + 1;
+                    window.selectedMeasureIndex = newIndex;
+
+                    // Force update notepad cursor to match
+                    if (typeof window.np6 !== 'undefined' && window.np6) {
+                        window.np6.cursorPos = newIndex;
+                    }
+                } else {
+                    // Fallback
+                    if (insertIdx < window.bdi.bar.length) {
+                        window.bdi.bar.splice(insertIdx, 0, measureData);
+                    } else {
+                        window.bdi.bar.push(measureData);
+                    }
+                }
 
                 // Save state for undo/redo
                 if (typeof saveBdiState === 'function') {
@@ -4067,6 +5140,7 @@ function addToneSpanEventHandlers(toneSpan, container, hexColor) {
     });
 
     // Doble click: eliminar
+    /*
     toneSpan.addEventListener('dblclick', () => {
         toneSpan.remove();
         const idx = window.selectedTones.findIndex(t => t.hex === hexColor);
@@ -4077,6 +5151,7 @@ function addToneSpanEventHandlers(toneSpan, container, hexColor) {
             window.updateRhythmColorPreview();
         }
     });
+    */
 }
 //////////////////
 
@@ -4237,6 +5312,31 @@ function midiToABC(midi) {
 }
 
 // Add scale tones as graduated grays to the tonalidad ladder
+function wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName) {
+    // Add scale and vocal range info to the fixed footer
+    const voiceSelector = document.getElementById('voice-selector');
+    const voice = voiceSelector ? voiceSelector.value : 'soprano';
+
+    // Calculate content first
+    const infoContent = `
+          Escala ${tonicain[keyinselecti]} ${scaleName.charAt(0).toUpperCase() + scaleName.slice(1)}: ${scaleNotesInRange.map(n => `${n.scientific}(${midiToABC(n.midi)})(${n.midi})`).join(' ')}<br>
+            Voz: ${voice.charAt(0).toUpperCase() + voice.slice(1)} (MIDI ${vocalRange.min}-${vocalRange.max}) | ${scaleNotesInRange.length} notas de escala, ${allNotesInRange.length} notas cromáticas totales
+        `;
+
+    const footerDiv = document.getElementById('scale-info-text');
+    if (footerDiv) {
+        // Clear existing content to avoid duplication
+        footerDiv.innerHTML = '';
+        footerDiv.innerHTML = infoContent;
+    }
+
+    // Also update header2
+    const header2Div = document.getElementById('header2');
+    if (header2Div) {
+        header2Div.innerHTML = infoContent;
+    }
+}
+
 function addBinaryIntervalsToLadder() {
     try {
         const { allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName } = ininoti()
@@ -4313,6 +5413,8 @@ function addBinaryIntervalsToLadder() {
 
             container.appendChild(intervalWrapper);
         }
+
+        wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName);
 
     } catch (e) {
         console.error("Error in addBinaryIntervalsToLadder:", e);
@@ -4488,6 +5590,8 @@ function addScaleWithInterval2(allNotesInRange, vocalRange, scaleName, interval,
 
 function addClickHandler2(span, firstNote, secondNote, direction, interval) {
     span.addEventListener('click', () => {
+        if (window.handleTonalidadClick([firstNote.midi, secondNote.midi])) return;
+
         if (firstNote && firstNote.midi && firstNote.midi > 0) {
             window.lastSelectedGrayMidi = firstNote.midi;
             // setTimeout(() => { if (typeof makeladi === 'function') makeladi(); }, 10);
@@ -4537,22 +5641,7 @@ function addClickHandler2(span, firstNote, secondNote, direction, interval) {
     });
 }
 
-function wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName) {
-    // Add scale and vocal range info to the fixed footer
-    const voiceSelector = document.getElementById('voice-selector');
-    const voice = voiceSelector ? voiceSelector.value : 'soprano';
 
-    const footerDiv = document.getElementById('scale-info-text');
-    if (footerDiv) {
-        // Clear existing content to avoid duplication
-        footerDiv.innerHTML = '';
-        const infoContent = `
-              Escala ${tonicain[keyinselecti]} ${scaleName.charAt(0).toUpperCase() + scaleName.slice(1)}: ${scaleNotesInRange.map(n => `${n.scientific}(${midiToABC(n.midi)})(${n.midi})`).join(' ')}<br>
-                Voz: ${voice.charAt(0).toUpperCase() + voice.slice(1)} (MIDI ${vocalRange.min}-${vocalRange.max}) | ${scaleNotesInRange.length} notas de escala, ${allNotesInRange.length} notas cromáticas totales
-            `;
-        footerDiv.innerHTML = infoContent;
-    }
-}
 
 // Helper to render pattern to Bravura HTML
 function renderPattern(noteMap, pattern) {
@@ -4589,6 +5678,13 @@ function createRitmoEditor(containerId) {
      title.style.fontFamily = 'monospace';
      title.style.fontSize = '14px';
      header.appendChild(title); */
+    const compisi = document.getElementById('compas-select');
+    if (compisi) {
+        compisi.addEventListener('change', () => {
+            const evisi = JSON.parse(compisi.value);
+            inimetri(evisi);
+        });
+    }
 
     // Color A info and control
     const colorInfoDiv = document.createElement('div');
@@ -4603,6 +5699,60 @@ function createRitmoEditor(containerId) {
     colorInfoDiv.style.padding = '1px';
     colorInfoDiv.style.borderRadius = '4px';
     colorInfoDiv.style.border = 'none';
+
+    // Part 1: Rhythm Color Preview (Visible only in Ritmo)
+    const rhythmColorPreview = document.createElement('div');
+    rhythmColorPreview.id = 'rhythm-color-preview';
+    rhythmColorPreview.style.display = 'flex';
+    rhythmColorPreview.style.alignItems = 'center';
+    rhythmColorPreview.style.gap = '1px';
+
+    // Part 2: Color Melodi (Visible only in Melodía)
+    const colorMelodi = document.createElement('div');
+    colorMelodi.id = 'colormelodi';
+    colorMelodi.style.display = 'flex';
+    colorMelodi.style.alignItems = 'center';
+    colorMelodi.style.gap = '1px';
+
+    colorInfoDiv.appendChild(rhythmColorPreview);
+    colorInfoDiv.appendChild(colorMelodi);
+
+    // Global function to update visibility
+    window.updateRhythmColorInfoVisibility = function () {
+        const preview = document.getElementById('rhythm-color-preview');
+        const melodi = document.getElementById('colormelodi');
+        const displiritmi = document.getElementById('displiritmi');
+
+        if (typeof currentEditMode !== 'undefined') {
+            if (currentEditMode === 'tonalidad') { // Melodía
+                if (preview) preview.style.display = 'flex';
+                if (melodi) melodi.style.display = 'flex';
+                if (displiritmi) displiritmi.style.display = 'none';
+            } else if (currentEditMode === 'ritmo') { // Ritmo
+                if (preview) preview.style.display = 'none';
+                if (melodi) melodi.style.display = 'none';
+                if (displiritmi) displiritmi.style.display = 'inline-flex';
+            } else {
+                // Hide both in other modes
+                if (preview) preview.style.display = 'none';
+                if (melodi) melodi.style.display = 'none';
+                if (displiritmi) displiritmi.style.display = 'none';
+            }
+        }
+    };
+
+    // Attach listeners to update on mode change
+    ['mode-ritmo', 'mode-tonalidad'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                setTimeout(() => {
+                    if (window.updateRhythmColorInfoVisibility) window.updateRhythmColorInfoVisibility();
+                }, 100);
+            });
+        }
+    });
+
 
     const charSelector = document.createElement('select');
     charSelector.id = 'rhythm-char-selector'; // ✅ Added ID
@@ -5010,9 +6160,9 @@ function createRitmoEditor(containerId) {
         }
     });
 
-    colorInfoDiv.appendChild(charSelector);
-    colorInfoDiv.appendChild(colorInput);
-    colorInfoDiv.appendChild(pickerBtn);
+    rhythmColorPreview.appendChild(charSelector);
+    rhythmColorPreview.appendChild(colorInput);
+    rhythmColorPreview.appendChild(pickerBtn);
 
 
 
@@ -5027,7 +6177,7 @@ function createRitmoEditor(containerId) {
     // Array to store selected tones (colors) for nimidi
     window.selectedTones = window.selectedTones || [];
 
-    colorInfoDiv.appendChild(selectedTonesContainer);
+    colorMelodi.appendChild(selectedTonesContainer);
 
     const toplayi = document.createElement('button');
     toplayi.textContent = 'play';
@@ -5090,7 +6240,7 @@ function createRitmoEditor(containerId) {
             tuci(basi, 0);
         }
     });
-    colorInfoDiv.appendChild(toplayi);
+    colorMelodi.appendChild(toplayi);
 
 
     const toescori = document.createElement('button');
@@ -5173,7 +6323,7 @@ function createRitmoEditor(containerId) {
 }
  */
                 //bdi.push({
-                bdi.bar.splice((selectedMeasureIndex + a), 0, {
+                bdi.bar.splice((window.selectedMeasureIndex + a), 0, {
                     idi: a,
                     numi: spans[a].dataset.noteNumber,
                     nami: spans[a].dataset.noteName,
@@ -5194,7 +6344,7 @@ function createRitmoEditor(containerId) {
 
         }
     });
-    colorInfoDiv.appendChild(toescori);
+    colorMelodi.appendChild(toescori);
 
     // Group selector and notation display - inline layout
     const controlRow = document.createElement('div');
@@ -5211,6 +6361,7 @@ function createRitmoEditor(containerId) {
 
     // Container for notation display and accept button
     const notationContainer = document.createElement('div');
+    notationContainer.id = 'displiritmi';
     notationContainer.style.display = 'inline-flex'; // MUSICOLI: Change to inline-flex
     notationContainer.style.flexDirection = 'row';   // MUSICOLI: Change to row for compactness
     notationContainer.style.alignItems = 'center';
@@ -5222,7 +6373,7 @@ function createRitmoEditor(containerId) {
 
     // Color preview container (shows colors for the notes)
     const colorPreviewContainer = document.createElement('div');
-    colorPreviewContainer.id = 'rhythm-color-preview';
+    colorPreviewContainer.id = 'rhythm-notation-color-preview';
     colorPreviewContainer.style.display = 'flex';
     colorPreviewContainer.style.gap = '2px';
     colorPreviewContainer.style.padding = '4px';
@@ -5232,12 +6383,13 @@ function createRitmoEditor(containerId) {
     // Musical notation display - inline and compact
     const notationDisplay = document.createElement('div');
     notationDisplay.id = 'rhythm-notation-display';
-    notationDisplay.style.padding = '8px 8px 1px 3px';
+    notationDisplay.style.padding = '4px 8px 4px 8px'; // Reduced top padding
     notationDisplay.style.background = '#dddddd';
     notationDisplay.style.color = '#000';
     notationDisplay.style.borderRadius = '3px';
-    notationDisplay.style.fontFamily = 'Bravura';
-    notationDisplay.style.fontSize = '20px';
+    notationDisplay.style.alignItems = 'center'; // Center vertically
+    notationDisplay.style.fontFamily = "'Bravura', sans-serif";
+    notationDisplay.style.fontSize = '24px'; // Slightly larger for better visibility
     notationDisplay.style.display = 'flex';
     notationDisplay.style.alignItems = 'flex-start';
     notationDisplay.style.gap = '1px';
@@ -5329,6 +6481,23 @@ function createRitmoEditor(containerId) {
                     }
                 });
             }
+
+            // Determine current mode safely
+            const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : 'dependent';
+
+            // Helper to create silence for other voices
+            const createSilence = (duration) => {
+                // Clone pattern but make negative for rest
+                const silentTipis = currentPattern.map(t => -Math.abs(t));
+                return {
+                    nimidi: currentPattern.map(() => 0), // 0 for silence
+                    tipis: silentTipis,
+                    timis: [...duration], // Inherit duration
+                    dinami: currentPattern.map(() => 64),
+                    nimidiColors: currentPattern.map(() => [128, 128, 128, 255]),
+                    tarari: ""
+                };
+            };
 
             // Generate default dynamics (all 64, no accents for palette patterns)
             const defaultDynamics = currentPattern.map(() => 64);
@@ -5559,93 +6728,98 @@ function createRitmoEditor(containerId) {
             let normalizedVoiceName = selectedVoiceName;
             if (codeMap[selectedVoiceName]) normalizedVoiceName = codeMap[selectedVoiceName];
 
-            const newItem = {
+            // NEW LOGIC: Dependent vs Independent Insertion
+
+            // Prepare the DATA for the current voice
+            const activeVoiceData = {
                 "idi": Date.now(),
                 "numi": bdiRef.length,
                 "nami": colorName,
                 "coli": [r, g, b, 255],
                 "hexi": hexColor,
                 "pinti": { "c": 0, "m": 0, "y": 0, "k": 0.6, "w": 0 },
-                "nimidi": finalNimidi,
+                "nimidi": finalNimidi, // Notes calculated above
                 "nimidiColors": finalNimidiColors,
                 "timis": calculatedTimis,
-                "tipis": finalTipis,
+                "tipis": finalTipis, // Rhythm calculated above
                 "dinami": defaultDynamics,
-                "tarari": patternToTarareo(currentPattern, defaultDynamics), // Add tarari with dynamics
-                "liri": "", // Add lyrics field (empty by default)
-                "chordi": false,
-                "voci": (() => {
-                    // Helper to create voice data based on mode
-                    const createVoiceData = (voiceName, voiceCode) => {
-                        const isSelectedVoice = (normalizedVoiceName === voiceName);
-
-                        // In INDEPENDENT mode, only selected voice gets content
-                        if (voiceEditMode === 'independent' && !isSelectedVoice) {
-                            // Create silence for non-selected voices
-                            return {
-                                "nami": voiceCode,
-                                "nimidi": currentPattern.map(() => 0),
-                                "timis": [...calculatedTimis],
-                                "tipis": currentPattern.map(t => -Math.abs(t)),  // NEGATIVE for silence
-                                "dinami": [...defaultDynamics],
-                                "nimidiColors": currentPattern.map(() => [128, 128, 128, 255]),
-                                "tarari": ""
-                            };
-                        }
-
-                        // In DEPENDENT mode OR selected voice in INDEPENDENT mode
-                        return {
-                            "nami": voiceCode,
-                            "nimidi": (useSelectedTone && isSelectedVoice) ? finalNimidi : currentPattern.map((_, idx) => {
-                                const notes = rgbToMidiInterval(r, g, b, 60, voiceName);
-                                return notes[idx % notes.length];
-                            }),
-                            "timis": [...calculatedTimis],
-                            "tipis": [...finalTipis],
-                            "dinami": [...defaultDynamics],
-                            "nimidiColors": [...finalNimidiColors],
-                            "tarari": patternToTarareo(currentPattern, defaultDynamics)
-                        };
-                    };
-
-                    console.log('🔍 CREATE MEASURE - Mode:', voiceEditMode, 'Voice:', normalizedVoiceName);
-
-                    return [
-                        createVoiceData('soprano', 's'),
-                        createVoiceData('contralto', 'a'),
-                        createVoiceData('tenor', 't'),
-                        createVoiceData('bajo', 'b')
-                    ];
-                })()
+                "tarari": patternToTarareo(currentPattern, defaultDynamics),
+                "liri": "",
+                "chordi": false
             };
+
+            // NEW APPROACH: Use the centralized addMeasureWithMode function
+            // This ensures consistent behavior for harmony generation and data structure
 
             const cursorMeasureIndex = (typeof np6 !== 'undefined' && np6.getCursorMeasureIndex)
                 ? np6.getCursorMeasureIndex()
                 : bdiRef.length;
 
-            console.log(`📍 Inserting measure at cursor position: ${cursorMeasureIndex}`);
-            bdiRef.splice(cursorMeasureIndex, 0, newItem);
-            console.log("Inserted in bdi at index:", cursorMeasureIndex, newItem);
+            console.log(`📍 Using addMeasureWithMode to insert at: ${cursorMeasureIndex}`);
 
-            // Clear redo stack when adding new entry
-            if (window.bdiRedoStack) {
-                window.bdiRedoStack = []
-                    ;
-                console.log('Redo stack cleared after adding new entry');
-            }
+            // Define selectedMatchCode based on selectedVoiceName
+            const shortVoiceMap = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+            const selectedMatchCode = shortVoiceMap[selectedVoiceName] || (['s', 'a', 't', 'b'].includes(selectedVoiceName) ? selectedVoiceName : 's');
 
-            // Initialize traki if it doesn't exist (needed for first measure)
-            if (typeof window.traki === 'undefined' || !window.traki || window.traki.length === 0) {
-                console.log('⚠️ traki not initialized, initializing now...');
-                window.traki = [];
-                for (let i = 0; i < 4; i++) {
-                    window.traki.push(new MidiWriter.Track());
+            if (typeof window.addMeasureWithMode === 'function') {
+                // Ensure we pass the active voice code derived earlier
+                // selectedMatchCode was defined just above this block
+                const voiceCode = selectedMatchCode || 's';
+
+                // addMeasureWithMode expects (measureData, voiceCode, targetIndex)
+                // It will handleDependent/Independent logic internally
+                const measureData = { ...activeVoiceData };
+                window.addMeasureWithMode(measureData, voiceCode, cursorMeasureIndex);
+
+                // Note: bdiRef.splice happens inside addMeasureWithMode, so we don't do it here
+                console.log("✅ Measure added via addMeasureWithMode");
+            } else {
+                console.warn("⚠️ addMeasureWithMode not found, executing manual insertion");
+
+                // Define voices locally to ensure it exists
+                const voices = ['s', 'a', 't', 'b'];
+
+                // Fallback: Manual insertion (Legacy)
+                const newItem = {
+                    "idi": Date.now(),
+                    "voci": []
+                };
+
+                voices.forEach(v => {
+                    let voiceObj;
+                    if (v === selectedMatchCode) {
+                        voiceObj = { ...activeVoiceData, nami: v };
+                    } else {
+                        if (currentMode === 'dependent' && typeof window.generateHarmony === 'function') {
+                            const harm = window.generateHarmony(activeVoiceData, v, selectedMatchCode);
+                            voiceObj = harm;
+                            // Ensure tipis are positive for harmony
+                            if (voiceObj.tipis) voiceObj.tipis = voiceObj.tipis.map(t => Math.abs(t));
+                        } else {
+                            voiceObj = createSilence(calculatedTimis);
+                            voiceObj.nami = v;
+                        }
+                    }
+                    newItem.voci.push(voiceObj);
+                });
+
+                // Ensure we are operating on the real BDI
+                if (window.bdi && window.bdi.bar) {
+                    window.bdi.bar.splice(cursorMeasureIndex, 0, newItem);
+                } else if (typeof bdi !== 'undefined' && bdi.bar) {
+                    bdi.bar.splice(cursorMeasureIndex, 0, newItem);
+                } else {
+                    // Fallback to local ref if all else fails, though likely won't persist if it's a copy
+                    bdiRef.splice(cursorMeasureIndex, 0, newItem);
                 }
-                window.tempi = 120;
-                console.log('✅ traki initialized with 4 tracks');
-            }
 
-            recordiRef(bdiRef, cursorMeasureIndex);
+                // Ensure synchronization just in case
+                if (typeof syncMeasureCount === 'function') syncMeasureCount();
+                console.log("Inserted in bdi at index:", cursorMeasureIndex, newItem);
+
+                // CRITICAL: Call recordiRef here only for manual path (addMeasureWithMode should handle it otherwise)
+                if (recordiRef) recordiRef(bdiRef, cursorMeasureIndex);
+            }
 
             // Update Notepad and Player - copied from tarareo options accept button (line 4340)
             if (typeof updateAfterBdiChange === 'function') {
@@ -5653,14 +6827,21 @@ function createRitmoEditor(containerId) {
                 console.log('🎨 updateAfterBdiChange() called after adding measure');
 
                 // Restore and advance cursor
-                if (typeof np6 !== 'undefined') {
-                    np6.cursorPos = cursorMeasureIndex + 1;
-                    np6._render();
-                    if (typeof np6.focus === 'function') np6.focus();
-                    if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
+                if (typeof window.selectedMeasureIndex !== 'undefined') {
+                    window.selectedMeasureIndex = cursorMeasureIndex + 1;
+                    if (window.np6) {
+                        window.np6.cursorPos = cursorMeasureIndex + 1;
+                        if (typeof np6._render === 'function') np6._render();
+                        if (typeof np6.focus === 'function') np6.focus();
+                        if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
+                    }
+                    // Auto-open editor for the new position if valid
+                    if (typeof window.openMidiEditor === 'function' && window.selectedMeasureIndex < bdiRef.length) {
+                        window.openMidiEditor(window.selectedMeasureIndex);
+                    }
                 }
             } else {
-                console.error('❌ updateAfterBdiChange function not found - notepad will not update');
+                console.log('⚠️ updateAfterBdiChange not found - performing manual updates');
                 // Fallback: at least update cursor
                 if (typeof np6 !== 'undefined') {
                     np6.cursorPos = cursorMeasureIndex + 1;
@@ -5669,6 +6850,10 @@ function createRitmoEditor(containerId) {
                     if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
                 }
             }
+
+            // CRITICAL FIX: Update Visual Matrix
+            if (typeof renderVisualTracks === 'function') renderVisualTracks();
+            if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
 
             acceptBtn.textContent = '✓';
             acceptBtn.style.background = '#45a049';
@@ -6049,6 +7234,19 @@ function createRitmoEditor(containerId) {
         }
     };
 
+    // Helper to render patterns using Bravura font
+    window.renderPattern = (map, pattern) => {
+        if (!pattern || !Array.isArray(pattern)) return '';
+        return pattern.map(val => {
+            const key = String(val);
+            // Check mapping
+            if (map && map[key] !== undefined) {
+                return map[key];
+            }
+            return val;
+        }).join('<span style="display:inline-block; width: 0.2em;"></span>'); // Add small spacing
+    };
+
     // MUSICOLI: Show Silence Variations in Middle Column (replaces modal)
     const showSilenceVariationsColumn = (initialPattern) => {
         // Ensure resti is available
@@ -6144,10 +7342,41 @@ function createRitmoEditor(containerId) {
                 // Send to MIDI Editor if active
                 if (window.currentEditingMeasureIndex >= 0) {
                     const rhythmInput = document.getElementById('rhythm-values-input');
-                    if (rhythmInput && variation && Array.isArray(variation)) {
-                        rhythmInput.value = variation.join(' ');
-                        rhythmInput.dispatchEvent(new Event('input'));
-                        console.log('🎼 Sent variation to rhythm input:', variation);
+                    const midiInput = document.getElementById('midi-single-input');
+
+                    // Logic for populating rhythm input
+                    if (variation && Array.isArray(variation)) {
+                        // ALWAYS update global state first
+                        window.currentEditingRhythmValues = [...variation];
+
+                        if (rhythmInput) {
+                            rhythmInput.value = variation.join(' ');
+                            rhythmInput.dispatchEvent(new Event('input'));
+                        }
+                        console.log('🎼 Sent variation to global state:', variation);
+                    }
+
+                    // Logic for populating MIDI input with defaults
+                    if (midiInput && variation && Array.isArray(variation)) {
+                        const voiceSelector = document.getElementById('voice-selector');
+                        const currentVoice = voiceSelector ? voiceSelector.value : 's';
+
+                        const defaultMidiMap = {
+                            's': 72, // Soprano: C5
+                            'a': 67, // Alto: G4
+                            't': 60, // Tenor: C4
+                            'b': 55  // Bass: G3
+                        };
+                        const defaultNote = defaultMidiMap[currentVoice] || 72;
+
+                        const defaultNotes = variation.map(p => {
+                            // If pattern value is negative (rest), the corresponding note should be negative (rest)
+                            return (p < 0) ? -defaultNote : defaultNote;
+                        });
+
+                        midiInput.value = defaultNotes.join(' ');
+                        midiInput.dispatchEvent(new Event('input'));
+                        console.log('🎼 Sent default MIDI notes via silence col to input:', defaultNotes);
                     }
                 }
 
@@ -6242,15 +7471,70 @@ function createRitmoEditor(containerId) {
             cell.addEventListener('click', (e) => {
                 console.log('Click on pattern:', pattern, 'Group:', groupIndex, 'Trusted:', e.isTrusted);
 
+                // MUSICOLI: Update local notation display immediately
+                // This ensures the user sees what they selected above the accept button
+                if (notationDisplay) {
+                    const labelSpan = `<span style="font-family: monospace; font-size: 10px; color: #1976D2; font-weight: bold; margin-right: 8px;">${getColumnLabel(n)}</span>`;
+                    // Use flex for the notes container to align them
+                    const notesSpan = `<span style="font-family: 'Bravura', sans-serif; font-size: 24px; line-height: 1; display: inline-flex; align-items: center;">${renderPattern(noteMap, pattern)}</span>`;
+
+                    notationDisplay.innerHTML = '';
+                    notationDisplay.innerHTML = labelSpan + notesSpan;
+
+                    // Force flex layout on the main container just in case
+                    notationDisplay.style.display = 'flex';
+                    notationDisplay.style.alignItems = 'center';
+                }
+
+                // Show accept button
+                if (acceptBtn) acceptBtn.style.display = 'block';
+
+                // Preview color
+                if (typeof window.updateRhythmColorPreview === 'function') {
+                    currentPattern = pattern; // ensure currentPattern is set before preview
+                    window.updateRhythmColorPreview();
+                }
+
+                // MUSICOLI: Check if MIDI Editor is actively editing and send rhythm values to it
                 // MUSICOLI: Check if MIDI Editor is actively editing and send rhythm values to it
                 if (window.currentEditingMeasureIndex >= 0) {
                     const rhythmInput = document.getElementById('rhythm-values-input');
-                    if (rhythmInput && pattern && Array.isArray(pattern)) {
-                        // Send the rhythm pattern times to the rhythm input
-                        rhythmInput.value = pattern.join(' ');
-                        // Trigger input event to update the preview
-                        rhythmInput.dispatchEvent(new Event('input'));
-                        console.log('🎼 Sent rhythm pattern to rhythm input:', pattern);
+                    const midiInput = document.getElementById('midi-single-input');
+
+                    // Logic for populating rhythm input
+                    if (pattern && Array.isArray(pattern)) {
+                        // ALWAYS update global state first
+                        window.currentEditingRhythmValues = [...pattern];
+
+                        // If input exists, update it too
+                        if (rhythmInput) {
+                            rhythmInput.value = pattern.join(' ');
+                            rhythmInput.dispatchEvent(new Event('input'));
+                        }
+                        console.log('🎼 Sent rhythm pattern to global state:', pattern);
+                    }
+
+                    // Logic for populating MIDI input with defaults
+                    if (midiInput && pattern && Array.isArray(pattern)) {
+                        const voiceSelector = document.getElementById('voice-selector');
+                        const currentVoice = voiceSelector ? voiceSelector.value : 's';
+
+                        const defaultMidiMap = {
+                            's': 72, // Soprano: C5
+                            'a': 67, // Alto: G4
+                            't': 60, // Tenor: C4
+                            'b': 55  // Bass: G3
+                        };
+                        const defaultNote = defaultMidiMap[currentVoice] || 72;
+
+                        const defaultNotes = pattern.map(p => {
+                            // If pattern value is negative (rest), the corresponding note should be negative (rest)
+                            return (p < 0) ? -defaultNote : defaultNote;
+                        });
+
+                        midiInput.value = defaultNotes.join(' ');
+                        midiInput.dispatchEvent(new Event('input')); // This triggers preview with NEW global rhythm values
+                        console.log('🎼 Sent default MIDI notes to input:', defaultNotes);
                     }
                 }
 
@@ -6355,6 +7639,145 @@ function createRitmoEditor(containerId) {
         // MUSICOLI: Add "S" button for silence variations (only for 8-note group)
         // Check loosely for 8 to catch string/number mismatches
         // MUSICOLI: Auto-generate silence variations for the 2-note group (User request)
+        if (groupIndex == 1) {
+            console.log('[DEBUG] Inserting silence variation for group 1');
+            const variations = [[-1]];
+
+            variations.forEach((variation, idx) => {
+                const labelText = "S";
+
+                const cell = document.createElement('div');
+                cell.classList.add('silence-variation');
+                cell.style.border = '1px solid #444';
+                cell.style.borderRadius = '3px';
+                cell.style.padding = '0px';
+                cell.style.background = '#222';
+                cell.style.cursor = 'pointer';
+                cell.style.display = 'flex';
+                cell.style.flexDirection = 'column';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.minWidth = '35px';
+                cell.style.height = 'auto';
+                cell.style.transition = 'all 0.15s';
+                cell.style.position = 'relative';
+                cell.dataset.pattern = JSON.stringify(variation);
+
+                // Label
+                const label = document.createElement('div');
+                label.textContent = labelText;
+                label.style.fontSize = '7px';
+                label.style.color = '#90CAF9';
+                label.style.fontWeight = 'bold';
+                label.style.position = 'absolute';
+                label.style.top = '0px';
+                label.style.left = '2px';
+                label.style.zIndex = '1';
+
+                // Notation
+                const notation = document.createElement('div');
+                notation.style.fontFamily = 'Bravura';
+                notation.style.fontSize = '16px';
+                notation.style.color = '#fff';
+                notation.style.lineHeight = '0.7';
+                notation.style.paddingTop = '6px';
+                notation.style.paddingBottom = '0px';
+                notation.style.paddingLeft = '8px';
+                notation.style.display = 'block';
+
+                if (typeof renderPattern === 'function' && typeof noteMap !== 'undefined') {
+                    notation.innerHTML = renderPattern(noteMap, variation);
+                } else {
+                    notation.textContent = variation.join(' ');
+                }
+
+                cell.appendChild(label);
+                cell.appendChild(notation);
+
+                // Hover
+                cell.addEventListener('mouseenter', () => {
+                    cell.style.borderColor = '#64B5F6';
+                    cell.style.background = '#333';
+                    cell.style.transform = 'translateY(-1px)';
+                    cell.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+                });
+
+                cell.addEventListener('mouseleave', () => {
+                    if (!cell.classList.contains('selected')) {
+                        cell.style.borderColor = '#444';
+                        cell.style.background = '#222';
+                        cell.style.transform = 'translateY(0)';
+                        cell.style.boxShadow = 'none';
+                    }
+                });
+
+                // Click
+                cell.addEventListener('click', () => {
+                    // MUSICOLI: Check if MIDI Editor is actively editing
+                    if (window.currentEditingMeasureIndex >= 0) {
+                        const rhythmInput = document.getElementById('rhythm-values-input');
+                        const midiInput = document.getElementById('midi-single-input');
+
+                        // Logic for populating rhythm input
+                        if (variation && Array.isArray(variation)) {
+                            window.currentEditingRhythmValues = [...variation];
+                            if (rhythmInput) {
+                                rhythmInput.value = variation.join(' ');
+                                rhythmInput.dispatchEvent(new Event('input'));
+                            }
+                        }
+
+                        // Logic for populating MIDI input with defaults
+                        if (midiInput && variation && Array.isArray(variation)) {
+                            const voiceSelector = document.getElementById('voice-selector');
+                            const currentVoice = voiceSelector ? voiceSelector.value : 's';
+                            const defaultMidiMap = { 's': 72, 'a': 67, 't': 60, 'b': 55 };
+                            const defaultNote = defaultMidiMap[currentVoice] || 72;
+                            const defaultNotes = variation.map(p => (p < 0) ? -defaultNote : defaultNote);
+
+                            midiInput.value = defaultNotes.join(' ');
+                            midiInput.dispatchEvent(new Event('input'));
+                        }
+                    }
+
+                    currentPattern = variation;
+                    // Clear selection
+                    content.querySelectorAll('div[data-pattern]').forEach(c => {
+                        c.classList.remove('selected');
+                        if (c.classList.contains('silence-variation')) {
+                            c.style.borderColor = '#444';
+                            c.style.background = '#222';
+                        } else {
+                            c.style.borderColor = '#ddd';
+                            c.style.background = '#fff';
+                        }
+                    });
+
+                    // Select
+                    cell.classList.add('selected');
+                    cell.style.borderColor = '#42A5F5';
+                    cell.style.borderWidth = '2px';
+                    cell.style.background = '#1565C0';
+
+                    // Update display
+                    const display = document.getElementById('rhythm-notation-display');
+                    if (display) {
+                        const labelSpan = `<span style="font-family: monospace; font-size: 10px; color: #1976D2; font-weight: bold; position: absolute; top: 2px; left: 4px;">${labelText}</span>`;
+                        const notesSpan = `<span style="margin-left: 12px; padding-top: 8px; display: inline-block;">${renderPattern(noteMap, variation)}</span>`;
+                        display.innerHTML = labelSpan + notesSpan;
+                    }
+
+                    // Update color preview
+                    if (typeof window.updateRhythmColorPreview === 'function') {
+                        window.updateRhythmColorPreview();
+                    }
+                    // Show accept button
+                    if (typeof acceptBtn !== 'undefined' && acceptBtn) acceptBtn.style.display = 'block';
+                });
+
+                content.appendChild(cell);
+            });
+        }
         if (groupIndex == 2) {
             console.log('[DEBUG] Inserting silence variations for group 2');
             // Use explicit silence variations provided by user that fill 4/4 measure
@@ -6445,12 +7868,42 @@ function createRitmoEditor(containerId) {
                     // MUSICOLI: Check if MIDI Editor is actively editing and send notes to it
                     if (window.currentEditingMeasureIndex >= 0) {
                         const rhythmInput = document.getElementById('rhythm-values-input');
-                        if (rhythmInput && variation && Array.isArray(variation)) {
-                            // Send the rhythm pattern times to the rhythm input
-                            rhythmInput.value = variation.join(' ');
-                            // Trigger input event to update the preview
-                            rhythmInput.dispatchEvent(new Event('input'));
-                            console.log('🎼 Sent silence variation to rhythm input:', variation);
+                        const midiInput = document.getElementById('midi-single-input');
+
+                        // Logic for populating rhythm input
+                        if (variation && Array.isArray(variation)) {
+                            // ALWAYS update global state first
+                            window.currentEditingRhythmValues = [...variation];
+
+                            // If input exists, update it too
+                            if (rhythmInput) {
+                                rhythmInput.value = variation.join(' ');
+                                rhythmInput.dispatchEvent(new Event('input'));
+                            }
+                            console.log('🎼 Sent silence variation to global state:', variation);
+                        }
+
+                        // Logic for populating MIDI input with defaults
+                        if (midiInput && variation && Array.isArray(variation)) {
+                            const voiceSelector = document.getElementById('voice-selector');
+                            const currentVoice = voiceSelector ? voiceSelector.value : 's';
+
+                            const defaultMidiMap = {
+                                's': 72, // Soprano: C5
+                                'a': 67, // Alto: G4
+                                't': 60, // Tenor: C4
+                                'b': 55  // Bass: G3
+                            };
+                            const defaultNote = defaultMidiMap[currentVoice] || 72;
+
+                            const defaultNotes = variation.map(p => {
+                                // If pattern value is negative (rest), the corresponding note should be negative (rest)
+                                return (p < 0) ? -defaultNote : defaultNote;
+                            });
+
+                            midiInput.value = defaultNotes.join(' ');
+                            midiInput.dispatchEvent(new Event('input'));
+                            console.log('🎼 Sent default MIDI notes for silence variation to input:', defaultNotes);
                         }
                     }
 
@@ -7478,7 +8931,7 @@ function tarareoAritmo() {
                     // CAMBIO: Usar la posición del cursor del Notepad para insertar en la posición correcta
                     const baseCursorIndex = (typeof np6 !== 'undefined' && np6.getCursorMeasureIndex)
                         ? np6.getCursorMeasureIndex()
-                        : selectedMeasureIndex;
+                        : window.selectedMeasureIndex;
 
                     // Loop measures
                     for (let measureIndex = 0; measureIndex < measures.length; measureIndex++) {
@@ -7592,50 +9045,81 @@ function tarareoAritmo() {
                             "dinami": measureDynamics,
                             "chordi": false,
                             "voci": (() => {
-                                // DEBUG: Check if voiceEditMode is accessible
-                                console.log('🔍 CREATE MEASURE DEBUG:');
-                                console.log('   → voiceEditMode =', typeof voiceEditMode !== 'undefined' ? voiceEditMode : 'UNDEFINED');
-                                console.log('   → selectedVoiceName =', selectedVoiceName);
+                                // 1. Identify Selected Voice Code
+                                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                                const selectedVoiceCode = nameToCode[selectedVoiceName] || 's';
 
-                                // Helper function to create voice data based on mode
+                                // 2. Calculate Active Voice Melody (Master Melody)
+                                let activeVoiceNimidi = [];
+                                if (window.selectedTones && window.selectedTones.length > 0) {
+                                    // Use the generic selected tones (usually soprano/middle range)
+                                    // Or should we shift them? Usually selected tones are absolute pitches.
+                                    activeVoiceNimidi = [...nimidiArray];
+                                } else {
+                                    // Standard Color Mode: Generate specifically for the SELECTED voice range
+                                    const notes = rgbToMidiInterval(rgbA.r, rgbA.g, rgbA.b, 60, selectedVoiceName);
+                                    activeVoiceNimidi = measurePattern.map((_, idx) => notes[idx % notes.length]);
+                                }
+
+                                // 3. Helper to create voice
                                 const createVoiceData = (voiceName, voiceCode) => {
-                                    // Check if this is the selected voice
-                                    const isSelectedVoice = (
-                                        (selectedVoiceName === 'soprano' && voiceCode === 's') ||
-                                        (selectedVoiceName === 'contralto' && voiceCode === 'a') ||
-                                        (selectedVoiceName === 'tenor' && voiceCode === 't') ||
-                                        (selectedVoiceName === 'bajo' && voiceCode === 'b')
-                                    );
+                                    // Determine if this is the active voice
+                                    const isSelectedVoice = (voiceCode === selectedVoiceCode);
 
-                                    // In INDEPENDENT mode, only selected voice gets content
-                                    if (voiceEditMode === 'independent' && !isSelectedVoice) {
-                                        // Create silence for non-selected voices
-                                        return {
-                                            "nami": voiceCode,
-                                            "nimidi": measurePattern.map(() => 0),
-                                            "timis": [...calculatedTimis],
-                                            "tipis": measurePattern.map(t => -Math.abs(t)),  // NEGATIVE for silence
-                                            "dinami": [...measureDynamics],
-                                            "nimidiColors": measurePattern.map(() => [128, 128, 128, 255]),
-                                            "tarari": ""
-                                        };
-                                    }
-
-                                    // In DEPENDENT mode OR selected voice in INDEPENDENT mode
-                                    return {
+                                    // Voice Data Object Structure
+                                    const voiceData = {
                                         "nami": voiceCode,
-                                        "nimidi": (window.selectedTones && window.selectedTones.length > 0)
-                                            ? (isSelectedVoice ? [...nimidiArray] : measurePattern.map((_, idx) => midiNotes[idx % midiNotes.length]))
-                                            : measurePattern.map((_, idx) => {
-                                                const notes = rgbToMidiInterval(rgbA.r, rgbA.g, rgbA.b, 60, voiceName);
-                                                return notes[idx % notes.length];
-                                            }),
+                                        "nimidi": [],
                                         "timis": [...calculatedTimis],
                                         "tipis": [...measurePattern],
                                         "dinami": [...measureDynamics],
                                         "nimidiColors": [...nimidiColorsArray],
                                         "tarari": generatedTarareo
                                     };
+
+                                    // CHECK MODE
+                                    const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : 'dependent';
+
+                                    if (currentMode === 'independent') {
+                                        if (isSelectedVoice) {
+                                            // Active Voice: Sounding
+                                            voiceData.nimidi = [...activeVoiceNimidi];
+                                        } else {
+                                            // Others: Silence
+                                            voiceData.nimidi = measurePattern.map(() => 0); // 0 or keep notes?
+                                            // Usually independent mode implies silence for others OR preserving existing?
+                                            // Since this is NEW measure creation, silence is appropriate.
+                                            voiceData.tipis = measurePattern.map(t => -Math.abs(t)); // Force Rests
+                                            voiceData.nimidiColors = measurePattern.map(() => [128, 128, 128, 255]);
+                                            voiceData.tarari = "";
+                                        }
+                                    } else {
+                                        // DEPENDENT MODE (Default)
+                                        console.log(`🔗 Creating Measure: Dependent Mode. Voice ${voiceCode} (Active: ${selectedVoiceCode})`);
+                                        if (isSelectedVoice) {
+                                            // Active Voice: Master Melody
+                                            voiceData.nimidi = [...activeVoiceNimidi];
+                                        } else {
+                                            // Other Voices: Harmonize from Active Voice
+                                            // Use generateHarmonyForVoice logic
+                                            if (typeof window.generateHarmonyForVoice === 'function') {
+                                                const sourceData = { nimidi: activeVoiceNimidi };
+                                                const harmonicResult = window.generateHarmonyForVoice(sourceData, voiceCode, selectedVoiceCode);
+                                                voiceData.nimidi = harmonicResult.nimidi;
+                                            } else {
+                                                // Fallback if function missing
+                                                const offsets = { 's': 0, 'a': -5, 't': -12, 'b': -19 };
+                                                const sOffset = offsets[selectedVoiceCode] || 0;
+                                                const tOffset = offsets[voiceCode] || 0;
+                                                const diff = tOffset - sOffset;
+                                                voiceData.nimidi = activeVoiceNimidi.map(n => {
+                                                    if (n <= 0) return n;
+                                                    return Math.max(0, Math.min(127, n + diff));
+                                                });
+                                            }
+                                        }
+                                    }
+                                    return voiceData;
                                 };
 
                                 // Create all 4 voices
@@ -7695,8 +9179,12 @@ function tarareoAritmo() {
 
                         // Restore and advance cursor
                         if (typeof np6 !== 'undefined') {
-                            np6.cursorPos = baseCursorIndex + measures.length;
-                            np6._render();
+                            // Final update to notepad instance
+                            const savedCursorPos = baseCursorIndex + measures.length;
+                            np6.cursorPos = savedCursorPos;
+                            if (typeof np6._render === 'function') {
+                                np6._render();
+                            }
                             if (typeof np6.focus === 'function') np6.focus();
                             if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
                         }
@@ -8122,35 +9610,159 @@ document.addEventListener('DOMContentLoaded', () => {
     let rainbowIndex = 0;
 
 
-    console.log('🚀 Initializing Notepad (np6)...');
+    console.log('🚀 Initializing Mock Notepad (np6)...');
     try {
-        np6 = new Notepad({
-            parent: document.getElementById('notepi6'),
-            fontSize: 14, // Reduced size
-            noteColorMap: rainbowColorMap, // Use rainbow colors instead of random
-            containerPadding: '0',
-            width: 'auto',
-            height: 53
-        });
-        window.np6 = np6;
-        console.log('✅ Notepad initialized. Map has flavors?', Object.keys(np6.noteColorMap).some(k => k.endsWith('_flavors')));
-    } catch (e) {
-        console.error('❌ Failed to initialize Notepad:', e);
-    }
-    np6.setLetterPadding(4, 8); // Reduced padding
-    np6.setLetterBorderRadius(4); // Smaller radius
-    np6.setLetterMargin(0); // Add spacing between spans
-    np6.setContainerBackground('linear-gradient(to right, #e0e0e0, #a0a0a0)');
-    np6.setBorder(0, null, null);
+        window.np6 = {
+            cursorPos: 0,
+            letterNodes: [],
+            noteColorMap: rainbowColorMap,
+            container: document.getElementById('notepi6'),
+            _macotiListenersAttached: false,
+            handlers: {},
+            cursor: null,
+            textarea: null,
+            lyricsMetadata: [],
+            arrili: [],
+            on: function (event, handler) {
+                if (!this.handlers[event]) this.handlers[event] = [];
+                this.handlers[event].push(handler);
+            },
+            _emit: function (event, data) {
+                if (this.handlers[event]) {
+                    this.handlers[event].forEach(h => h(data));
+                }
+            },
+            setColorFunc: function (fn) { this.colorFunc = fn; },
+            recolor: function () { },
+            _clearAll: function () {
+                this.letterNodes = [];
+                this.cursorPos = 0;
+            },
+            _render: function () { },
+            scrollToCursor: function () { },
+            focus: function () { },
+            setLetterPadding: function () { },
+            setLetterBorderRadius: function () { },
+            setContainerBackground: function () { },
+            setBorder: function () { },
+            getCursorPos: function () { return this.cursorPos; },
+            getSpanWidths: function () { return []; },
+            setResizable: function () { },
+            setEditable: function () { },
+            setOverwriteMode: function () { },
+            getRichContent: function () { return []; },
+            getDetailedJSON: function () { return []; },
+            setOverflow: function () { },
+            setFromRichContent: function () { },
+            exportAsImageWithP5: function () { },
+            getCursorMeasureIndex: function () { return (typeof window.selectedMeasureIndex !== 'undefined') ? window.selectedMeasureIndex : 0; },
+            insertMeasureAtCursor: function () { },
+            setCursorPos: function (pos) { this.cursorPos = pos; },
+            setNoteColor: function () { },
+            insertText: function () { }
+        };
+        np6 = window.np6;
+        console.log('✅ Mock Notepad initialized.');
 
-    // MUSICOLI: Force horizontal scrolling layout
-    if (np6.container) {
+        // MUSICOLI: Sync Header 2 indicators with global state
+        window.updateScoreIndicators = function () {
+            const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+            const total = bdiRef.length;
+
+            // Current position: use window.selectedMeasureIndex as primary source
+            let curPos = 0;
+            if (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0) {
+                curPos = window.selectedMeasureIndex;
+            } else if (np6) {
+                curPos = np6.cursorPos;
+            }
+
+            const cursorPosEl = document.getElementById('cursorPos');
+            const measurePosEl = document.getElementById('measurePos');
+            const totalMeasuresEl = document.getElementById('totalMeasures');
+
+            if (cursorPosEl) cursorPosEl.textContent = curPos + 1;
+            if (measurePosEl) measurePosEl.textContent = (total > 0) ? Math.min(curPos + 1, total) : 0;
+            if (totalMeasuresEl) totalMeasuresEl.textContent = total;
+
+            // Also update footer shadow if it exists
+            const footerPosEl = document.getElementById('cursorPosFooter');
+            if (footerPosEl) footerPosEl.textContent = curPos + 1;
+        };
+
+        window.jumpToMeasure = function () {
+            const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+            const total = bdiRef.length;
+            if (total === 0) return;
+            const input = prompt(`Ir al compás (1-${total}):`, Math.min(window.selectedMeasureIndex + 1, total));
+            if (input !== null) {
+                const measure = parseInt(input);
+                if (!isNaN(measure) && measure >= 1 && measure <= total) {
+                    window.selectedMeasureIndex = measure - 1;
+                    if (np6) np6.cursorPos = measure - 1;
+                    if (typeof window.updateAfterBdiChange === 'function') {
+                        window.updateAfterBdiChange();
+                    }
+                    if (typeof window.highlightMeasure === 'function') {
+                        window.highlightMeasure(measure - 1);
+                    }
+                }
+            }
+        };
+
+        window.jumpToPosition = function () {
+            const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+            const total = bdiRef.length;
+            const input = prompt(`Ir a posición (1-${total + 1}):`, (window.selectedMeasureIndex !== undefined ? window.selectedMeasureIndex : 0) + 1);
+            if (input !== null) {
+                const pos = parseInt(input) - 1;
+                if (!isNaN(pos) && pos >= 0 && pos <= total) {
+                    window.selectedMeasureIndex = pos;
+                    selectedMeasureIndex = pos;
+                    if (np6) np6.cursorPos = pos;
+                    if (typeof window.updateAfterBdiChange === 'function') {
+                        window.updateAfterBdiChange();
+                    }
+                }
+            }
+        };
+
+        np6.on('cursorMove', () => {
+            window.updateScoreIndicators();
+        });
+
+        // Initialize values
+        window.updateScoreIndicators();
+    } catch (e) {
+        console.error('❌ Failed to initialize Mock Notepad:', e);
+    }
+
+    // Safety checks for mock object
+    if (np6 && typeof np6.setLetterPadding === 'function') {
+        np6.setLetterPadding(0, 1);
+        np6.setLetterBorderRadius(4);
+        np6.setContainerBackground('linear-gradient(to right, #e0e0e0, #a0a0a0)');
+        np6.setBorder(0, null, null);
+    }
+
+    // MUSICOLI: Force horizontal scrolling layout if container exists
+    // MUSICOLI: Force horizontal scrolling layout if container exists
+    if (np6 && np6.container) {
         np6.container.style.whiteSpace = 'nowrap';
         np6.container.style.display = 'flex';
         np6.container.style.flexDirection = 'row';
         np6.container.style.flexWrap = 'nowrap';
-        np6.container.style.alignItems = 'stretch';
+        np6.container.style.alignItems = 'flex-start';
         np6.container.style.overflowY = 'hidden';
+        np6.container.style.marginTop = '0';
+        np6.container.style.marginBottom = '-20px';
+        np6.container.style.paddingTop = '0';
+    }
+
+    // MUSICOLI: Force content div to display inline-block for horizontal layout
+    if (np6 && np6.content) {
+        np6.content.style.display = 'inline-block';
+        np6.content.style.whiteSpace = 'nowrap';
     }
 
 
@@ -8181,29 +9793,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('🔄 Synchronized cursor to position:', index);
             }
 
-            // Show alert with selected measure number
-            //alert(`Compás seleccionado: ${index + 1}`);
-
             // Debug: Check originalEvent
-            console.log('🔍 Debug - originalEvent:', originalEvent);
             if (originalEvent) {
-                console.log('🔍 Debug - shiftKey:', originalEvent.shiftKey);
+                // consolex.log('🔍 Debug - shiftKey:', originalEvent.shiftKey);
             }
 
-            // Double click or Shift+Click detection
-            const clickTime = new Date().getTime();
-            const isDouble = (window.lastNoteClickTime && (clickTime - window.lastNoteClickTime < 300));
-            window.lastNoteClickTime = clickTime;
+            // MODO RITMO & MELODÍA: Simple click abre modal
+            // Use window.currentEditMode for reliable mode detection
+            const isRhythmMode = (window.currentEditMode === 'ritmo') || (window.editMode === 'text');
 
-            if ((originalEvent && originalEvent.shiftKey) || isDouble) {
-                console.log('🎹 Double click or Shift+Click detected, opening MIDI editor');
+            // Always open modal on click for better UX
+            if (true) {
+                if (isRhythmMode) {
+                    console.log('🎹 Rhythm mode - Click opens MIDI editor');
+                } else {
+                    console.log('🎹 Melody mode - Click opens MIDI editor');
+                }
+
                 if (typeof window.openMidiEditor === 'function') {
-                    window.openMidiEditor(index);
+                    // Small delay to ensure UI is ready if triggered by rapid interaction
+                    setTimeout(() => {
+                        window.openMidiEditor(index);
+                    }, 10);
                 } else {
                     console.error('❌ openMidiEditor function not found');
                 }
-            } else {
-                console.log('ℹ️ Normal click. Double click or Hold Shift key to open MIDI editor.');
             }
         }
         document.getElementById('cursorPos').innerHTML = np6.getCursorPos();
@@ -8358,6 +9972,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Event listeners for the new span (similar to makeladi ones)
                         toneSpan.addEventListener('click', () => {
+                            // Insert measure at current cursor position
+                            let targetIndex = 0;
+                            if (window.np6 && typeof window.np6.getCursorPos === 'function') {
+                                targetIndex = window.np6.getCursorPos();
+                            }
+                            if (targetIndex < 0) targetIndex = 0;
+
+                            // Create new measure with this scale/color theme (placeholder logic for now, using null/defaults)
+                            // Ideally, this tone span should carry MIDI data. Using 60 as fallback if noMIDI.
+                            let midiData = [];
+                            if (typeof rgbToMidiInterval === 'function') {
+                                midiData = rgbToMidiInterval(r, g, b);
+                            } else {
+                                midiData = [60]; // Default C4
+                            }
+
+                            // Construct standard measure
+                            const newMeasure = {
+                                nimidi: midiData,
+                                tipis: [4], // Default rhythm
+                                dinami: [80],
+                                hexi: hexColor, // Store the color
+                                voices: {}
+                            };
+
+                            console.log('➕ Injecting measure at cursor:', targetIndex, newMeasure);
+
+                            // Inject into BDI
+                            if (!window.bdi.bar) window.bdi.bar = [];
+                            window.bdi.bar.splice(targetIndex, 0, newMeasure);
+
+                            // Update UI
+                            window.rebuildRecordi();
+                            if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                            if (typeof window.highlightMeasure === 'function') window.highlightMeasure(targetIndex);
+
+                            // Move cursor after insertion
+                            if (window.np6 && typeof window.np6.setCursorPos === 'function') {
+                                window.np6.setCursorPos(targetIndex + 1);
+                            }
+
+                            // Update tones list order
                             container.insertBefore(toneSpan, container.firstChild);
                             // Update global state: move to front
                             const idx = window.selectedTones.findIndex(t => t.hex === hexColor);
@@ -8367,7 +10023,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             if (typeof window.updateRhythmColorPreview === 'function') window.updateRhythmColorPreview();
                         });
-
+                        /*
                         toneSpan.addEventListener('dblclick', () => {
                             toneSpan.remove();
                             const idx = window.selectedTones.findIndex(t => t.hex === hexColor);
@@ -8376,7 +10032,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             if (typeof window.updateRhythmColorPreview === 'function') window.updateRhythmColorPreview();
                         });
-
+                        */
 
                         container.insertBefore(toneSpan, container.firstChild);
                         console.log('✅ Added tone to selection (at beginning):', hexColor);
@@ -8393,8 +10049,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Listen to changes to sync visual tracks
+    // Listen to changes to sync visual tracks and indicators
     np6.on('change', () => {
+        if (window.updateScoreIndicators) window.updateScoreIndicators();
         // Debounce slightly or just delay to let DOM settle
         setTimeout(renderVisualTracks, 50);
     });
@@ -8548,6 +10205,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const trackVol = (voiceMeta && typeof voiceMeta.volume !== 'undefined') ? voiceMeta.volume : 100;
             const volFactor = trackVol / 127;
 
+            // Safety check for voiceData
+            if (!voiceData || !voiceData.nimidi) return;
+            const noteCount = Array.isArray(voiceData.nimidi) ? voiceData.nimidi.length : 0;
+
             if (voiceData.chordi) {
                 dati[1] = [];
                 dati[2] = [1];
@@ -8557,13 +10218,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 dati[4] = Math.round(baseVel * volFactor);
                 dati[5] = 0;
                 dati[6] = isPercussion ? 'p' : '1';
-                for (let u = 0; u < voiceData.nimidi.length; u++) {
+                for (let u = 0; u < noteCount; u++) {
                     dati[1].push(voiceData.nimidi[u]);
                 }
                 addi(dati, trackIndex);
             } else {
                 let pendingWaits = [];
-                for (var a = 0; a < voiceData.nimidi.length; a++) {
+                for (var a = 0; a < noteCount; a++) {
                     let duration = dobli5(voiceData.tipis[a]);
 
                     if (voiceData.tipis[a] < 0) {
@@ -8573,8 +10234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         dati[1] = voiceData.nimidi[a];
                         dati[2] = [duration];
                         dati[3] = false;
-                        let baseVel = (voiceData.dinami && voiceData.dinami[a] !== undefined) ? voiceData.dinami[a] : 64;
-                        dati[4] = Math.round(baseVel * volFactor);
+                        dati[4] = Math.round(((voiceData.dinami && voiceData.dinami[a] !== undefined) ? voiceData.dinami[a] : 64) * volFactor);
 
                         if (pendingWaits.length > 0) {
                             dati[5] = [...pendingWaits];
@@ -8588,17 +10248,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Handle trailing rests at the end of the measure
-                // Fix: '0' duration might be invalid. Use the last rest as duration.
                 if (pendingWaits.length > 0) {
-                    const lastDuration = pendingWaits.pop(); // Take the last wait as the note duration
-
+                    const lastDuration = pendingWaits.pop();
                     dati[0] = instrument;
-                    dati[1] = 0; // Dummy pitch
-                    dati[2] = [lastDuration]; // Valid duration from the rest sequence
+                    dati[1] = 0;
+                    dati[2] = [lastDuration];
                     dati[3] = false;
-                    dati[4] = 0; // Velocity 0 (Silent)
-                    dati[5] = [...pendingWaits]; // Remaining waits
+                    dati[4] = 0;
+                    dati[5] = [...pendingWaits];
                     dati[6] = isPercussion ? 'p' : '1';
 
                     addi(dati, trackIndex);
@@ -8610,61 +10267,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const playbackSelector = document.getElementById('playback-selector');
         const selectedVoices = playbackSelector ? playbackSelector.value : 's,a,t,b';
         const voiceCodes = window.selectedVoiceCodes || selectedVoices.split(',');
+        const voiceMap = { 's': 0, 'a': 1, 't': 2, 'b': 3 };
 
-        if (voiceCodes.length === 4) {
-            // All voices - use todos logic
-            if (item.voci && Array.isArray(item.voci)) {
-                const voiceMap = { 's': 0, 'a': 1, 't': 2, 'b': 3 };
+        if (!item.voci) {
+            processVoice(item, 0, 's'); // Legacy/Fallback
+        } else if (Array.isArray(item.voci)) {
+            // Array Structure
+            if (voiceCodes.length === 4) {
                 item.voci.forEach(v => {
                     const mappedTrackIdx = voiceMap[v.nami];
-                    if (mappedTrackIdx !== undefined) {
-                        processVoice(v, mappedTrackIdx, v.nami);
-                    }
+                    if (mappedTrackIdx !== undefined) processVoice(v, mappedTrackIdx, v.nami);
                 });
             } else {
-                processVoice(item, 0, 's');
-            }
-        } else if (voiceCodes.length > 1) {
-            // Multiple voices (but not all 4)
-            if (item.voci && Array.isArray(item.voci)) {
-                const voiceMap = { 's': 0, 'a': 1, 't': 2, 'b': 3 };
                 voiceCodes.forEach(code => {
                     const foundVoice = item.voci.find(v => v.nami === code);
-                    if (foundVoice) {
-                        const trackIdx = voiceMap[code];
-                        processVoice(foundVoice, trackIdx !== undefined ? trackIdx : 0, code);
-                    }
+                    const idx = voiceMap[code];
+                    if (foundVoice && idx !== undefined) processVoice(foundVoice, idx, code);
                 });
             }
         } else {
-            // Single voice selected
-            const code = voiceCodes[0];
-            if (item.voci && Array.isArray(item.voci)) {
-                const foundVoice = item.voci.find(v => v.nami === code);
-                if (foundVoice) {
-                    processVoice(foundVoice, 0, code);
-                } else {
-                    processVoice(item, 0, code);
-                }
+            // Object Structure (New Dependent Mode)
+            if (voiceCodes.length === 4) {
+                ['s', 'a', 't', 'b'].forEach(code => {
+                    if (item.voci[code]) processVoice(item.voci[code], voiceMap[code], code);
+                });
             } else {
-                processVoice(item, 0, 's');
+                voiceCodes.forEach(code => {
+                    if (item.voci[code]) processVoice(item.voci[code], voiceMap[code], code);
+                });
             }
         }
 
         const escribi = new MidiWriter.Writer(traki);
-        const playi = document.getElementById("player15");
+        playi = document.getElementById("player15");
         if (playi) playi.src = escribi.dataUri();
 
         const currentBpm = metadata ? metadata.bpm : bpmValue;
-        let titi = 'Metr_' + currentBpm + '_' + (metadata ? metadata.timeSignature[0] : '4') + '_4';
+        const timeSig = (metadata && metadata.timeSignature && metadata.timeSignature[0]) ? metadata.timeSignature[0] : '4';
+        let titi = 'Metr_' + currentBpm + '_' + timeSig + '_4';
+
         let anchor = document.getElementById("expi");
         if (anchor) {
+            const downloadName = (metadata && metadata.title) ? metadata.title : titi;
             anchor.setAttribute('href', escribi.dataUri());
-            anchor.setAttribute('download', (metadata && metadata.title ? metadata.title : titi) + '.mid');
-            anchor.innerHTML = (metadata && metadata.title ? metadata.title : titi) + '.mid';
+            anchor.setAttribute('download', downloadName + '.mid');
+            anchor.innerHTML = downloadName + '.mid';
         }
-        const bdiDisplay = document.getElementById('bdi-display');
-        if (bdiDisplay) bdiDisplay.value = JSON.stringify(basi, null, 2);
+        // const bdiDisplay = document.getElementById('bdi-display');
+        // if (bdiDisplay) bdiDisplay.value = JSON.stringify(basi, null, 2);
     }
 
     function recordi01(basi, nc) {
@@ -8732,13 +10382,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /**
- * Devuelve el código HTML completo de un Web Component,
- * incluyendo su Shadow DOM, estilos, SVG, etc.
- * 
- * @param {Element} element - El elemento (p.ej. document.getElementById('player15'))
- * @param {boolean} pretty - Si true, formatea con saltos de línea e indentación (opcional, por defecto true)
- * @returns {string} Código HTML completo del elemento
- */
+    * Devuelve el código HTML completo de un Web Component,
+    * incluyendo su Shadow DOM, estilos, SVG, etc.
+    * 
+    * @param {Element} element - El elemento (p.ej. document.getElementById('player15'))
+    * @param {boolean} pretty - Si true, formatea con saltos de línea e indentación (opcional, por defecto true)
+    * @returns {string} Código HTML completo del elemento
+    */
     function getFullHTML(element, pretty = true) {
         if (!element || !(element instanceof Element)) {
             return '';
@@ -8906,7 +10556,7 @@ ${codigos.join('\n  ')}
     function addi(dati, ntraki) {
         // Safety check: ensure traki and traki[ntraki] exist
         if (typeof traki === 'undefined' || !traki || !traki[ntraki]) {
-            console.error(`❌ traki[${ntraki}] is undefined. Initializing...`);
+            // console.log(`ℹ️ [addi] Initializing track ${ntraki}...`);
             if (typeof traki === 'undefined' || !traki) {
                 window.traki = [];
             }
@@ -9123,6 +10773,7 @@ ${codigos.join('\n  ')}
 
     // Helper to update lyrics metadata (arrili)
     function updateLyricsMetadata() {
+        if (!lyricsLayerTextarea) return;
         const rawLyrics = lyricsLayerTextarea.value;
         const groups = rawLyrics.split(',');
         const metadata = [];
@@ -9201,7 +10852,9 @@ ${codigos.join('\n  ')}
         // MUSICOLI: Populate lyricsContent with tarareo from each compás
         const bdiRef = (typeof window.bdi.bar !== 'undefined') ? window.bdi.bar : [];
         lyricsContent = bdiRef.map(item => item.tarari || '').join(', ');
-        lyricsLayerTextarea.value = lyricsContent;
+        if (lyricsLayerTextarea) {
+            lyricsLayerTextarea.value = lyricsContent;
+        }
 
         // Update metadata first
         updateLyricsMetadata();
@@ -9301,7 +10954,7 @@ ${codigos.join('\n  ')}
             np6.setOverwriteMode(false); // Normal editing
             document.getElementById('notepi6').style.pointerEvents = 'auto';
             document.getElementById('notepi6').style.opacity = '1';
-            np6.setOverflow()
+            // np6.setOverflow()
             // Show Tonalidad editor
             hideAllEditors();
             if (editorTonalidad) {
@@ -9321,6 +10974,10 @@ ${codigos.join('\n  ')}
 
             // Hide/Show MIDI visualizer
             document.getElementById('staffi').style.display = 'block';
+
+            // Hide rhythm color selector (only visible in Ritmo mode)
+            const rhythmColorInfoTonalidad = document.getElementById('rhythm-color-info-div');
+            if (rhythmColorInfoTonalidad) rhythmColorInfoTonalidad.style.display = 'none';
 
             // Hide tarareo controls
             if (tarareoInput) tarareoInput.style.display = 'none';
@@ -9431,6 +11088,10 @@ ${codigos.join('\n  ')}
             // Hide/Show MIDI visualizer
             document.getElementById('staffi').style.display = 'none';
 
+            // Hide rhythm color selector (only visible in Ritmo mode)
+            const rhythmColorInfoLyrics = document.getElementById('rhythm-color-info-div');
+            if (rhythmColorInfoLyrics) rhythmColorInfoLyrics.style.display = 'none';
+
             // Hide tarareo controls
             if (tarareoInput) tarareoInput.style.display = 'none';
             if (tarareoSubmit) tarareoSubmit.style.display = 'none';
@@ -9466,7 +11127,7 @@ ${codigos.join('\n  ')}
             setMode('color');
         }
     });
-
+     
     lyricsLayerTextarea.addEventListener('mousedown', (e) => {
         if (editMode !== 'lyrics') {
             e.preventDefault();
@@ -9488,7 +11149,7 @@ ${codigos.join('\n  ')}
             applyColorLayer();
         }
     });
-
+     
     // Update notepad when typing in lyrics layer
     lyricsLayerTextarea.addEventListener('input', () => {
         if (editMode === 'lyrics') {
@@ -9505,24 +11166,24 @@ ${codigos.join('\n  ')}
     // Handle overwrite behavior in Ritmo mode
     /* textLayerTextarea.addEventListener('keydown', (e) => {
         if (editMode !== 'text') return;
-    
+     
         const start = textLayerTextarea.selectionStart;
         const end = textLayerTextarea.selectionEnd;
         const val = textLayerTextarea.value;
         const maxLength = val.length; // Fixed length based on current content
-    
+     
         // Allow navigation keys
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
             return;
         }
-    
+     
         // Handle printable characters
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
-    
+     
             // If at the end and no selection, do nothing (cannot extend)
             if (start >= maxLength && start === end) return;
-    
+     
             // Construct new value: before + char + after
             // If selection exists, it replaces the selection (but we must ensure length stays same? 
             // Actually, standard overwrite replaces 1 char. If selection is multiple, it's tricky.
@@ -9534,9 +11195,9 @@ ${codigos.join('\n  ')}
             // So if I select 3 chars and type 'A', I probably should replace first char with 'A' and others with space?
             // Or just block selection replacement if it changes length?
             // Let's implement simple overwrite single char for now.
-    
+     
             let nextVal = val.split('');
-    
+     
             if (start !== end) {
                 // Selection exists. Replace first char of selection with key, others with space?
                 // Or just replace the range with the key? No, that shortens it.
@@ -9552,20 +11213,20 @@ ${codigos.join('\n  ')}
                     nextVal[start] = e.key;
                 }
             }
-    
+     
             textLayerTextarea.value = nextVal.join('');
             textLayerTextarea.setSelectionRange(start + 1, start + 1);
             applyTextLayer();
             return;
         }
-    
+     
         // Handle Backspace
         if (e.key === 'Backspace') {
             e.preventDefault();
             if (start === 0 && start === end) return; // At start, nothing to do
-    
+     
             let nextVal = val.split('');
-    
+     
             if (start !== end) {
                 // Selection: replace with spaces
                 for (let i = start; i < end; i++) {
@@ -9582,14 +11243,14 @@ ${codigos.join('\n  ')}
             applyTextLayer();
             return;
         }
-    
+     
         // Handle Delete
         if (e.key === 'Delete') {
             e.preventDefault();
             if (start >= maxLength && start === end) return;
-    
+     
             let nextVal = val.split('');
-    
+     
             if (start !== end) {
                 // Selection: replace with spaces
                 for (let i = start; i < end; i++) {
@@ -9614,25 +11275,25 @@ ${codigos.join('\n  ')}
     /* textLayerTextarea.addEventListener('paste', (e) => {
         if (editMode !== 'text') return;
         e.preventDefault();
-    
+     
         const text = (e.clipboardData || window.clipboardData).getData('text');
         const start = textLayerTextarea.selectionStart;
         const end = textLayerTextarea.selectionEnd;
         const val = textLayerTextarea.value;
         const maxLength = val.length;
-    
+     
         let nextVal = val.split('');
         let pasteIndex = 0;
-    
+     
         // Overwrite from start, respecting selection
         // If selection, we start at `start`.
         // We overwrite characters until we run out of pasted text OR run out of textarea length.
-    
+     
         for (let i = start; i < maxLength && pasteIndex < text.length; i++) {
             nextVal[i] = text[pasteIndex];
             pasteIndex++;
         }
-    
+     
         // If selection was larger than pasted text, fill rest of selection with spaces?
         // Example: Select 5 chars, paste "Hi". "Hi   ".
         if (start !== end && (start + pasteIndex) < end) {
@@ -9640,7 +11301,7 @@ ${codigos.join('\n  ')}
                 nextVal[i] = ' ';
             }
         }
-    
+     
         textLayerTextarea.value = nextVal.join('');
         textLayerTextarea.setSelectionRange(start + pasteIndex, start + pasteIndex);
         applyTextLayer();
@@ -9650,24 +11311,24 @@ ${codigos.join('\n  ')}
     /* textLayerTextarea.addEventListener('cut', (e) => {
         if (editMode !== 'text') return;
         e.preventDefault();
-    
+     
         // Copy to clipboard manually?
         // Or just simulate "replace with spaces"
         const start = textLayerTextarea.selectionStart;
         const end = textLayerTextarea.selectionEnd;
         const val = textLayerTextarea.value;
-    
+     
         // Copy selected text to clipboard
         const selectedText = val.substring(start, end);
         if (selectedText) {
             navigator.clipboard.writeText(selectedText);
         }
-    
+     
         let nextVal = val.split('');
         for (let i = start; i < end; i++) {
             nextVal[i] = ' ';
         }
-    
+     
         textLayerTextarea.value = nextVal.join('');
         textLayerTextarea.setSelectionRange(start, start);
         applyTextLayer();
@@ -9682,7 +11343,7 @@ ${codigos.join('\n  ')}
     // Enforce token limit on blur (when user leaves the textarea)
     /* textLayerTextarea.addEventListener('blur', () => {
         if (editMode !== 'text') return;
-    
+     
         // Decoupled: Logic removed
         / *
         let ritmoMeasures = textLayerTextarea.value.split('|').map(m => m.trim());
@@ -9841,7 +11502,7 @@ ${codigos.join('\n  ')}
             }
 
             // Clear player source (part of cleari)
-            const playi = document.getElementById("player15");
+            playi = document.getElementById("player15");
             if (playi) {
                 playi.src = '';
 
@@ -9975,8 +11636,8 @@ ${codigos.join('\n  ')}
                 return;
             }
 
-            // If no measure is selected, delete the last one
-            const measureToDelete = selectedMeasureIndex >= 0 ? selectedMeasureIndex : window.bdi.bar.length - 1;
+            // If no measure is selected, or we are at the end insertion point, delete the last one
+            const measureToDelete = (selectedMeasureIndex >= 0 && selectedMeasureIndex < window.bdi.bar.length) ? selectedMeasureIndex : window.bdi.bar.length - 1;
             const measure = window.bdi.bar[measureToDelete];
 
             if (!measure) {
@@ -10317,6 +11978,9 @@ ${codigos.join('\n  ')}
                     // Clicked on this span
                     window.selectedMeasureIndex = i;
                     selectedMeasureIndex = i;
+                    if (typeof window.updateScoreIndicators === 'function') {
+                        window.updateScoreIndicators();
+                    }
                     console.log('📍 Measure selected via overlay click:', i + 1);
 
                     // Update visual highlight
@@ -10352,6 +12016,9 @@ ${codigos.join('\n  ')}
         modeRitmoBtn.addEventListener('click', () => {
             currentEditMode = 'ritmo';
             console.log('🎵 Mode: Ritmo');
+
+            // Force immediate refresh to restore rhythm UI elements (1-8 buttons, patterns)
+            if (typeof makeladi === 'function') setTimeout(() => makeladi(), 0);
 
             // Update button styles - Ritmo active (dark gray monochrome)
             modeRitmoBtn.style.background = '#2c2c2c';
@@ -10438,9 +12105,13 @@ ${codigos.join('\n  ')}
                 modeDinamicaBtn.style.fontWeight = 'bold';
             }
 
-            // Show the editor-tonalidad container
+            // Show editor-tonalidad with immediate UI refresh for ladder elements
             const editorTonalidad = document.getElementById('editor-tonalidad');
-            if (editorTonalidad) editorTonalidad.style.display = 'block';
+            if (editorTonalidad) {
+                editorTonalidad.style.display = 'block';
+                // Force immediate refresh to hide non-tonalidad elements (1-8 buttons, patterns)
+                if (typeof makeladi === 'function') setTimeout(() => makeladi(), 0);
+            }
 
             // Show harmonize button
             const harmonizeContainer = document.getElementById('harmonize-container');
@@ -10581,7 +12252,7 @@ ${codigos.join('\n  ')}
     const midiEditorModal = document.getElementById('midi-editor-modal'); // Deprecated - kept for compatibility
     const midiInputsContainer = document.getElementById('midi-inputs-container');
     const midiEditorAccept = document.getElementById('midi-editor-accept');
-    const midiEditorCancel = document.getElementById('midi-editor-cancel');
+    const midiEditorCancel = document.getElementById('midi-editor-add');
     // const midiEditorClose = document.getElementById('midi-editor-close'); // Removed - no longer exists
     window.currentEditingMeasureIndex = -1; // Global variable to track active editing session
     window.currentEditingRhythmValues = []; // Store rhythm values globally for access by accept button and color scale handlers
@@ -10591,9 +12262,15 @@ ${codigos.join('\n  ')}
 
     // Helper to highlight a specific measure in the Notepad
     window.highlightMeasure = function (index) {
-        // Reset all to gray (inactive)
+        // MUSICOLI: Sync Indicators
+        if (typeof window.updateScoreIndicators === 'function') {
+            window.updateScoreIndicators();
+        }
+
+        // Reset all to default style (inactive)
         document.querySelectorAll('.measure-number').forEach(el => {
-            el.style.background = '#999';
+            el.style.background = 'rgba(0,0,0,0.4)';
+            el.style.color = '#fff';
         });
 
         // Highlight selected
@@ -10603,7 +12280,8 @@ ${codigos.join('\n  ')}
             if (spans[index]) {
                 const num = spans[index].querySelector('.measure-number');
                 if (num) {
-                    num.style.background = '#FF9800';
+                    num.style.background = '#FFCC80'; // Light orange
+                    num.style.color = '#000'; // Black text
                 }
             }
         }
@@ -10632,14 +12310,37 @@ ${codigos.join('\n  ')}
     };
 
     // Function to open MIDI editor for a measure
-    window.openMidiEditor = function (measureIndex) {
-        // console.log('🎹 openMidiEditor called with index:', measureIndex);
+    window.openMidiEditor = function (measureIndex, noteIndex = -1) {
+        // console.log('🎹 openMidiEditor called with index:', measureIndex, 'note:', noteIndex);
         if (measureIndex < 0 || measureIndex >= window.bdi.bar.length) {
             console.error('Invalid measure index:', measureIndex);
             return;
         }
 
+        // Ensure the editor sidebar is visible
+        const modalContainer = document.getElementById('modal-display-container');
+        if (modalContainer) {
+            modalContainer.style.display = 'flex';
+        }
+
         window.currentEditingMeasureIndex = measureIndex;
+        window.currentEditingNoteIndex = noteIndex; // Store Note Mode status
+        window.selectedMeasureIndex = measureIndex; // Fix selection highlighting
+        selectedMeasureIndex = measureIndex;
+
+        // Update visual tracks to show selection across all voices
+        if (typeof renderVisualTracks === 'function') {
+            renderVisualTracks();
+        }
+        if (typeof window.updateScoreIndicators === 'function') {
+            window.updateScoreIndicators();
+        }
+
+        // Initialize MIDI Editing Level
+        window.midiEditingLevel = (noteIndex >= 0) ? 'note' : 'measure';
+        if (typeof window.updateMidiEditingLevelVisibility === 'function') {
+            window.updateMidiEditingLevelVisibility();
+        }
         const measure = window.bdi.bar[measureIndex];
 
         // Update modal header with measure number and navigation arrows
@@ -10662,7 +12363,7 @@ ${codigos.join('\n  ')}
                 <button id="modal-mode-toggle" style="background: ${btnColor}; border: none; border-radius: 50%; width: 24px; height: 24px; color: white; margin-right: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;" title="${btnTitle}">
                     ${btnIcon}
                 </button>
-                ${voiceName} <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
+                ${voiceName} ${noteIndex >= 0 ? `<span style="color:#2196F3"> (Nota ${noteIndex + 1})</span>` : ''} <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
             `;
 
             // Add click listener to the new button
@@ -10774,6 +12475,7 @@ ${codigos.join('\n  ')}
             };
             measureNumSpan.appendChild(rightBtn);
 
+
             // Duplicate Button
             const duplicateBtn = document.createElement('button');
             duplicateBtn.innerHTML = '&#x2750;'; // Squared Copy/Duplicate icon
@@ -10879,44 +12581,282 @@ ${codigos.join('\n  ')}
             measureNumSpan.appendChild(splitBtn);
 
             // Silence All Notes Button (🔇)
-            const silenceAllBtn = document.createElement('button');
-            silenceAllBtn.innerHTML = '🔇'; // Mute/Silence icon
-            silenceAllBtn.style.cssText = `
-                background: none;
-                border: none;
-                font-size: 1.0em;
-                cursor: pointer;
-                padding: 0 10px;
-                color: #333;
-                margin-left: 5px; 
-            `;
-            silenceAllBtn.title = "Silenciar todas las notas (convertir a silencios)";
-            silenceAllBtn.onclick = () => {
-                // Get current input
-                const singleInput = document.getElementById('midi-single-input');
-                if (!singleInput) return;
+            // Silence Column Container (Vertical stack of 4 buttons)
+            const silenceCol = document.createElement('div');
+            // Background dark #666 to contrast white lines. 
+            silenceCol.style.cssText = 'display: inline-flex; flex-direction: column; gap: 2px; margin-left: 8px; vertical-align: middle; padding: 2px; background: #666; border-radius: 2px;';
 
-                // Get current notes
-                const currentNotes = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+            // Differentiate even/odd columns opacity
+            if ((measureIndex + 1) % 2 === 0) {
+                silenceCol.style.opacity = '0.85';
+            }
 
-                if (currentNotes.length === 0) return;
+            // Function to render the 4 buttons (SATB)
+            const renderSilenceButtons = () => {
+                silenceCol.innerHTML = '';
+                const voices = ['s', 'a', 't', 'b']; // Top to Bottom
+                const currentMeasure = window.bdi.bar[measureIndex];
 
-                // Convert all notes to negative (silences)
-                const silencedNotes = currentNotes.map(note => -Math.abs(note));
+                const getVoiceState = (vKey) => {
+                    let isActive = false;
+                    // Check BDI
+                    if (currentMeasure.voci && Array.isArray(currentMeasure.voci)) {
+                        const v = currentMeasure.voci.find(vo => vo.nami === vKey);
+                        if (v && v.tipis && v.tipis.length > 0) {
+                            isActive = v.tipis.some(t => t > 0);
+                        }
+                    }
+                    // Check Editing Input
+                    const selector = document.getElementById('voice-selector');
+                    const active = selector ? selector.value : 's';
+                    if (active === vKey) {
+                        const singleInput = document.getElementById('midi-single-input');
+                        if (singleInput) {
+                            const val = singleInput.value.trim();
+                            if (val) {
+                                const vals = val.split(/\s+/).map(x => parseInt(x));
+                                isActive = vals.some(x => !isNaN(x) && x > 0);
+                            }
+                        }
+                    }
+                    return isActive;
+                };
 
-                // Update input with silenced notes
-                singleInput.value = silencedNotes.join(' ');
+                voices.forEach((vKey) => {
+                    const btn = document.createElement('div');
+                    const isActive = getVoiceState(vKey);
 
-                // Update the preview
-                const currentAbsNotes = silencedNotes.map(Math.abs);
-                renderMidiScorePreview(currentAbsNotes, rhythmValues, rhythmContainer);
+                    // 15x5 px
+                    btn.style.cssText = `
+                        width: 15px;
+                        height: 5px;
+                        cursor: pointer;
+                        border-radius: 1px;
+                        transition: all 0.1s;
+                        border: 1px solid #444;
+                    `;
 
-                // Auto-click the Accept button to apply changes
-                setTimeout(() => {
-                    midiEditorAccept.click();
-                }, 100);
+                    if (isActive) {
+                        btn.style.backgroundColor = 'white';
+                        btn.style.boxShadow = '0 0 2px rgba(255,255,255,0.5)';
+                    } else {
+                        btn.style.backgroundColor = 'black'; // Explicit black for silence
+                        btn.style.boxShadow = 'none';
+                    }
+                    btn.title = `${isActive ? 'Silenciar' : 'Activar'} ${vKey.toUpperCase()}`;
+
+                    btn.onmousedown = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+
+                        // Toggle Logic
+                        const selector = document.getElementById('voice-selector');
+                        const activeVoice = selector ? selector.value : 's';
+                        const newActiveState = !isActive;
+
+                        if (vKey === activeVoice) {
+                            // ACTIVE VOICE: Update Inputs and Global Rhythm State
+                            const singleInput = document.getElementById('midi-single-input');
+                            const rhythmInput = document.getElementById('rhythm-values-input');
+
+                            if (singleInput && window.currentEditingRhythmValues) {
+                                // 1. Update Note Input Visuals (Sign)
+                                const val = singleInput.value.trim();
+                                const vals = val.split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+                                let newVals;
+                                if (newActiveState) {
+                                    newVals = vals.map(x => Math.abs(x));
+                                } else {
+                                    newVals = vals.map(x => -Math.abs(x));
+                                }
+                                singleInput.value = newVals.join(' ');
+
+                                // 2. Update Actual Rhythm Logic (Tipis)
+                                // We must update the global tracking variable so the preview/save logic works
+                                window.currentEditingRhythmValues = window.currentEditingRhythmValues.map(t => {
+                                    return newActiveState ? Math.abs(t) : -Math.abs(t);
+                                });
+
+                                // 3. Update Rhythm Input Field
+                                if (rhythmInput) {
+                                    rhythmInput.value = window.currentEditingRhythmValues.join(' ');
+                                }
+
+                                // 4. Trigger Preview Refresh
+                                singleInput.dispatchEvent(new Event('input'));
+                            }
+                        } else {
+                            // BACKGROUND VOICE: Update BDI directly
+                            const measure = window.bdi.bar[measureIndex];
+                            if (measure.voci && Array.isArray(measure.voci)) {
+                                const v = measure.voci.find(vo => vo.nami === vKey);
+                                if (v && v.tipis) {
+                                    if (newActiveState) {
+                                        v.tipis = v.tipis.map(t => Math.abs(t));
+                                    } else {
+                                        v.tipis = v.tipis.map(t => -Math.abs(t));
+                                    }
+                                    // Refresh views
+                                    if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
+                                    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                                }
+                            }
+                        }
+                        renderSilenceButtons();
+                    };
+                    silenceCol.appendChild(btn);
+                });
             };
-            measureNumSpan.appendChild(silenceAllBtn);
+
+            silenceCol.onmouseenter = renderSilenceButtons; // Refresh on hover to catch updates
+            renderSilenceButtons();
+
+            // Expose globally to allow updates from input events
+            window.renderSilenceButtons = renderSilenceButtons;
+
+            measureNumSpan.appendChild(silenceCol);
+
+            // SYNC ON SAVE (Apply/Add) - Enforce Dependent Mode Logic
+            const syncSilenceOnSave = () => {
+                // Check if in Dependent Mode
+                const isDependent = (typeof voiceEditMode === 'undefined' || voiceEditMode === 'dependent');
+
+                if (isDependent) {
+                    // Logic: Propagate Active Voice Rhythm/Silence to ALL voices
+                    const selector = document.getElementById('voice-selector');
+                    const activeKey = selector ? selector.value : 's';
+                    // const activeMeasure used to be here, removed to prevent confusion
+
+                    // 1. Get Active Voice Data (from inputs or updated active voice)
+                    // Note: Inputs update active voice directly in BDI? Usually Accept handler does it.
+                    // But here we want to pre-emptively sync for *other* voices.
+                    // Let's grab the current input values which represent the "new" state of active voice.
+
+                    const singleInput = document.getElementById('midi-single-input');
+                    const rhythmInput = document.getElementById('rhythm-values-input');
+
+                    let newTipis = [];
+                    // Try to get from global tracker first
+                    if (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length > 0) {
+                        newTipis = [...window.currentEditingRhythmValues];
+                    } else if (rhythmInput) {
+                        newTipis = rhythmInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+                    }
+
+                    const lyricsInput = document.getElementById('lyrics-input');
+                    // const singleInput already declared above
+
+                    let midiVals = [];
+                    if (singleInput) {
+                        midiVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+                    }
+
+                    // Construct Data Object for ACTIVE VOICE
+                    const dataToSave = {
+                        nimidi: midiVals.map(Math.abs),
+                        tipis: newTipis,
+                        timis: newTipis.map(t => Math.abs(t)),
+                        duri: newTipis.map(() => 1),
+                        liri: lyricsInput ? lyricsInput.value : '',
+                        nami: activeKey
+                    };
+
+                    /* REMOVED LOOP BODY:
+                        // If the button is Black (Silent), v.tipis will be all negative.
+                        // If the button is White (Active), v.tipis will have positives.
+                        let isVoiceActive = true;
+                        if (v.tipis && v.tipis.length > 0) {
+                            isVoiceActive = v.tipis.some(t => t > 0);
+                        }
+     
+                        // 2. Map new durations from Active Voice Input
+                        const syncedTipis = newTipis.map((val) => {
+                            const absVal = Math.abs(val);
+     
+                            // 3. Apply Voice-Level State
+                            // If Voice is Active -> Use input value 'val' (allows written rests to remain rests)
+                            // If Voice is Silent -> Force silence '-absVal'
+                            return isVoiceActive ? val : -absVal;
+                        });
+     
+                        console.log(`   Calculated syncedTipis:`, JSON.stringify(syncedTipis));
+     
+                        // Update BDI directly (though editMeasureWithMode will overwrite, we keep object state consistent)
+                        v.tipis = syncedTipis;
+     
+                        // Avoid infinite recursion
+                        // if (typeof window.renderSilenceButtons === 'function') window.renderSilenceButtons();
+     
+                        // Gather Data from Inputs (ONLY ONCE or use cached?) 
+                        // Actually active voice inputs are constant for all iterations, but we need specific tipis/timis for THIS voice.
+     
+                        const singleInput = document.getElementById('midi-single-input');
+                        const lyricsInput = document.getElementById('lyrics-input');
+     
+                        // Parse Active Voice Pitches (used as base for harmonization/sync)
+                        const midiVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+     
+                        // Construct Data Object SPECIFIC to this background voice
+     
+                        // HARMONIZATION: Calculate pitches for target voice using standard harmonization intervals
+                        let harmonizedNimidi = midiVals.map(Math.abs);
+                        // Check for generateHarmonyForVoice availability
+                        // Note: generateHarmonyForVoice handles pitch offsets for SATB (e.g. -5, -12, -19)
+                        if (typeof generateHarmonyForVoice === 'function') {
+                            const sourceDataForHarm = { nimidi: midiVals.map(Math.abs) };
+                            const harmonicData = generateHarmonyForVoice(sourceDataForHarm, v.nami, activeKey);
+                            harmonizedNimidi = harmonicData.nimidi;
+                        }
+     
+                        const dataToSave = {
+                            nimidi: harmonizedNimidi,
+     
+                            // CRITICAL FIX: Use the SYNCED tipis specific to this voice (with silence filter applied)
+                            tipis: syncedTipis,
+     
+                            // Timis always positive
+                            timis: syncedTipis.map(t => Math.abs(t)),
+     
+                            duri: syncedTipis.map(() => 1),
+                            liri: lyricsInput ? lyricsInput.value : '',
+                        };
+     
+                        // Call edit/add
+                     */
+                    // Call edit/add ONCE for the Active Voice.
+                    if (window.currentEditingMeasureIndex >= 0) {
+                        console.log('Saving measure ' + window.currentEditingMeasureIndex + ' for ACTIVE voice ' + activeKey + ' (Dependent Mode)');
+                        editMeasureWithMode(window.currentEditingMeasureIndex, dataToSave, activeKey);
+                    } else {
+                        console.log('Adding measure for ACTIVE voice ' + activeKey);
+                        addMeasureWithMode(dataToSave, activeKey);
+                    }
+                } else {
+                    // MODO INDEPENDIENTE:
+                    // The main handler already handles updates for the active voice and preserves other voices.
+                    // We explicitly DO NOT modify the silence/sounding state of other voices here,
+                    // as that would violate the user's manual settings (Cosi properties).
+                    console.log('Independent mode: Preserving existing Cosi/Voice states.');
+                }
+            };
+
+            const acceptBtn = document.getElementById('midi-editor-accept');
+            const cancelBtn = document.getElementById('midi-editor-add');
+
+            if (acceptBtn) acceptBtn.style.display = 'block';
+            if (cancelBtn) cancelBtn.style.display = 'block';
+
+            // Remove previous listeners if any (to avoid duplicates on re-open)
+            if (acceptBtn) {
+                acceptBtn.removeEventListener('click', acceptBtn._syncHandler);
+                acceptBtn._syncHandler = syncSilenceOnSave;
+                acceptBtn.addEventListener('click', syncSilenceOnSave); // Runs parallel to main handler
+            }
+            if (cancelBtn) {
+                cancelBtn.removeEventListener('click', cancelBtn._syncHandler);
+                cancelBtn._syncHandler = syncSilenceOnSave;
+                cancelBtn.addEventListener('click', syncSilenceOnSave);
+            }
 
             // Delete Button
             const deleteBtn = document.createElement('button');
@@ -10970,6 +12910,17 @@ ${codigos.join('\n  ')}
             measureNumSpan.appendChild(deleteBtn);
         }
 
+        // Save button container if present to preserve listeners and elements
+        let savedBtnContainer = null;
+        const existingCancelBtn = document.getElementById('midi-editor-add');
+        if (existingCancelBtn) {
+            savedBtnContainer = existingCancelBtn.parentElement;
+            // If it is inside the container we are about to clear, remove it first so it's not destroyed
+            if (savedBtnContainer && savedBtnContainer.parentElement === midiInputsContainer) {
+                midiInputsContainer.removeChild(savedBtnContainer);
+            }
+        }
+
         // Clear previous inputs
         midiInputsContainer.innerHTML = '';
 
@@ -10992,8 +12943,31 @@ ${codigos.join('\n  ')}
             rhythmValues = measure.tipis || [];
         }
 
+        // MUSICOLI: Update currentGroup based on note count for Tonalidad patterns
+        if (midiValues.length > 0) {
+            console.log('🎼 openMidiEditor: Detected ' + midiValues.length + ' notes in measure ' + measureIndex);
+
+            // Cap at 9 to match specific buttons
+            const newGroup = Math.min(midiValues.length, 9);
+            // Update global variable
+            currentGroup = newGroup;
+            console.log('🔄 Updated currentGroup to ' + currentGroup);
+
+            // Refresh ladder if function exists
+            if (typeof makeladi === 'function') {
+                console.log('🎨 Calling makeladi() to refresh Tonalidad patterns');
+                makeladi();
+            } else {
+                console.warn('⚠️ makeladi function not found');
+            }
+        } else {
+            console.log('⚠️ openMidiEditor: No notes detected in measure ' + measureIndex);
+        }
+
         // Store rhythm values in persistent variable for access by accept button and color scale handlers
         window.currentEditingRhythmValues = [...rhythmValues];
+        // Store full MIDI values for Note Mode switching logic
+        window.currentFullMidiValues = [...midiValues];
 
         // Helper function to calculate vertical position based on MIDI note
         // Each line/space on the staff = one diatonic scale degree
@@ -11166,7 +13140,51 @@ ${codigos.join('\n  ')}
                     justify-content: center;
                     align-items: center;
                     width: 30px; 
+                    cursor: pointer;
+                    border-radius: 4px;
+                    transition: background 0.2s;
                 `;
+
+                // Highlight if currently editing this note
+                if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex === index) {
+                    noteWrapper.style.background = 'rgba(33, 150, 243, 0.2)'; // Blue highlight
+                    noteWrapper.style.border = '1px solid #2196F3';
+                }
+
+                noteWrapper.onclick = (e) => {
+                    e.stopPropagation(); // Prevent staff click
+                    console.log('🎵 Note clicked:', index);
+
+                    // 1. Capture current input state before switching (if coming from Measure Mode)
+                    const singleInput = document.getElementById('midi-single-input');
+                    if (singleInput && window.midiEditingLevel === 'measure') {
+                        const val = singleInput.value.trim();
+                        const currentNotes = val.split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v)).map(Math.abs);
+                        window.currentFullMidiValues = [...currentNotes];
+                    }
+
+                    // 2. Set Mode
+                    window.midiEditingLevel = 'note';
+                    window.currentEditingNoteIndex = index;
+
+                    // 3. Update Visibility
+                    if (typeof window.updateMidiEditingLevelVisibility === 'function') {
+                        window.updateMidiEditingLevelVisibility();
+                    }
+
+                    // 4. Update Input to show ONLY this note
+                    if (singleInput && window.currentFullMidiValues && window.currentFullMidiValues.length > index) {
+                        // Determine sign based on rhythm (rest)
+                        const rhythmVal = rhythmVals[index]; // from closure
+                        const val = window.currentFullMidiValues[index];
+                        const isRest = (rhythmVal < 0);
+                        singleInput.value = isRest ? -Math.abs(val) : Math.abs(val);
+
+                        // Force render of the full score (using full values) but with highlight
+                        // renderMidiScorePreview takes (midiVals, ...). We should pass FULL values to render the score context.
+                        renderMidiScorePreview(window.currentFullMidiValues, rhythmVals, container);
+                    }
+                };
 
                 // Add ledger lines if needed (only for MIDI 60 and 61)
                 if (needsLedgerLines) {
@@ -11276,9 +13294,39 @@ ${codigos.join('\n  ')}
         // Add rhythm container to main container
         midiInputsContainer.appendChild(rhythmContainer);
 
-        // Add click handler to play the entire measure using tuci()
+        // Add click handler to play the entire measure using tuci() AND set Measure Mode
         rhythmContainer.addEventListener('click', () => {
-            console.log('🖱️ Staff clicked!');
+            console.log('🖱️ Staff clicked -> Switching to Measure Mode');
+
+            // Switch to Measure Mode
+            if (window.midiEditingLevel === 'note') {
+                window.midiEditingLevel = 'measure';
+                window.currentEditingNoteIndex = -1;
+
+                if (typeof window.updateMidiEditingLevelVisibility === 'function') {
+                    window.updateMidiEditingLevelVisibility();
+                }
+
+                // Restore Input to show ALL notes
+                const singleInput = document.getElementById('midi-single-input');
+                if (singleInput && window.currentFullMidiValues) {
+                    // Update input with full values (handling rests)
+                    // Note: window.currentEditingRhythmValues might be needed? 
+                    // Or we use original rhythmValues? Ideally use live rhythm.
+                    const liveRhythm = (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length > 0) ? window.currentEditingRhythmValues : rhythmValues;
+
+                    singleInput.value = window.currentFullMidiValues.map((val, i) => {
+                        const r = liveRhythm[i] || 4; // default
+                        const isRest = r < 0;
+                        return isRest ? -Math.abs(val) : Math.abs(val);
+                    }).join(' ');
+
+                    // Re-render to remove note highlight
+                    renderMidiScorePreview(window.currentFullMidiValues, liveRhythm, rhythmContainer);
+                }
+            }
+
+            // Playback Logic (tuci)
             // Need to get CURRENT values from input, not potentially stale closure variables
             const currentInput = document.getElementById('midi-single-input');
             const currentMidiStr = currentInput ? currentInput.value.trim() : '';
@@ -11314,8 +13362,21 @@ ${codigos.join('\n  ')}
 
         // 3. Create Header (Label + Transposition + Generators)
 
+        // MOVE GLOBAL ACTIONS DIRECTLY BELOW PENTAGRAM
+        // Use saved container (which we detached before clear) or find it if it was outside
+        const btnContainer = savedBtnContainer || (document.getElementById('midi-editor-add') ? document.getElementById('midi-editor-add').parentElement : null);
+
+        if (btnContainer) {
+            midiInputsContainer.appendChild(btnContainer); // Move entire footer container here
+            btnContainer.style.display = 'flex';
+            btnContainer.style.justifyContent = 'flex-end';
+            btnContainer.style.marginTop = '10px';
+        } else {
+            console.error('CRITICAL: Global Action Buttons (Apply/Cancel) not found! Modal will be stuck.');
+            // Vital: fallback creation if somehow lost? For now log error.
+        }
+
         // PREPARE REVERT LOGIC
-        const btnContainer = document.getElementById('midi-editor-cancel').parentElement;
         const existingRevert = document.getElementById('midi-editor-revert-dynamic');
         if (existingRevert) existingRevert.remove();
 
@@ -11342,7 +13403,33 @@ ${codigos.join('\n  ')}
             }
 
             renderMidiScorePreview(originalMidiValues, originalRhythmValues, rhythmContainer);
+
+            // LIVE REVERT ON SCORE
+            if (typeof window.rebuildRecordi === 'function' && typeof measureIndex !== 'undefined') {
+                const currentMeasure = window.bdi.bar[measureIndex];
+                if (currentMeasure) {
+                    // Handle Voice
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const voiceCode = voiceSelector ? voiceSelector.value : 's';
+
+                    const applyToVoice = (target) => {
+                        target.nimidi = [...originalMidiValues];
+                        target.tipis = [...originalRhythmValues];
+                    };
+
+                    if (currentMeasure.voci && Array.isArray(currentMeasure.voci)) {
+                        const voice = currentMeasure.voci.find(v => v.nami === voiceCode);
+                        if (voice) applyToVoice(voice);
+                    } else {
+                        applyToVoice(currentMeasure);
+                    }
+
+                    window.rebuildRecordi();
+                    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                }
+            }
         };
+        // Add Revert button to the button container (at the beginning)
         btnContainer.insertBefore(revertBtn, btnContainer.firstChild);
 
 
@@ -11350,14 +13437,14 @@ ${codigos.join('\n  ')}
         const headerContainer = document.createElement('div');
         headerContainer.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; flex-wrap: wrap;';
 
-        const singleInputLabel = document.createElement('label');
+        /* const singleInputLabel = document.createElement('label');
         singleInputLabel.textContent = 'Notas MIDI:';
         singleInputLabel.style.cssText = 'font-family: monospace; font-weight: bold; color: #333; margin: 0; margin-right: 10px;';
-
+         */
         const controlsContainer = document.createElement('div');
         controlsContainer.style.cssText = 'display: flex; gap: 5px; align-items: center;';
 
-        headerContainer.appendChild(singleInputLabel);
+        //headerContainer.appendChild(singleInputLabel);
         headerContainer.appendChild(controlsContainer);
         midiInputsContainer.appendChild(headerContainer);
 
@@ -11366,33 +13453,72 @@ ${codigos.join('\n  ')}
         const singleInput = document.createElement('input');
         singleInput.type = 'text';
         singleInput.id = 'midi-single-input';
-        singleInput.value = midiValues.map((val, i) => {
-            const isRest = rhythmValues[i] < 0;
+
+        // Prepare values for input
+        let valuesToDisplay = midiValues;
+        let rhythmToDisplay = rhythmValues;
+
+        // Filter for Note Mode
+        if (window.currentEditingNoteIndex >= 0 && window.currentEditingNoteIndex < midiValues.length) {
+            valuesToDisplay = [midiValues[window.currentEditingNoteIndex]];
+            rhythmToDisplay = [rhythmValues[window.currentEditingNoteIndex]];
+        }
+
+        singleInput.value = valuesToDisplay.map((val, i) => {
+            const isRest = rhythmToDisplay[i] < 0;
             return isRest ? -val : val;
         }).join(' ');
         singleInput.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 5px; box-sizing: border-box;';
 
         singleInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
+            // Use current live rhythm values, defaulting to original if not yet edited
+            const liveRhythmValues = (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length > 0)
+                ? window.currentEditingRhythmValues
+                : rhythmValues;
+
             if (!val) {
                 renderMidiScorePreview([], [], rhythmContainer);
                 return;
             }
             const currentNotes = val.split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v)).map(Math.abs);
-            renderMidiScorePreview(currentNotes, rhythmValues, rhythmContainer);
+
+            // SYNC LOGIC: Update window.currentFullMidiValues
+            if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex >= 0) {
+                if (window.currentFullMidiValues && window.currentFullMidiValues.length > window.currentEditingNoteIndex) {
+                    // Update specific note
+                    if (currentNotes.length > 0) {
+                        window.currentFullMidiValues[window.currentEditingNoteIndex] = currentNotes[0];
+                    }
+                }
+            } else {
+                // Measure mode: full update
+                window.currentFullMidiValues = [...currentNotes];
+            }
+
+            // Decide what to render: In Note Mode we want to see the FULL context (with highlight), 
+            // so we pass the full array. In Measure Mode, currentNotes IS the full array.
+            const valuesToRender = (window.midiEditingLevel === 'note') ? window.currentFullMidiValues : currentNotes;
+
+            renderMidiScorePreview(valuesToRender, liveRhythmValues, rhythmContainer);
+
+            // Sync Silence Buttons immediately
+            if (typeof window.renderSilenceButtons === 'function') {
+                window.renderSilenceButtons();
+            }
         });
         midiInputsContainer.appendChild(singleInput);
 
         // === RHYTHM VALUES INPUT FIELD ===
         const rhythmInputLabel = document.createElement('label');
-        rhythmInputLabel.textContent = 'Tiempos (tipis):';
-        rhythmInputLabel.style.cssText = 'display:none;font-family: monospace; font-weight: bold; color: #333; margin-top: 10px; display: block;';
+        rhythmInputLabel.textContent = 'Tiempos:';
+        rhythmInputLabel.style.cssText = 'font-family: monospace; font-weight: bold; color: #333; margin-top: 10px; display: block;';
 
         const rhythmInput = document.createElement('input');
         rhythmInput.type = 'text';
         rhythmInput.id = 'rhythm-values-input';
         rhythmInput.value = rhythmValues.join(' ');
-        rhythmInput.style.cssText = 'display:none;width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 5px; box-sizing: border-box;';
+        rhythmInput.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 5px; box-sizing: border-box;';
 
         rhythmInput.addEventListener('input', (e) => {
             const val = e.target.value.trim();
@@ -11440,8 +13566,8 @@ ${codigos.join('\n  ')}
             }
         });
 
-        midiInputsContainer.appendChild(rhythmInputLabel);
-        midiInputsContainer.appendChild(rhythmInput);
+        // midiInputsContainer.appendChild(rhythmInputLabel);
+        // midiInputsContainer.appendChild(rhythmInput);
 
         // === RHYTHM MOD CONFIGURATION ===
         const rhythmModRow = document.createElement('div');
@@ -11514,6 +13640,9 @@ ${codigos.join('\n  ')}
         rhythmModRow.appendChild(x2Btn);
         midiInputsContainer.appendChild(rhythmModRow);
 
+
+
+
         // === BOTTOM ROW (Color Controls) ===
         const bottomRow = document.createElement('div');
         bottomRow.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 10px;';
@@ -11526,15 +13655,85 @@ ${codigos.join('\n  ')}
             if (singleInput) {
                 singleInput.value = newNotes.join(' ');
             }
+
+            // Sync Logic (Manual)
             const currentAbsNotes = newNotes.map(Math.abs);
-            renderMidiScorePreview(currentAbsNotes, rhythmValues, rhythmContainer);
+
+            if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex >= 0) {
+                if (window.currentFullMidiValues && window.currentFullMidiValues.length > window.currentEditingNoteIndex) {
+                    if (currentAbsNotes.length > 0) {
+                        window.currentFullMidiValues[window.currentEditingNoteIndex] = currentAbsNotes[0];
+                    }
+                }
+            } else {
+                window.currentFullMidiValues = [...currentAbsNotes];
+            }
+
+            // Use LIVE rhythm values
+            let liveRhythm = (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length > 0)
+                ? [...window.currentEditingRhythmValues] : [...rhythmValues];
+
+            // Sync rest state from newNotes to liveRhythm
+            if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex >= 0) {
+                // Update ONLY the specific note's rhythm sign
+                if (newNotes.length > 0) {
+                    const specificVal = newNotes[0];
+                    const isRest = specificVal < 0;
+                    const currentR = liveRhythm[window.currentEditingNoteIndex];
+                    liveRhythm[window.currentEditingNoteIndex] = isRest ? -Math.abs(currentR) : Math.abs(currentR);
+                }
+            } else {
+                // Measure Mode: Update ALL
+                liveRhythm = liveRhythm.map((r, i) => {
+                    const noteVal = newNotes[i];
+                    if (typeof noteVal !== 'undefined') {
+                        const isRest = noteVal < 0;
+                        return isRest ? -Math.abs(r) : Math.abs(r);
+                    }
+                    return r;
+                });
+            }
+            window.currentEditingRhythmValues = liveRhythm;
+            const valuesToRender = (window.midiEditingLevel === 'note') ? window.currentFullMidiValues : currentAbsNotes;
+            renderMidiScorePreview(valuesToRender, liveRhythm, rhythmContainer);
+
+            // LIVE PREVIEW ON SCORE (Disabled: changes only in modal until applied)
+            /*
+            if (typeof window.rebuildRecordi === 'function' && typeof measureIndex !== 'undefined') {
+                const currentMeasure = window.bdi.bar[measureIndex];
+                if (currentMeasure) {
+                    // Handle Voice
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const voiceCode = voiceSelector ? voiceSelector.value : 's';
+     
+                    // Helper helper
+                    const applyToVoice = (target) => {
+                        target.nimidi = [...currentAbsNotes];
+                        target.tipis = [...liveRhythm];
+                    };
+     
+                    if (currentMeasure.voci && Array.isArray(currentMeasure.voci)) {
+                        const voice = currentMeasure.voci.find(v => v.nami === voiceCode);
+                        if (voice) applyToVoice(voice);
+                    } else {
+                        applyToVoice(currentMeasure);
+                    }
+     
+                    window.rebuildRecordi();
+                    // Ensure visualizer updates
+                    // MUSICOLI FIX: Removed applyTextLayer to prevent syncing to Notepad immediately.
+                    // Updates should only be reflected on the score editor (pentagram) until saved.
+                    // if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                }
+            }
+            */
 
             const recalcBtn = bottomRow.querySelector('button[title="Recalcular color basado en notas"]');
             if (recalcBtn) recalcBtn.click();
 
             // Playback (tuci)
             if (typeof window.tuci === 'function') {
-                const tips = [...rhythmValues];
+                const tips = [...liveRhythm];
                 const basi = [{
                     nimidi: currentAbsNotes,
                     tipis: tips,
@@ -11555,13 +13754,21 @@ ${codigos.join('\n  ')}
             const btn = document.createElement('button');
             btn.innerHTML = text;
             btn.title = title;
-            btn.style.cssText = 'cursor: pointer; padding: 2px 5px; border: 1px solid #999; border-radius: 4px; background: #fff; font-size: 11px; flex-shrink: 0; min-width: 24px;';
+            btn.style.cssText = 'cursor: pointer; padding: 2px 5px; border: 1px solid #999; border-radius: 4px; background: #fff; font-size: 11px; flex-shrink: 0; min-width: 24px; height: 22px; margin: 0; box-sizing: border-box;';
             btn.onclick = action;
             return btn;
         };
 
+        // Container for stacked buttons (Scale & Semitone)
+        const stackedContainer = document.createElement('div');
+        stackedContainer.style.cssText = 'display: flex; flex-direction: column; gap: 4px; margin-right: 5px;';
+
+        // Row 1: Scale (+E -E)
+        const rowE = document.createElement('div');
+        rowE.style.cssText = 'display: flex; gap: 4px;';
+
         // Scale +1
-        controlsContainer.appendChild(createHeaderBtn('+E', 'Subir un grado en escala', () => {
+        rowE.appendChild(createHeaderBtn('+E', 'Subir un grado en escala', () => {
             if (typeof ininoti !== 'function') { alert('Error: ininoti not found'); return; }
             const currentNotes = getCurrentNotes();
             if (currentNotes.length === 0) return;
@@ -11573,21 +13780,28 @@ ${codigos.join('\n  ')}
                 const absNote = Math.abs(note);
                 let idx = scaleMidis.indexOf(absNote);
                 let newAbs = absNote;
+
+                // If the note is not in the exact scale array, try to find the closest match
+                // Logic: find the closest scale note. 
+                // But simplified logic here: match or find next.
+
                 if (idx !== -1) {
                     if (idx < scaleMidis.length - 1) newAbs = scaleMidis[idx + 1];
-                    else newAbs = absNote + 12;
+                    else newAbs = absNote + 12; // Wrap simply by octave if at end of range? Or just +12
                 } else {
                     const next = scaleMidis.find(n => n > absNote);
                     if (next) newAbs = next;
                     else newAbs = absNote + 1;
                 }
-                return isRest ? -newAbs : newAbs;
+
+                // CRITICAL FIX: Ensure rest status is strictly preserved
+                return isRest ? -Math.abs(newAbs) : Math.abs(newAbs);
             });
             updateInputAndRecalc(newNotes);
         }));
 
         // Scale -1
-        controlsContainer.appendChild(createHeaderBtn('-E', 'Bajar un grado en escala', () => {
+        rowE.appendChild(createHeaderBtn('-E', 'Bajar un grado en escala', () => {
             if (typeof ininoti !== 'function') { alert('Error: ininoti not found'); return; }
             const currentNotes = getCurrentNotes();
             if (currentNotes.length === 0) return;
@@ -11609,35 +13823,117 @@ ${codigos.join('\n  ')}
                         }
                     }
                 }
-                return isRest ? -newAbs : newAbs;
+                // CRITICAL FIX: Ensure rest status is strictly preserved
+                return isRest ? -Math.abs(newAbs) : Math.abs(newAbs);
             });
             updateInputAndRecalc(newNotes);
         }));
 
-        // Octave +1
-        controlsContainer.appendChild(createHeaderBtn('+12', 'Subir octava', () => {
+        stackedContainer.appendChild(rowE);
+
+        // Row 2: Semitone (+S -S)
+        const rowS = document.createElement('div');
+        rowS.style.cssText = 'display: flex; gap: 4px;';
+
+        // Semitone +1
+        rowS.appendChild(createHeaderBtn('+S', 'Subir un semitono', () => {
             const currentNotes = getCurrentNotes();
             updateInputAndRecalc(currentNotes.map(n => {
                 const isRest = n < 0;
-                const v = Math.abs(n) + 12;
-                return (v > 127) ? (isRest ? -(v - 12) : (v - 12)) : (isRest ? -v : v);
+                let v = Math.abs(n) + 1;
+                if (v > 127) v = 127;
+                return isRest ? -v : v;
+            }));
+        }));
+
+        // Semitone -1
+        rowS.appendChild(createHeaderBtn('-S', 'Bajar un semitono', () => {
+            const currentNotes = getCurrentNotes();
+            updateInputAndRecalc(currentNotes.map(n => {
+                const isRest = n < 0;
+                let v = Math.abs(n) - 1;
+                if (v < 0) v = 0;
+                return isRest ? -v : v;
+            }));
+        }));
+
+        stackedContainer.appendChild(rowS);
+
+        // === NOTISI CONTAINER (Left - Simple) ===
+        const notisi = document.createElement('div');
+        notisi.id = 'notisi';
+        notisi.style.cssText = 'display: flex; gap: 5px; align-items: center;';
+
+        // Add the stack to notisi
+        notisi.appendChild(stackedContainer);
+
+        // Octave +1
+        notisi.appendChild(createHeaderBtn('+12', 'Subir octava', () => {
+            const currentNotes = getCurrentNotes();
+            updateInputAndRecalc(currentNotes.map(n => {
+                const isRest = n < 0;
+                let v = Math.abs(n) + 12;
+                if (v > 127) v = Math.abs(n); // Don't change if out of bounds
+                return isRest ? -v : v;
             }));
         }));
 
         // Octave -1
-        controlsContainer.appendChild(createHeaderBtn('-12', 'Bajar octava', () => {
+        notisi.appendChild(createHeaderBtn('-12', 'Bajar octava', () => {
             const currentNotes = getCurrentNotes();
             updateInputAndRecalc(currentNotes.map(n => {
                 const isRest = n < 0;
-                const v = Math.abs(n) - 12;
-                return (v < 0) ? (isRest ? -Math.abs(n) : Math.abs(n)) : (isRest ? -v : v);
+                let v = Math.abs(n) - 12;
+                if (v < 0) v = Math.abs(n); // Don't change if out of bounds
+                return isRest ? -v : v;
             }));
         }));
 
+        // Silence/Unsilence Button (Bravura)
+        // \uD834\uDD3D = Quarter Rest, \uE0A4 = Black Notehead (no stem)
+        const btnSilence = createHeaderBtn('\uD834\uDD3D \uE0A4', 'Alternar Silencio/Nota', () => {
+            const currentNotes = getCurrentNotes();
 
-        // --- PATTERN GENERATORS ---
+            if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex >= 0) {
+                // Note Mode: Flip only the current note (which is the only one in currentNotes anyway, usually)
+                // But wait, getCurrentNotes pulls from input. 
+                // If input has 1 note, we flip it.
+                // updateInputAndRecalc handles syncing it back to window.currentFullMidiValues
+                updateInputAndRecalc(currentNotes.map(n => -n));
+            } else {
+                // Measure Mode: Flip ALL notes that are currently valid
+                updateInputAndRecalc(currentNotes.map(n => -n));
+            }
+        });
+        btnSilence.style.fontFamily = '"Bravura", "Bravura Text", monospace';
+        btnSilence.style.fontSize = '18px';
+        btnSilence.style.lineHeight = '1';
+        btnSilence.style.padding = '0 4px'; // Added horizontal padding
+        btnSilence.style.display = 'inline-flex';
+        btnSilence.style.alignItems = 'center';
+        btnSilence.style.justifyContent = 'center';
+        // Adjusted vertical offset: reduced bottom padding to lower the glyph
+        btnSilence.style.paddingBottom = '2px';
+        notisi.appendChild(btnSilence);
+
+        // Add notisi to controls
+        controlsContainer.appendChild(notisi);
+
+
+        // === NOTIDI CONTAINER (Right - Complex) ===
         const genControls = document.createElement('div');
-        genControls.style.cssText = 'display: flex; gap: 2px; align-items: center; margin-left: 5px; border-left: 1px solid #ccc; padding-left: 5px;';
+        genControls.id = 'notidi';
+        genControls.style.cssText = 'display: flex; flex-wrap: wrap; gap: 2px; align-items: center; margin-left: 5px; border-left: 1px solid #ccc; padding-left: 5px; margin-top: 5px;';
+
+        // Apply visibility based on current mode
+        if (typeof window.updateMidiEditingLevelVisibility === 'function') {
+            // We can't call it yet because they are not in DOM? 
+            // Actually controlsContainer is attached to midiInputsContainer... 
+            // But let's just use the function or inline check.
+            // We'll define the function globally, so we can call it here or set initial style.
+            // But simpliest is to define the function lower down and call it here if hoisted, or just set initial state.
+        }
+
 
         const getScaleInfo = () => {
             if (typeof ininoti !== 'function') return null;
@@ -11651,74 +13947,191 @@ ${codigos.join('\n  ')}
         const getScaleIndex = (note, scaleMidis) => scaleMidis.findIndex(n => n === note);
 
         const applyScaleGen = (type, origin) => {
+            // En modo tonalidad, obtener el número de notas del compás actual
+            let targetNoteCount = null;
+            if (window.currentEditMode === 'tonalidad' && window.currentEditingMeasureIndex >= 0) {
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+                if (measure) {
+                    // Obtener la voz activa
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                    const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                    const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                    // Obtener los datos de la voz
+                    let voiceData = null;
+                    if (measure.voci && Array.isArray(measure.voci)) {
+                        voiceData = measure.voci.find(v => v.nami === voiceCode);
+                    }
+
+                    // En modo tonalidad, usar el número de notas del compás (nimidi), NO los tiempos
+                    if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
+                        targetNoteCount = voiceData.nimidi.length;
+                        console.log(`🎵 Modo Tonalidad: Generando escalera con ${targetNoteCount} notas (basado en nimidi del compás)`);
+                    }
+                }
+            }
+
             const currentNotes = getCurrentNotes();
-            if (currentNotes.length < 2) return;
+
+            // Si estamos en modo tonalidad y tenemos un targetNoteCount, usarlo
+            const noteCount = targetNoteCount || currentNotes.length;
+
+            if (noteCount < 1) return;
             const scaleMidis = getScaleInfo();
             if (!scaleMidis) { alert('Error: Scale info not found'); return; }
 
-            const absNotes = currentNotes.map(Math.abs);
-            const startVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
+            // Determinar la nota de inicio basándose en las notas actuales o usar C4 (60) por defecto
+            let startVal = 60; // Default: Middle C
+            if (currentNotes.length > 0) {
+                const absNotes = currentNotes.map(Math.abs);
+                startVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
+            }
+
             let startIndex = getScaleIndex(startVal, scaleMidis);
             if (startIndex === -1) {
                 const closest = getClosestScaleNote(startVal, scaleMidis);
                 startIndex = getScaleIndex(closest, scaleMidis);
             }
 
-            const newNotes = currentNotes.map((n, i) => {
-                const isRest = n < 0;
-                let newAbs = 60;
+            // Generar exactamente noteCount notas
+            const newNotes = [];
+            for (let i = 0; i < noteCount; i++) {
                 let stepIndex = (type === 'asc') ? startIndex + i : startIndex - i;
 
+                let newAbs = 60;
                 if (stepIndex >= 0 && stepIndex < scaleMidis.length) {
                     newAbs = scaleMidis[stepIndex];
                 } else {
                     if (stepIndex < 0) newAbs = scaleMidis[0];
                     if (stepIndex >= scaleMidis.length) newAbs = scaleMidis[scaleMidis.length - 1];
                 }
-                return isRest ? -newAbs : newAbs;
-            });
+
+                // Preserve Rest Status from original note logic
+                let isRest = false;
+                if (i < currentNotes.length) {
+                    isRest = currentNotes[i] < 0;
+                }
+
+                newNotes.push(isRest ? -Math.abs(newAbs) : Math.abs(newAbs));
+            }
+
             updateInputAndRecalc(newNotes);
         };
 
+
+
+
+
+
+
+
         const applyGaussGen = (origin) => {
+            // En modo tonalidad, obtener el número de notas del compás actual
+            let targetNoteCount = null;
+            if (window.currentEditMode === 'tonalidad' && window.currentEditingMeasureIndex >= 0) {
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+                if (measure) {
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                    const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                    const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                    let voiceData = null;
+                    if (measure.voci && Array.isArray(measure.voci)) {
+                        voiceData = measure.voci.find(v => v.nami === voiceCode);
+                    }
+
+                    if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
+                        targetNoteCount = voiceData.nimidi.length;
+                    }
+                }
+            }
+
             const currentNotes = getCurrentNotes();
-            if (currentNotes.length < 2) return;
+            const noteCount = targetNoteCount || currentNotes.length;
+
+            if (noteCount < 2) return;
             const scaleMidis = getScaleInfo();
             if (!scaleMidis) { alert('Error: Scale info not found'); return; }
 
-            const absNotes = currentNotes.map(Math.abs);
-            const startVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
-            const len = currentNotes.length;
+            let startVal = 60;
+            if (currentNotes.length > 0) {
+                const absNotes = currentNotes.map(Math.abs);
+                startVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
+            }
+
             const amplitude = 12;
 
-            const newNotes = currentNotes.map((n, i) => {
-                const isRest = n < 0;
-                const pos = (len > 1) ? (i / (len - 1)) : 0;
+            const newNotes = [];
+            for (let i = 0; i < noteCount; i++) {
+                const pos = (noteCount > 1) ? (i / (noteCount - 1)) : 0;
                 const curve = Math.sin(pos * Math.PI);
                 const targetPitch = startVal + (curve * amplitude);
                 const newAbs = getClosestScaleNote(targetPitch, scaleMidis);
-                return isRest ? -newAbs : newAbs;
-            });
+
+                // Preserve Rest Status
+                let isRest = false;
+                if (i < currentNotes.length) {
+                    isRest = currentNotes[i] < 0;
+                }
+                newNotes.push(isRest ? -Math.abs(newAbs) : Math.abs(newAbs));
+            }
             updateInputAndRecalc(newNotes);
         };
 
         const applyNormGen = (origin) => {
+            // En modo tonalidad, obtener el número de notas del compás actual
+            let targetNoteCount = null;
+            if (window.currentEditMode === 'tonalidad' && window.currentEditingMeasureIndex >= 0) {
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+                if (measure) {
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                    const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                    const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                    let voiceData = null;
+                    if (measure.voci && Array.isArray(measure.voci)) {
+                        voiceData = measure.voci.find(v => v.nami === voiceCode);
+                    }
+
+                    if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
+                        targetNoteCount = voiceData.nimidi.length;
+                    }
+                }
+            }
+
             const currentNotes = getCurrentNotes();
-            if (currentNotes.length === 0) return;
+            const noteCount = targetNoteCount || currentNotes.length;
+
+            if (noteCount === 0) return;
 
             // Get scale info for snapping (keeps it musical)
             const scaleMidis = getScaleInfo();
 
-            const absNotes = currentNotes.map(Math.abs);
-            const targetVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
+            let targetVal = 60;
+            if (currentNotes.length > 0) {
+                const absNotes = currentNotes.map(Math.abs);
+                targetVal = (origin === 'start') ? absNotes[0] : absNotes[absNotes.length - 1];
+            }
+
             const lerpFactor = 0.3; // Move 30% towards target per click
 
-            const newNotes = currentNotes.map(n => {
-                const isRest = n < 0;
-                const val = Math.abs(n);
+            const newNotes = [];
+            for (let i = 0; i < noteCount; i++) {
+                let val = 60;
+                let isRest = false;
+                if (i < currentNotes.length) {
+                    val = Math.abs(currentNotes[i]);
+                    isRest = currentNotes[i] < 0;
+                }
 
                 const diff = targetVal - val;
-                if (diff === 0) return n; // Already at target
+                if (diff === 0) {
+                    newNotes.push(isRest ? -val : val);
+                    continue;
+                }
 
                 // Linear interpolation
                 let move = diff * lerpFactor;
@@ -11735,8 +14148,8 @@ ${codigos.join('\n  ')}
                     newVal = getClosestScaleNote(newVal, scaleMidis);
                 }
 
-                return isRest ? -newVal : newVal;
-            });
+                newNotes.push(isRest ? -Math.abs(newVal) : Math.abs(newVal));
+            }
 
             updateInputAndRecalc(newNotes);
         };
@@ -11780,6 +14193,82 @@ ${codigos.join('\n  ')}
         // New Buttons
         genControls.appendChild(createHeaderBtn('⇄', 'Invertir Orden (Retrogradación)', () => applyReverseGen()));
         genControls.appendChild(createHeaderBtn('🎵↕', 'Invertir Melodía (Espejo)', () => applyInvertGen()));
+
+        const applySawtoothGen = () => {
+            // En modo tonalidad, obtener el número de notas del compás actual
+            let targetNoteCount = null;
+            if (window.currentEditMode === 'tonalidad' && window.currentEditingMeasureIndex >= 0) {
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+                if (measure) {
+                    const voiceSelector = document.getElementById('voice-selector');
+                    const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                    const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                    const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                    let voiceData = null;
+                    if (measure.voci && Array.isArray(measure.voci)) {
+                        voiceData = measure.voci.find(v => v.nami === voiceCode);
+                    }
+
+                    if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
+                        targetNoteCount = voiceData.nimidi.length;
+                    }
+                }
+            }
+
+            const currentNotes = getCurrentNotes();
+            const noteCount = targetNoteCount || currentNotes.length;
+
+            if (noteCount < 2) return;
+            const scaleMidis = getScaleInfo();
+
+            const sawSelect = document.getElementById('sawtooth-freq-select');
+            const cycles = sawSelect ? parseInt(sawSelect.value) : 2;
+
+            let startVal = 60;
+            if (currentNotes.length > 0) {
+                const absNotes = currentNotes.map(Math.abs);
+                startVal = absNotes[0];
+            }
+
+            const amplitude = 7; // Approx perfect fifth/octave range
+
+            const newNotes = [];
+            for (let i = 0; i < noteCount; i++) {
+                // Normalize 0 to 1
+                const t = noteCount > 1 ? i / (noteCount - 1) : 0;
+
+                // Triangle Wave formulation: (2/PI) * asin(sin(theta))
+                // theta = t * cycles * 2PI
+                const theta = t * cycles * 2 * Math.PI;
+                const wave = (2 / Math.PI) * Math.asin(Math.sin(theta));
+
+                const targetPitch = startVal + (wave * amplitude);
+
+                let newVal = Math.round(targetPitch);
+                if (scaleMidis && scaleMidis.length > 0) {
+                    newVal = getClosestScaleNote(newVal, scaleMidis);
+                }
+                newNotes.push(newVal);
+            }
+            updateInputAndRecalc(newNotes);
+        };
+
+        // Sawtooth Controls (Diente de Sierra)
+        const sawSelect = document.createElement('select');
+        sawSelect.id = 'sawtooth-freq-select';
+        sawSelect.style.cssText = 'height: 22px; font-size: 11px; margin-left: 5px; margin-right: 2px; border: 1px solid #999; border-radius: 4px; padding: 0 2px; cursor: pointer;';
+        sawSelect.title = "Frecuencia de repetición (Ciclos)";
+        [1, 2, 3, 4, 8].forEach(num => {
+            const opt = document.createElement('option');
+            opt.value = num;
+            opt.textContent = num;
+            sawSelect.appendChild(opt);
+        });
+        sawSelect.value = "2"; // Default per user request
+
+        genControls.appendChild(sawSelect);
+        genControls.appendChild(createHeaderBtn('〽️', 'Diente de Sierra', () => applySawtoothGen()));
 
         // Gradual Curve (Parabolic/Exponential)
         const applyCurveGen = (direction) => {
@@ -12132,7 +14621,24 @@ ${codigos.join('\n  ')}
         }
 
         // Focus input
-        setTimeout(() => singleInput.focus(), 50);
+        // Focus input and update silence buttons
+        if (typeof window.renderSilenceButtons === 'function') window.renderSilenceButtons();
+        setTimeout(() => {
+            if (singleInput) singleInput.focus();
+        }, 50);
+
+        // Ensure visibility is correct on open
+        if (typeof window.updateMidiEditingLevelVisibility === 'function') {
+            window.updateMidiEditingLevelVisibility();
+        }
+
+        // Update ladder buttons in tonalidad mode
+        if (window.currentEditMode === 'tonalidad' && typeof makeladi === 'function') {
+            setTimeout(() => {
+                makeladi();
+                console.log('🎵 Escalera actualizada para compás #' + (measureIndex + 1));
+            }, 100);
+        }
     };
 
     // Accept changes
@@ -12158,8 +14664,59 @@ ${codigos.join('\n  ')}
             });
 
             // Process values: Separated absolute MIDI for pitch, and sign for rhythm (rest)
-            const newMidiValues = rawMidiValues.map(v => Math.abs(v));
-            const isRestArray = rawMidiValues.map(v => v < 0);
+            let newMidiValues = rawMidiValues.map(v => Math.abs(v));
+            let isRestArray = rawMidiValues.map(v => v < 0);
+
+            // Handle Note Mode Merge
+            if (window.currentEditingNoteIndex >= 0) {
+                // We are in Note Mode. The input contains ONLY the edited note(s).
+                // We must merge this back into the full measure.
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+
+                // Get active voice data to merge into
+                const voiceSelector = document.getElementById('voice-selector');
+                const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                // Helper to get active voice object (simplified, full logic below repeats this but we need it now)
+                // NOTE: We assume 's' if not found for now, but main logic will re-fetch correct voice.
+                // Actually, let's just use the current arrays we have in context if available? 
+                // We don't have them easily accessibly here in localized scope.
+                // So we use the voice selector.
+                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                let activeVoice = null;
+                if (measure.voci) {
+                    if (Array.isArray(measure.voci)) {
+                        activeVoice = measure.voci.find(v => v.nami === voiceCode);
+                    } else {
+                        // Support Object structure
+                        activeVoice = measure.voci[voiceCode];
+                    }
+                }
+
+                // If no voice structure or dependent mode logic complexity, fallback to assuming measure.nimidi is active (which is true for visualization)
+                // But wait, measure.nimidi might be out of sync if voices are used.
+                // Let's rely on retrieving the full arrays again or cloning what we had.
+                // To be safe: RE-READ the current data from the measure directly.
+
+                let currentFullMidi = activeVoice ? activeVoice.nimidi : measure.nimidi;
+                let currentFullTipis = activeVoice ? activeVoice.tipis : measure.tipis;
+
+                if (!currentFullMidi) currentFullMidi = [];
+                if (!currentFullTipis) currentFullTipis = [];
+
+                // Clone
+                newMidiValues = [...currentFullMidi];
+                isRestArray = currentFullTipis.map(t => t < 0);
+
+                // Merge the single note change
+                // We take the FIRST value from the input as the new value for the selected index
+                const inputVal = rawMidiValues[0]; // e.g. 62 or -62
+                if (inputVal !== undefined) {
+                    newMidiValues[window.currentEditingNoteIndex] = Math.abs(inputVal);
+                    isRestArray[window.currentEditingNoteIndex] = inputVal < 0;
+                }
+            }
 
             // Also update the hidden inputs just to be consistent with the "pass to hidden inputs" request
             const hiddenInputs = midiInputsContainer.querySelectorAll('.midi-value-input-hidden');
@@ -12169,120 +14726,377 @@ ${codigos.join('\n  ')}
                 });
             }
 
-            // Update BDI
-            const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+            // Determine target index from Notepad Cursor
+            let targetIndex = 0;
+            if (window.np6 && typeof window.np6.getCursorPos === 'function') {
+                targetIndex = window.np6.getCursorPos();
+            }
+            if (targetIndex < 0) targetIndex = 0;
 
-            if (measure.voci && Array.isArray(measure.voci)) {
-                // Multi-voice structure
-                const voiceSelector = document.getElementById('voice-selector');
-                const selectedVoice = voiceSelector ? voiceSelector.value : 'soprano';
-                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
-                const voiceCode = nameToCode[selectedVoice] || 's';
+            console.log('➕ Injecting measure from Editor at cursor:', targetIndex);
 
-                const voice = measure.voci.find(v => v.nami === voiceCode);
-                if (voice) {
-                    voice.nimidi = newMidiValues;
+            // Construct new measure object
+            const newMeasure = {
+                nimidi: newMidiValues,
+                tipis: [],
+                dinami: new Array(newMidiValues.length).fill(80),
+                voices: {}
+            };
 
-                    // Update Rhythm (tipis) using the modified rhythm values from window.currentEditingRhythmValues
-                    // Apply rest signs based on isRestArray
-                    if (window.currentEditingRhythmValues.length === isRestArray.length) {
-                        voice.tipis = window.currentEditingRhythmValues.map((dur, i) => {
-                            const absDur = Math.abs(dur);
-                            return isRestArray[i] ? -absDur : absDur;
-                        });
+            // Apply rhythm logic (rests and timing)
+            if (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length === isRestArray.length) {
+                newMeasure.tipis = window.currentEditingRhythmValues.map((dur, i) => {
+                    const absDur = Math.abs(dur);
+                    return isRestArray[i] ? -absDur : absDur;
+                });
+                // Calculate timis
+                if (typeof restini === 'function') {
+                    newMeasure.timis = restini([newMeasure.tipis])[0];
+                }
+            } else {
+                // Fallback rhythm (quarter notes)
+                newMeasure.tipis = new Array(newMidiValues.length).fill(4);
+                if (typeof restini === 'function') {
+                    newMeasure.timis = restini([newMeasure.tipis])[0];
+                }
+            }
 
-                        // Recalcular timis basado en los nuevos tipis
-                        if (typeof restini === 'function') {
-                            voice.timis = restini([voice.tipis])[0];
+            // Multi-voice support for the injected measure
+            const voiceSelector = document.getElementById('voice-selector');
+            const selectedVoice = voiceSelector ? voiceSelector.value : 'soprano';
+            const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+            const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+            // Create voci array for the new measure
+            newMeasure.voci = [
+                { nami: 's', nimidi: [], tipis: [], timis: [], dinami: [] },
+                { nami: 'a', nimidi: [], tipis: [], timis: [], dinami: [] },
+                { nami: 't', nimidi: [], tipis: [], timis: [], dinami: [] },
+                { nami: 'b', nimidi: [], tipis: [], timis: [], dinami: [] }
+            ];
+
+            // Set data for the current voice
+            const activeVoice = newMeasure.voci.find(v => v.nami === voiceCode);
+            if (activeVoice) {
+                activeVoice.nimidi = [...newMeasure.nimidi];
+                activeVoice.tipis = [...newMeasure.tipis];
+                activeVoice.timis = [...newMeasure.timis];
+                activeVoice.dinami = [...newMeasure.dinami];
+            }
+
+            // Handle other voices based on mode
+            if (voiceEditMode === 'dependent') {
+                // Generate harmonies if dependent mode
+                newMeasure.voci.forEach(v => {
+                    if (v.nami !== voiceCode) {
+                        // Check if this voice is currently SILENT (Cosi Black Button)
+                        let isSilent = false;
+                        const existingMeasureIdx = window.currentEditingMeasureIndex;
+                        if (existingMeasureIdx >= 0 && window.bdi.bar && window.bdi.bar[existingMeasureIdx]) {
+                            const existingMeasure = window.bdi.bar[existingMeasureIdx];
+                            if (existingMeasure.voci && Array.isArray(existingMeasure.voci)) {
+                                const existingVoice = existingMeasure.voci.find(ev => ev.nami === v.nami);
+                                if (existingVoice && existingVoice.tipis && existingVoice.tipis.length > 0) {
+                                    // A voice is considered silent if ALL its values are negative (rests)
+                                    // or generally if it reflects the "black button" state which we infer from values.
+                                    isSilent = existingVoice.tipis.every(t => t < 0);
+                                }
+                            }
                         }
 
-                        console.log('🔍 EDIT MEASURE - Mode:', voiceEditMode, 'Voice:', selectedVoice);
+                        // Apply new rhythm from active voice to this background voice
+                        if (isSilent) {
+                            // Apply rhythm but FORCE SILENCE (negative values)
+                            v.tipis = activeVoice.tipis.map(t => -Math.abs(t));
+                        } else {
+                            // Apply rhythm as NORMAL (positive values)
+                            v.tipis = activeVoice.tipis.map(t => Math.abs(t));
+                        }
 
-                        // MODO DEPENDIENTE: Copiar tipis/timis a todas las voces y generar armonías
-                        if (voiceEditMode === 'dependent') {
-                            console.log('🔗 Modo Dependiente: Actualizando todas las voces con armonías');
+                        // Timis always positive for duration calculation
+                        v.timis = v.tipis.map(t => Math.abs(t));
 
-                            measure.voci.forEach(v => {
+                        if (typeof generateHarmonyForVoice === 'function') {
+                            const harmonyData = generateHarmonyForVoice({
+                                nimidi: activeVoice.nimidi,
+                                tipis: activeVoice.tipis, // Harmony gen might use positive values
+                                timis: activeVoice.timis,
+                                dinami: activeVoice.dinami
+                            }, v.nami, voiceCode);
+                            v.nimidi = harmonyData.nimidi;
+                            v.dinami = new Array(v.nimidi.length).fill(64);
+                        }
+                    }
+                });
+            } else {
+                // Independent mode: PRESERVE other voices from the existing measure
+                // This prevents deleting other voices when editing just one in independent mode
+                const existingMeasureIdx = window.currentEditingMeasureIndex;
+                if (existingMeasureIdx >= 0 && window.bdi.bar && window.bdi.bar[existingMeasureIdx]) {
+                    const existingMeasure = window.bdi.bar[existingMeasureIdx];
+
+                    if (existingMeasure.voci) {
+                        // Handle both Array and Object format for existing voices
+                        const existingVoices = Array.isArray(existingMeasure.voci)
+                            ? existingMeasure.voci
+                            : Object.values(existingMeasure.voci);
+
+                        if (existingVoices && existingVoices.length > 0) {
+                            newMeasure.voci.forEach(v => {
+                                // If this is NOT the voice we just edited, try to restore it
                                 if (v.nami !== voiceCode) {
-                                    // Copiar ritmo
-                                    v.tipis = [...voice.tipis];
-                                    v.timis = [...voice.timis];
-
-                                    // Generar armonía para esta voz
-                                    if (typeof generateHarmonyForVoice === 'function') {
-                                        const harmonyData = generateHarmonyForVoice({
-                                            nimidi: newMidiValues,
-                                            tipis: voice.tipis,
-                                            timis: voice.timis,
-                                            dinami: voice.dinami || newMidiValues.map(() => 64)
-                                        }, v.nami);
-                                        v.nimidi = harmonyData.nimidi;
+                                    const existingVoice = existingVoices.find(ev => ev.nami === v.nami);
+                                    if (existingVoice) {
+                                        // Deep copy arrays to prevent reference issues
+                                        v.nimidi = existingVoice.nimidi ? [...existingVoice.nimidi] : [];
+                                        v.tipis = existingVoice.tipis ? [...existingVoice.tipis] : [];
+                                        v.timis = existingVoice.timis ? [...existingVoice.timis] : [];
+                                        v.dinami = existingVoice.dinami ? [...existingVoice.dinami] : [];
+                                        v.tarari = existingVoice.tarari || "";
                                     }
                                 }
                             });
-                        } else {
-                            console.log('🔓 Modo Independiente: Solo actualizando voz', selectedVoice);
-                            // En modo independiente, NO tocar las otras voces
                         }
-
-                        // También actualizar el objeto principal del measure
-                        measure.tipis = [...voice.tipis];
-                        measure.timis = [...voice.timis];
                     }
                 }
+            }
+
+            // Also update the main properties for single-voice compatibility
+            newMeasure.tipis = [...activeVoice.tipis];
+            newMeasure.timis = [...activeVoice.timis];
+
+            // Update existing measure in BDI
+            if (!window.bdi.bar) window.bdi.bar = [];
+
+            const updateIndex = window.currentEditingMeasureIndex;
+            if (updateIndex >= 0 && updateIndex < window.bdi.bar.length) {
+                // Update the existing measure
+                window.bdi.bar[updateIndex] = newMeasure;
             } else {
-                // Single voice structure
-                measure.nimidi = newMidiValues;
-
-                // Update Rhythm (tipis) using the modified rhythm values from window.currentEditingRhythmValues
-                // Apply rest signs based on isRestArray
-                if (window.currentEditingRhythmValues.length === isRestArray.length) {
-                    measure.tipis = window.currentEditingRhythmValues.map((dur, i) => {
-                        const absDur = Math.abs(dur);
-                        return isRestArray[i] ? -absDur : absDur;
-                    });
-
-                    // Recalcular timis basado en los nuevos tipis
-                    if (typeof restini === 'function') {
-                        measure.timis = restini([measure.tipis])[0];
-                    }
+                // Fallback (should not happen given the check at the start)
+                console.warn('⚠️ Invalid editing index in accept handler:', updateIndex);
+                if (typeof targetIndex !== 'undefined') {
+                    window.bdi.bar.splice(targetIndex, 0, newMeasure);
                 }
             }
 
             // Save state and rebuild
-            if (typeof saveBdiState === 'function') {
-                saveBdiState();
-            }
+            if (typeof saveBdiState === 'function') saveBdiState();
+            if (typeof rebuildRecordi === 'function') rebuildRecordi();
+            if (typeof applyTextLayer === 'function') applyTextLayer();
 
-            if (typeof rebuildRecordi === 'function') {
-                rebuildRecordi();
-            }
+            // Highlight the updated measure
+            if (typeof window.highlightMeasure === 'function') window.highlightMeasure(updateIndex);
 
-            // Update visual layers
-            if (typeof applyTextLayer === 'function') {
-                applyTextLayer();
-            }
-
-            console.log('✅ MIDI values updated for measure', window.currentEditingMeasureIndex);
+            // console.log('✅ Measure updated at', updateIndex);
 
             // Refesh view (Apply behavior: keep open and reload)
-            window.openMidiEditor(window.currentEditingMeasureIndex);
+            window.openMidiEditor(updateIndex);
         });
     }
 
-    // Cancel button - now just clears the editor without hiding it
+    // Cancel button - REPURPOSED to "Añadir" (Add Measure)
+    // Inserts the current measure (with edits) at the notepad cursor location
     if (midiEditorCancel) {
         midiEditorCancel.addEventListener('click', () => {
-            // Clear the inputs
-            midiInputsContainer.innerHTML = '';
-            window.currentEditingMeasureIndex = -1;
+            const singleInput = document.getElementById('midi-single-input');
+            if (!singleInput) return;
 
-            // Reset the header
-            const header = document.getElementById('midi-editor-header');
-            if (header) {
-                const measureNumSpan = document.getElementById('midi-editor-measure-num');
-                if (measureNumSpan) measureNumSpan.innerHTML = '';
+            // 1. Parse raw values (Same logic as Accept)
+            const rawMidiValues = singleInput.value.trim().split(/\s+/).map(val => {
+                const parsed = parseInt(val);
+                if (isNaN(parsed)) return 60;
+                const absVal = Math.abs(parsed);
+                return (absVal >= 0 && absVal <= 127) ? parsed : 60;
+            });
+            let newMidiValues = rawMidiValues.map(v => Math.abs(v));
+            let isRestArray = rawMidiValues.map(v => v < 0);
+
+            // Handle Note Mode Merge
+            if (window.currentEditingNoteIndex >= 0) {
+                const measure = window.bdi.bar[window.currentEditingMeasureIndex];
+                const voiceSelector = document.getElementById('voice-selector');
+                const selectedVoice = voiceSelector ? voiceSelector.value : 's';
+                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+                let activeVoice = null;
+                if (measure.voci) activeVoice = measure.voci.find(v => v.nami === voiceCode);
+
+                let currentFullMidi = activeVoice ? activeVoice.nimidi : measure.nimidi;
+                let currentFullTipis = activeVoice ? activeVoice.tipis : measure.tipis;
+                if (!currentFullMidi) currentFullMidi = [];
+                if (!currentFullTipis) currentFullTipis = [];
+
+                newMidiValues = [...currentFullMidi];
+                isRestArray = currentFullTipis.map(t => t < 0);
+
+                const inputVal = rawMidiValues[0];
+                if (inputVal !== undefined) {
+                    newMidiValues[window.currentEditingNoteIndex] = Math.abs(inputVal);
+                    isRestArray[window.currentEditingNoteIndex] = inputVal < 0;
+                }
             }
+
+            // 2. Determine target index from Notepad Cursor
+            let targetIndex = 0;
+            if (window.np6 && typeof window.np6.getCursorPos === 'function') {
+                targetIndex = window.np6.getCursorPos();
+            }
+            // Default validation
+            if (targetIndex < 0) targetIndex = 0;
+            if (window.bdi.bar && targetIndex > window.bdi.bar.length) targetIndex = window.bdi.bar.length;
+
+            console.log('➕ ADD Button: Injecting measure at cursor:', targetIndex);
+
+            // 3. Construct Base Measure
+            // Clone the currently edited measure to preserve other voices (Independent Mode support)
+            let newMeasure = {
+                nimidi: [], tipis: [], dinami: [], voices: {}
+            };
+
+            const sourceIdx = window.currentEditingMeasureIndex;
+            const sourceMeasure = (sourceIdx >= 0 && window.bdi.bar && window.bdi.bar[sourceIdx]) ? window.bdi.bar[sourceIdx] : null;
+
+            if (sourceMeasure) {
+                // Deep clone source structure
+                newMeasure = JSON.parse(JSON.stringify(sourceMeasure));
+            } else {
+                // Fallback: Create fresh structure
+                newMeasure = {
+                    nimidi: newMidiValues,
+                    tipis: [],
+                    dinami: new Array(newMidiValues.length).fill(80),
+                    voci: [
+                        { nami: 's', nimidi: [], tipis: [], timis: [], dinami: [] },
+                        { nami: 'a', nimidi: [], tipis: [], timis: [], dinami: [] },
+                        { nami: 't', nimidi: [], tipis: [], timis: [], dinami: [] },
+                        { nami: 'b', nimidi: [], tipis: [], timis: [], dinami: [] }
+                    ]
+                };
+            }
+
+            // 4. Update the ACTIVE VOICE in newMeasure with INPUT values
+            const voiceSelector = document.getElementById('voice-selector');
+            const selectedVoice = voiceSelector ? voiceSelector.value : 'soprano';
+            const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+            const voiceCode = (['s', 'a', 't', 'b'].includes(selectedVoice)) ? selectedVoice : (nameToCode[selectedVoice] || 's');
+
+            // Apply rhythm logic
+            let newTipis = [];
+            if (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length === isRestArray.length) {
+                newTipis = window.currentEditingRhythmValues.map((dur, i) => {
+                    const absDur = Math.abs(dur);
+                    return isRestArray[i] ? -absDur : absDur;
+                });
+            } else {
+                newTipis = new Array(newMidiValues.length).fill(4);
+            }
+
+            // Recalculate timis
+            let newTimis = [];
+            if (typeof restini === 'function') {
+                newTimis = restini([newTipis])[0];
+            }
+
+            // Update active voice inside newMeasure
+            // Ensure voci array exists
+            if (!newMeasure.voci) {
+                newMeasure.voci = [
+                    { nami: 's', nimidi: [], tipis: [], timis: [], dinami: [] },
+                    { nami: 'a', nimidi: [], tipis: [], timis: [], dinami: [] },
+                    { nami: 't', nimidi: [], tipis: [], timis: [], dinami: [] },
+                    { nami: 'b', nimidi: [], tipis: [], timis: [], dinami: [] }
+                ];
+            } else if (!Array.isArray(newMeasure.voci)) {
+                // Fix for legacy/buggy object format
+                console.warn('⚠️ Converting voci object to array for measure add');
+                newMeasure.voci = Object.values(newMeasure.voci);
+            }
+
+            const activeVoice = newMeasure.voci.find(v => v.nami === voiceCode);
+            if (activeVoice) {
+                activeVoice.nimidi = [...newMidiValues];
+                activeVoice.tipis = [...newTipis];
+                activeVoice.timis = [...newTimis];
+                activeVoice.dinami = new Array(newMidiValues.length).fill(80);
+            }
+
+            // 5. Handle Harmonies (Dependent Mode)
+            // In Dependent mode, we overwrite other voices with harmonies based on the Active Voice
+            // 5. Handle Harmonies (Dependent Mode)
+            // In Dependent mode, we overwrite other voices with harmonies based on the Active Voice
+            if (activeVoice) {
+                if (window.voiceEditMode === 'dependent') {
+                    console.log('🔗 ADD: Dependent mode - Generating harmonies');
+                    newMeasure.voci.forEach(v => {
+                        if (v.nami !== voiceCode) {
+                            // Sync rhythm from active voice
+                            v.tipis = [...activeVoice.tipis];
+                            v.timis = [...activeVoice.timis];
+
+                            // Generate Harmony
+                            if (typeof generateHarmonyForVoice === 'function') {
+                                const harmonyData = generateHarmonyForVoice({
+                                    nimidi: activeVoice.nimidi,
+                                    tipis: activeVoice.tipis,
+                                    timis: activeVoice.timis,
+                                    dinami: activeVoice.dinami
+                                }, v.nami, voiceCode);
+                                v.nimidi = harmonyData.nimidi;
+                                v.dinami = new Array(v.nimidi.length).fill(64);
+                            }
+                        }
+                    });
+                } else {
+                    // Independent Mode: Do NOT clone/duplicate other voices.
+                    // Instead, insert SILENCE (rests) for other voices to maintain grid alignment without adding content.
+                    console.log('🔓 ADD: Independent mode - Silencing other voices');
+                    newMeasure.voci.forEach(v => {
+                        if (v.nami !== voiceCode) {
+                            // Create rests matching the active voice's rhythm/duration
+                            // We use negative values of the active voice's tipis to represent rests
+                            v.tipis = activeVoice.tipis.map(t => -Math.abs(t));
+                            v.timis = [...activeVoice.timis]; // Duration is same
+                            v.nimidi = new Array(activeVoice.tipis.length).fill(0); // 0 for silence
+                            v.dinami = new Array(activeVoice.tipis.length).fill(0);
+                            v.tarari = "";
+                        }
+                    });
+                }
+            }
+            // In Independent mode, we already cloned sourceMeasure, so other voices remain as they were in the source.
+
+            // Sync main measure properties to active voice (for backward compatibility)
+            if (activeVoice) {
+                newMeasure.nimidi = [...activeVoice.nimidi];
+                newMeasure.tipis = [...activeVoice.tipis];
+                newMeasure.timis = [...activeVoice.timis];
+                // Dynamic might vary, but main track usually follows S or active
+            }
+
+            // 6. Insert Logic
+            if (!window.bdi.bar) window.bdi.bar = [];
+
+            // Splice insert
+            window.bdi.bar.splice(targetIndex, 0, newMeasure);
+
+            // 7. Save and Refresh System
+            if (typeof saveBdiState === 'function') saveBdiState();
+            if (typeof rebuildRecordi === 'function') rebuildRecordi();
+            if (typeof applyTextLayer === 'function') applyTextLayer();
+
+            // CRITICAL FIX: Update Visual Matrix
+            if (typeof renderVisualTracks === 'function') renderVisualTracks();
+            if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
+
+            // Highlight
+            if (typeof window.highlightMeasure === 'function') window.highlightMeasure(targetIndex);
+
+            // Update editor to look at the NEW inserted measure (which is now at targetIndex)
+            window.openMidiEditor(targetIndex);
+
+            console.log('✅ Added new measure at index:', targetIndex);
         });
     }
 
@@ -12293,8 +15107,21 @@ ${codigos.join('\n  ')}
     if (notepadContainer) {
         notepadContainer.addEventListener('click', (e) => {
             console.log('🖱️ Click detected on notepad container');
+
+            // Si clicamos directamente en el fondo del notepad, ir al final
+            if (e.target === notepadContainer) {
+                const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+                window.selectedMeasureIndex = bdiRef.length;
+                if (window.np6) window.np6.cursorPos = bdiRef.length;
+
+                if (typeof renderVisualTracks === 'function') renderVisualTracks();
+                if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
+                return;
+            }
+
             console.log('Click target:', e.target);
             console.log('Target tagName:', e.target.tagName);
+            console.log('Current edit mode:', window.currentEditMode);
 
             // Find the clicked span (measure)
             let target = e.target;
@@ -12304,17 +15131,54 @@ ${codigos.join('\n  ')}
                 if (target.tagName === 'SPAN') {
                     console.log('✅ Found SPAN element');
 
-                    // Get all spans in the notepad
-                    const allSpans = Array.from(notepadContainer.querySelectorAll('span'));
-                    console.log('Total spans found:', allSpans.length);
+                    // Get all spans in the notepad (excluding child spans like .measure-number)
+                    const allSpans = Array.from(notepadContainer.querySelectorAll(':scope > span'));
+                    console.log('Total top-level spans found:', allSpans.length);
                     console.log('BDI bar length:', window.bdi ? window.bdi.bar.length : 'BDI not defined');
 
                     const measureIndex = allSpans.indexOf(target);
                     console.log('Measure index:', measureIndex);
 
                     if (measureIndex >= 0 && measureIndex < window.bdi.bar.length) {
-                        console.log('Opening MIDI editor for measure:', measureIndex);
-                        window.openMidiEditor(measureIndex);
+                        // Si es el último compás y clicamos en el borde derecho (70%+), ir al final
+                        if (measureIndex === window.bdi.bar.length - 1) {
+                            const rect = target.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            if (x > rect.width * 0.7) {
+                                window.selectedMeasureIndex = window.bdi.bar.length;
+                                if (window.np6) window.np6.cursorPos = window.selectedMeasureIndex;
+                                if (typeof renderVisualTracks === 'function') renderVisualTracks();
+                                if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
+                                return;
+                            }
+                        }
+
+                        console.log('📍 Setting selectedMeasureIndex to:', measureIndex);
+
+                        // Update global selected measure index
+                        window.selectedMeasureIndex = measureIndex;
+                        selectedMeasureIndex = measureIndex;
+
+                        // Visual feedback: remove highlight from all spans
+                        allSpans.forEach(span => {
+                            span.style.outline = '';
+                        });
+
+                        // Highlight the selected span
+                        target.style.outline = '2px solid #FF9800';
+
+                        console.log('🎹 Opening MIDI editor for measure:', measureIndex + 1);
+
+                        // Open the modal editor with the measure data
+                        if (typeof window.openMidiEditor === 'function') {
+                            window.openMidiEditor(measureIndex);
+                        }
+
+                        // Also update cursor position if in Ritmo mode
+                        if (window.currentEditMode === 'ritmo' && window.np6) {
+                            window.np6.setCursorPos(measureIndex);
+                        }
+
                         break;
                     } else {
                         console.log('❌ Index out of range or invalid');
@@ -12333,12 +15197,12 @@ ${codigos.join('\n  ')}
     const editMidiBtn = document.getElementById('edit-midi-btn');
     if (editMidiBtn) {
         editMidiBtn.addEventListener('click', () => {
-            console.log('🔍 Current selectedMeasureIndex:', selectedMeasureIndex);
+            console.log('🔍 Current selectedMeasureIndex:', window.selectedMeasureIndex);
             console.log('🔍 Total measures in bdi.bar:', window.bdi.bar.length);
 
-            if (selectedMeasureIndex >= 0 && selectedMeasureIndex < window.bdi.bar.length) {
-                console.log('🎹 Opening MIDI editor for selected measure:', selectedMeasureIndex);
-                window.openMidiEditor(selectedMeasureIndex);
+            if (window.selectedMeasureIndex >= 0 && window.selectedMeasureIndex < window.bdi.bar.length) {
+                console.log('🎹 Opening MIDI editor for selected measure:', window.selectedMeasureIndex);
+                window.openMidiEditor(window.selectedMeasureIndex);
             } else {
                 alert('Por favor, selecciona un compás primero haciendo click en él.');
             }
@@ -12575,49 +15439,76 @@ ${codigos.join('\n  ')}
     // ========== EDIT MODE TOGGLE SYSTEM ==========
     // Sistema para cambiar entre modo dependiente e independiente
 
-    const editModeToggle = document.getElementById('edit-mode-toggle');
-    const modeIcon = document.getElementById('mode-icon');
+    const editModeToggle = document.getElementById('html-mode-toggle');
+    const modeIcon = document.getElementById('html-mode-icon');
     const modeText = document.getElementById('mode-text');
     const voiceModeIndicator = document.getElementById('voice-mode-indicator');
 
-    if (editModeToggle && modeIcon && modeText) {
+    if (editModeToggle) {
         console.log('🔧 INIT: Mode toggle button found, initial voiceEditMode =', voiceEditMode);
+
+        // Update initial state
+        const updateUI = () => {
+            const isInd = (voiceEditMode === 'independent');
+            if (isInd) {
+                if (modeIcon) modeIcon.textContent = '🔓';
+                editModeToggle.style.background = '#ff9800';
+                editModeToggle.title = 'Modo: Independiente (solo voz seleccionada). Click para cambiar a Dependiente';
+            } else {
+                if (modeIcon) modeIcon.textContent = '🔗';
+                editModeToggle.style.background = '#4caf50';
+                editModeToggle.title = 'Modo: Dependiente (armonía automática). Click para cambiar a Independiente';
+            }
+
+            // Sync Modal Toggle if exists
+            const modalToggle = document.getElementById('modal-mode-toggle');
+            if (modalToggle) {
+                modalToggle.style.backgroundColor = isInd ? '#FF9800' : '#4CAF50';
+                modalToggle.innerHTML = isInd ? '🔓' : '🔗';
+                modalToggle.title = isInd ? 'Modo: Independiente' : 'Modo: Dependiente';
+            }
+
+            // Update voice mode indicator (if exists elsewhere)
+            if (voiceModeIndicator) {
+                voiceModeIndicator.style.background = isInd ? '#ff9800' : '#4caf50';
+                voiceModeIndicator.title = isInd ?
+                    'Modo Independiente: Cada pista se edita por separado' :
+                    'Modo Dependiente: Las armonías se generan automáticamente';
+            }
+        };
+
+        // Run initial update
+        updateUI();
 
         editModeToggle.addEventListener('click', () => {
             console.log('🔘 Mode button clicked, current voiceEditMode =', voiceEditMode);
 
             if (voiceEditMode === 'dependent') {
                 voiceEditMode = 'independent';
-                modeIcon.textContent = '🔓';
-                modeText.textContent = 'Independiente';
-                editModeToggle.style.background = '#ff9800';
-
-                // Update voice mode indicator
-                if (voiceModeIndicator) {
-                    voiceModeIndicator.style.background = '#ff9800';
-                    voiceModeIndicator.title = 'Modo Independiente: Cada pista se edita por separado';
-                }
-
+                window.voiceEditMode = 'independent';
                 console.log('📝 Modo de edición cambiado a: INDEPENDIENTE');
-                console.log('   → Cada pista se edita por separado');
             } else {
                 voiceEditMode = 'dependent';
-                modeIcon.textContent = '🔗';
-                modeText.textContent = 'Dependiente';
-                editModeToggle.style.background = '#4caf50';
-
-                // Update voice mode indicator
-                if (voiceModeIndicator) {
-                    voiceModeIndicator.style.background = '#4caf50';
-                    voiceModeIndicator.title = 'Modo Dependiente: Las armonías se generan automáticamente';
-                }
-
+                window.voiceEditMode = 'dependent';
                 console.log('📝 Modo de edición cambiado a: DEPENDIENTE');
-                console.log('   → Las armonías se generan automáticamente');
             }
 
-            console.log('🔘 After toggle, voiceEditMode =', voiceEditMode);
+            updateUI();
+            if (typeof makeladi === 'function') makeladi();
+
+            // CRITICAL REFRESH: Update visual tracks (cursor size) immediately
+            if (typeof renderVisualTracks === 'function') {
+                renderVisualTracks();
+            }
+
+            // Sync with any other UI elements that might need it
+            if (typeof window.renderSilenceButtons === 'function') {
+                window.renderSilenceButtons();
+            }
         });
+
+        // Expose updateUI globally so other components can trigger a refresh
+        window.updateModeToggleUI = updateUI;
     }
 
     /**
@@ -12654,17 +15545,30 @@ ${codigos.join('\n  ')}
         // Recorrer cada compás
         for (let i = 0; i < totalMeasures; i++) {
             if (!bdi.bar[i].voci) {
-                bdi.bar[i].voci = {};
+                bdi.bar[i].voci = [];
             }
 
-            // Asegurar que cada voz existe en este compás
-            voices.forEach(voice => {
-                if (!bdi.bar[i].voci[voice]) {
-                    bdi.bar[i].voci[voice] = createEmptyMeasure();
-                    console.log(`📝 Compás ${i + 1}: Añadido compás vacío para voz ${voice}`);
-                    changesMade = true;
-                }
-            });
+            // Convert Object structure to Array if encountered
+            if (!Array.isArray(bdi.bar[i].voci)) {
+                const oldVoci = bdi.bar[i].voci;
+                bdi.bar[i].voci = voices.map(code => {
+                    if (oldVoci[code]) {
+                        return { nami: code, ...oldVoci[code] };
+                    }
+                    return { nami: code, ...createEmptyMeasure() };
+                });
+                changesMade = true;
+            } else {
+                // Ensure each of the 4 voices exists in the array
+                voices.forEach(voiceCode => {
+                    const exists = bdi.bar[i].voci.some(v => v.nami === voiceCode);
+                    if (!exists) {
+                        bdi.bar[i].voci.push({ nami: voiceCode, ...createEmptyMeasure() });
+                        console.log(`📝 Compás ${i + 1}: Añadido compás vacío para voz ${voiceCode}`);
+                        changesMade = true;
+                    }
+                });
+            }
         }
 
         if (changesMade) {
@@ -12708,55 +15612,70 @@ ${codigos.join('\n  ')}
     // Funciones que implementan la lógica de modo dependiente/independiente
 
     /**
-     * Añade un nuevo compás respetando el modo de edición actual
-     * @param {Object} measureData - Datos del compás para la voz actual {nimidi, duri, liri}
-     * @param {string} voiceCode - Código de la voz ('s', 'a', 't', 'b')
-     * @returns {number} Índice del compás añadido
+     * Anade un nuevo compas respetando el modo de edicion actual
+     * @param {Object} measureData - Datos del compas para la voz actual {nimidi, duri, liri}
+     * @param {string} voiceCode - Codigo de la voz ('s', 'a', 't', 'b')
+     * @param {number} targetIndex - Indice donde insertar (opcional, por defecto al final)
+     * @returns {number} Indice del compas anadido
      */
-    function addMeasureWithMode(measureData, voiceCode = null) {
+    function addMeasureWithMode(measureData, voiceCode = null, targetIndex = -1) {
         if (!voiceCode) {
             const voiceSelector = document.getElementById('voice-selector');
             voiceCode = voiceSelector ? voiceSelector.value : 's';
         }
 
-        const measureIndex = bdi.bar.length;
+        // Determine insertion index
+        let measureIndex = targetIndex;
+        if (measureIndex === -1) {
+            measureIndex = bdi.bar.length;
+        }
 
         if (voiceEditMode === 'dependent') {
-            // MODO DEPENDIENTE: Generar armonías automáticas
-            console.log('🔗 Modo Dependiente: Generando armonías automáticas');
+            // MODO DEPENDIENTE: Generar armonias automaticas
+            console.log('🔗 Modo Dependiente: Generando armonias automaticas');
 
             const newMeasure = {
-                voci: {
-                    s: voiceCode === 's' ? measureData : generateHarmonyForVoice(measureData, 's'),
-                    a: voiceCode === 'a' ? measureData : generateHarmonyForVoice(measureData, 'a'),
-                    t: voiceCode === 't' ? measureData : generateHarmonyForVoice(measureData, 't'),
-                    b: voiceCode === 'b' ? measureData : generateHarmonyForVoice(measureData, 'b')
-                }
+                voci: [
+                    { nami: 's', ...(voiceCode === 's' ? measureData : generateHarmonyForVoice(measureData, 's', voiceCode)) },
+                    { nami: 'a', ...(voiceCode === 'a' ? measureData : generateHarmonyForVoice(measureData, 'a', voiceCode)) },
+                    { nami: 't', ...(voiceCode === 't' ? measureData : generateHarmonyForVoice(measureData, 't', voiceCode)) },
+                    { nami: 'b', ...(voiceCode === 'b' ? measureData : generateHarmonyForVoice(measureData, 'b', voiceCode)) }
+                ]
             };
-            bdi.bar.push(newMeasure);
-            console.log(`✅ Compás ${measureIndex + 1} añadido con armonías para todas las voces`);
+
+            // Ensure nami is set correctly
+            newMeasure.voci[0].nami = 's';
+            newMeasure.voci[1].nami = 'a';
+            newMeasure.voci[2].nami = 't';
+            newMeasure.voci[3].nami = 'b';
+
+            // Insert at index
+            bdi.bar.splice(measureIndex, 0, newMeasure);
+            console.log(`✅ Compas ${measureIndex + 1} insertado con armonias para todas las voces`);
 
         } else {
-            // MODO INDEPENDIENTE: Solo añadir a la voz actual
-            console.log('🔓 Modo Independiente: Añadiendo solo a voz', voiceCode);
+            // MODO INDEPENDIENTE: Solo anadir a la voz actual
+            console.log('🔓 Modo Independiente: Anadiendo solo a voz', voiceCode);
 
-            if (!bdi.bar[measureIndex]) {
-                // Crear compás nuevo con todas las voces vacías
-                bdi.bar[measureIndex] = {
-                    voci: {
-                        s: createEmptyMeasure(),
-                        a: createEmptyMeasure(),
-                        t: createEmptyMeasure(),
-                        b: createEmptyMeasure()
-                    }
-                };
+            // Create new measure with empty voices
+            const newMeasure = {
+                voci: [
+                    { nami: 's', ...createEmptyMeasure() },
+                    { nami: 'a', ...createEmptyMeasure() },
+                    { nami: 't', ...createEmptyMeasure() },
+                    { nami: 'b', ...createEmptyMeasure() }
+                ]
+            };
+            const activeVoiceIdx = ['s', 'a', 't', 'b'].indexOf(voiceCode);
+            if (activeVoiceIdx >= 0) {
+                newMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
             }
 
-            // Actualizar solo la voz seleccionada
-            bdi.bar[measureIndex].voci[voiceCode] = measureData;
-            console.log(`✅ Compás ${measureIndex + 1} añadido solo para voz ${voiceCode}`);
+            // Insert at index
+            bdi.bar.splice(measureIndex, 0, newMeasure);
+            console.log(`✅ Compas ${measureIndex + 1} insertado solo para voz ${voiceCode}`);
 
-            // Sincronizar para asegurar que todas las voces tengan el mismo número de compases
+            // Sincronizar para asegurar que todas las voces tengan el mismo numero de compases
             syncMeasureCount();
         }
 
@@ -12782,20 +15701,93 @@ ${codigos.join('\n  ')}
 
         if (voiceEditMode === 'dependent') {
             // MODO DEPENDIENTE: Actualizar todas las voces con armonías
-            console.log('🔗 Modo Dependiente: Actualizando todas las voces');
+            console.log('🔗 Modo Dependiente: Actualizando todas las voces con preservación de silencios');
 
-            bdi.bar[measureIndex].voci.s = voiceCode === 's' ? newData : generateHarmonyForVoice(newData, 's');
-            bdi.bar[measureIndex].voci.a = voiceCode === 'a' ? newData : generateHarmonyForVoice(newData, 'a');
-            bdi.bar[measureIndex].voci.t = voiceCode === 't' ? newData : generateHarmonyForVoice(newData, 't');
-            bdi.bar[measureIndex].voci.b = voiceCode === 'b' ? newData : generateHarmonyForVoice(newData, 'b');
+            const voices = ['s', 'a', 't', 'b'];
 
-            console.log(`✅ Compás ${measureIndex + 1} actualizado con armonías`);
+            // Detect data structure type
+            const vociContainer = bdi.bar[measureIndex].voci;
+            const isVociArray = Array.isArray(vociContainer);
+
+            voices.forEach(targetCode => {
+                let oldVoice;
+
+                // 1. Retrieve Old Voice Data
+                if (isVociArray) {
+                    oldVoice = vociContainer.find(v => v.nami === targetCode);
+                } else {
+                    oldVoice = vociContainer[targetCode];
+                }
+
+                // If missing, treat as empty object (silenced)
+                oldVoice = oldVoice || { nami: targetCode };
+
+                // 2. Determine Silence State from Old Voice
+                // Active if ANY note is positive (> 0)
+                const wasActive = (oldVoice.tipis && oldVoice.tipis.length > 0)
+                    ? oldVoice.tipis.some(t => t > 0)
+                    : false;
+
+                // 3. Generate New Content
+                let newVoiceData;
+                if (targetCode === voiceCode) {
+                    // Active Voice: Use Master Input
+                    newVoiceData = newData;
+                } else {
+                    // Background Voice
+                    // Always Harmonize (copy rhythm + shift pitch)
+                    // Ensure we pass the current active voiceCode as the source for harmony generation
+                    newVoiceData = generateHarmonyForVoice(newData, targetCode, voiceCode);
+
+                    // Explicitly sync Rhythm (Tipis/Timis) from Source (newData)
+                    if (newData.tipis) newVoiceData.tipis = [...newData.tipis];
+                    if (newData.timis) newVoiceData.timis = [...newData.timis];
+
+                    if (wasActive) {
+                        // If Active (checked in Cosi): Ensure positive values (Sounding)
+                        if (newVoiceData.tipis) newVoiceData.tipis = newVoiceData.tipis.map(t => Math.abs(t));
+                    } else {
+                        // If Silent (unchecked in Cosi): Harmonize BUT Silence
+                        // "Tratar lo que sería una armonización normal... para las voces marcadas en el cosi"
+                        console.log(`🔇 Voz ${targetCode} en silencio - Actualizando armonía pero silenciando`);
+                        if (newVoiceData.tipis) newVoiceData.tipis = newVoiceData.tipis.map(t => -Math.abs(t));
+                    }
+                }
+
+                // Ensure nami is set
+                newVoiceData.nami = targetCode;
+
+                // 5. Update BDI
+                if (isVociArray) {
+                    const idx = vociContainer.findIndex(v => v.nami === targetCode);
+                    if (idx !== -1) {
+                        vociContainer[idx] = newVoiceData;
+                    } else {
+                        vociContainer.push(newVoiceData);
+                    }
+                } else {
+                    vociContainer[targetCode] = newVoiceData;
+                }
+            });
+
+            console.log(`✅ Compás ${measureIndex + 1} actualizado y armonizado con respeto a silencios`);
+
 
         } else {
             // MODO INDEPENDIENTE: Solo actualizar la voz seleccionada
             console.log('🔓 Modo Independiente: Actualizando solo voz', voiceCode);
 
-            bdi.bar[measureIndex].voci[voiceCode] = newData;
+            const measure = bdi.bar[measureIndex];
+            if (Array.isArray(measure.voci)) {
+                const voiceIdx = measure.voci.findIndex(v => v.nami === voiceCode);
+                if (voiceIdx !== -1) {
+                    measure.voci[voiceIdx] = { ...newData, nami: voiceCode };
+                } else {
+                    measure.voci.push({ ...newData, nami: voiceCode });
+                }
+            } else {
+                measure.voci[voiceCode] = newData;
+            }
             console.log(`✅ Compás ${measureIndex + 1} actualizado solo para voz ${voiceCode}`);
         }
 
@@ -12888,16 +15880,18 @@ ${codigos.join('\n  ')}
      * @param {string} targetVoice - Voz destino ('s', 'a', 't', 'b')
      * @returns {Object} Datos del compás armonizado
      */
-    function generateHarmonyForVoice(sourceData, targetVoice) {
-        // Intervalos armónicos estándar para voces SATB (en semitonos)
-        const intervals = {
-            's': 0,    // Soprano - sin cambio (voz principal)
-            'a': -5,   // Alto - cuarta justa descendente
-            't': -12,  // Tenor - octava descendente
-            'b': -19   // Bajo - octava + quinta descendente (12 + 7)
+    function generateHarmonyForVoice(sourceData, targetVoice, sourceVoice = 's') {
+        // Intervalos armónicos estándar (pitch offsets relativos a Soprano)
+        const offsets = {
+            's': 0,    // Soprano (Referencia)
+            'a': -5,   // Alto
+            't': -12,  // Tenor
+            'b': -19   // Bajo
         };
 
-        const interval = intervals[targetVoice] || 0;
+        const sourceOffset = offsets[sourceVoice] || 0;
+        const targetOffset = offsets[targetVoice] || 0;
+        const interval = targetOffset - sourceOffset;
 
         // Generar notas MIDI transponiendo por el intervalo
         const harmonizedMidi = sourceData.nimidi ? sourceData.nimidi.map(midi => {
@@ -12910,6 +15904,8 @@ ${codigos.join('\n  ')}
         return {
             nimidi: harmonizedMidi,
             duri: sourceData.duri ? [...sourceData.duri] : [1],
+            tipis: sourceData.tipis ? [...sourceData.tipis] : undefined,
+            timis: sourceData.timis ? [...sourceData.timis] : undefined,
             dinami: sourceData.dinami ? [...sourceData.dinami] : [64],
             liri: sourceData.liri || ""
         };
@@ -13096,6 +16092,7 @@ ${codigos.join('\n  ')}
             return [];
         }
     }
+    window.getSavedFrases = getSavedFrases;
 
     // Función para guardar una frase en localStorage
     function saveFrase(fraseData) {
@@ -13123,6 +16120,18 @@ ${codigos.join('\n  ')}
             return true;
         } catch (e) {
             console.error('Error deleting frase:', e);
+            return false;
+        }
+    }
+
+    // Función para eliminar todas las frases
+    function deleteAllFrases() {
+        try {
+            localStorage.removeItem('musicoli_frases');
+            console.log('🗑️ Todas las frases eliminadas');
+            return true;
+        } catch (e) {
+            console.error('Error deleting all frases:', e);
             return false;
         }
     }
@@ -13180,7 +16189,7 @@ ${codigos.join('\n  ')}
         }
 
         // Clear player source
-        const playi = document.getElementById("player15");
+        playi = document.getElementById("player15");
         if (playi) {
             playi.src = '';
         }
@@ -13227,6 +16236,11 @@ ${codigos.join('\n  ')}
         // Update JSON display
         if (typeof updateDetailedJSON === 'function') {
             updateDetailedJSON();
+        }
+
+        // Ensure the correct measure is orange, regardless of what happened during loop
+        if (typeof window.updateMeasureSelectionVisuals === 'function') {
+            window.updateMeasureSelectionVisuals();
         }
 
         console.log('🧹 Composición vaciada');
@@ -13328,13 +16342,15 @@ ${codigos.join('\n  ')}
         container.innerHTML = '';
 
         // Crear botones para cada frase guardada
-        frases.forEach(frase => {
+        frases.forEach((frase, index) => {
             const compasesCount = frase.bdi ? frase.bdi.length : 0;
+            // Generar letra (A, B, C...)
+            const letter = String.fromCharCode(65 + (index % 26));
 
             // Crear botón principal para insertar la frase
             const fraseBtn = document.createElement('button');
-            fraseBtn.textContent = `F${frase.id}`;
-            fraseBtn.title = `Insertar frase (${compasesCount} compases)`;
+            fraseBtn.textContent = letter;
+            fraseBtn.title = `Insertar frase ${letter} (${compasesCount} compases)`;
             fraseBtn.style.cssText = 'background: #4CAF50; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px;';
             fraseBtn.addEventListener('click', () => {
                 restoreFrase(frase);
@@ -13343,11 +16359,11 @@ ${codigos.join('\n  ')}
             // Crear botón pequeño para eliminar
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = '×';
-            deleteBtn.title = 'Eliminar frase';
+            deleteBtn.title = `Eliminar frase ${letter}`;
             deleteBtn.style.cssText = 'background: #f44336; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; margin-left: 2px;';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm(`¿Eliminar frase F${frase.id}?`)) {
+                if (confirm(`¿Eliminar frase ${letter}?`)) {
                     if (deleteFrase(frase.id)) {
                         renderFrasesButtons(); // Refrescar botones
                     }
@@ -13356,12 +16372,28 @@ ${codigos.join('\n  ')}
 
             // Crear contenedor para el botón y el botón de eliminar
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display: inline-flex; align-items: center;';
+            wrapper.style.cssText = 'display: inline-flex; align-items: center; margin-right: 5px; margin-bottom: 5px;';
             wrapper.appendChild(fraseBtn);
             wrapper.appendChild(deleteBtn);
 
             container.appendChild(wrapper);
         });
+
+        // Botón para borrar todas las frases si hay alguna
+        if (frases.length > 0) {
+            const clearAllBtn = document.createElement('button');
+            clearAllBtn.textContent = '🗑️ Borrar Todo';
+            clearAllBtn.title = 'Eliminar todas las frases guardadas';
+            clearAllBtn.style.cssText = 'background: #d32f2f; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; margin-left: 10px;';
+            clearAllBtn.addEventListener('click', () => {
+                if (confirm('¿Estás seguro de que quieres eliminar TODAS las frases guardadas? Esta acción no se puede deshacer.')) {
+                    if (deleteAllFrases()) {
+                        renderFrasesButtons(); // Refrescar botones
+                    }
+                }
+            });
+            container.appendChild(clearAllBtn);
+        }
     }
 
     // Event listener para el botón "Frase"
@@ -13386,299 +16418,114 @@ ${codigos.join('\n  ')}
 
     // Apply text layer to notepad (Ritmo mode)
     function applyTextLayer() {
-        // MUSICOLI: Validate that np6 exists
+        // Mock np6 validation
         if (typeof np6 === 'undefined' || !np6) {
-            console.error('❌ [applyTextLayer] np6 (notepad) is not defined or not initialized');
+            console.error('❌ [applyTextLayer] np6 is not defined or not initialized');
             return;
         }
 
-        // SOLICITADO POR MUSICOLI: Sync Macoti widths on interaction (Perspective effect)
-        if (!np6._macotiListenersAttached) {
-            const updateTracks = () => {
-                // Short delay to allow perspective/styles to settle
-                setTimeout(() => {
-                    if (typeof renderVisualTracks === 'function') {
-                        renderVisualTracks();
-                    }
-                }, 50);
-            };
-
-            // Listen to container clicks (captures most interactions)
-            np6.container.addEventListener('click', updateTracks);
-
-            // Listen to specific note clicks if emitted
-            if (typeof np6.on === 'function') {
-                np6.on('noteClick', updateTracks);
-            }
-
-            np6._macotiListenersAttached = true;
-            console.log('✅ Macoti sync listeners attached to Notepad');
-        }
-
-        // Each BDI compás should be ONE span (word block) in the notepad
+        // Each BDI compás corresponds to an index
         const bdiRef = (typeof window.bdi.bar !== 'undefined') ? window.bdi.bar : [];
 
-        // console.log(`🎨 [applyTextLayer] Rendering ${bdiRef.length} measures to notepad`);
-
-        // Detect current voice view
-        const voiceSelector = document.getElementById('voice-selector');
-        const selectedVoiceName = voiceSelector ? voiceSelector.value : 'soprano';
-
-        // Clear the notepad content
-        const oldNodesCount = np6.letterNodes.length;
-        np6._clearAll();
-
-        // Manually create word block spans for each compás
-        for (let i = 0; i < bdiRef.length; i++) {
-            let item = bdiRef[i];
-
-            // Use the selected voice data if available in item.voci
-            let voiceData = item; // Default fallback to top-level
-            if (item.voci && Array.isArray(item.voci) && selectedVoiceName !== 'todos') {
-                const voiceMap = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
-                const targetNami = voiceMap[selectedVoiceName];
-                const foundVoice = item.voci.find(v => v.nami === targetNami);
-                // If the voice object exists and has notes, use it
-                if (foundVoice && foundVoice.nimidi && foundVoice.nimidi.length > 0) {
-                    voiceData = foundVoice;
-                }
-            }
-
-            let text = voiceData.tarari || ''; // Use tarari from voice or item
-
-            // MUSICOLI REFACTOR: Calculate color from MIDI notes (Notepad Algorithm)
-            // Instead of using stored item.hexi, we interpret the current MIDI numbers
-            let color;
-            const activeNotes = (voiceData.nimidi || []).filter(n => typeof n === 'number' && n > 0);
-
-            if (activeNotes.length > 0) {
-                color = midiToColor(activeNotes);
-            } else {
-                // Fallback if no notes (rest) - use item.hexi or default
-                color = item.hexi;
-
-                if (!color && item.coli && Array.isArray(item.coli) && item.coli.length >= 3) {
-                    color = `rgb(${item.coli[0]}, ${item.coli[1]}, ${item.coli[2]})`;
-                }
-            }
-
-            if (!color) color = '#e0e0e0';
-
-            // Retrieve extra info
-            let nimidi = voiceData.nimidi || [];
-            let tipis = voiceData.tipis || [];
-
-            // Format Notes Info
-            // Expected format: Do4/C4/60 - Mi4/E4/64
-            let notesInfo = nimidi.map(midiVal => {
-                const solfege = (typeof midiToScientific === 'function') ? midiToScientific(midiVal) : midiVal;
-                const abc = (typeof midiToABC === 'function') ? midiToABC(midiVal) : midiVal;
-                return `${solfege}/${abc}/${midiVal}`;
-            }).join(' - ');
-
-            if (!notesInfo) notesInfo = '(-)';
-
-            // Format Times Info
-            const timesInfo = tipis.length > 0 ? `T: ${tipis.join(', ')}` : 'T: -';
-
-            // Generate Bravura notation WITHOUT vertical offsets for notepad display
-            // Notes should all be an the same baseline, not positioned like a staff
-            const bravuraNotation = (typeof renderPattern === 'function') ? renderPattern(noteMap, tipis) : '';
-
-            // LOGGING FOR DEBUGGING RESTS
-            if (i < 5) { // Limit logs to first few measures
-                console.log(`[applyTextLayer DEBUG] Measure ${i}:`, {
-                    voice: selectedVoiceName,
-                    tipis: tipis, // Check for negative numbers (rests)
-                    bravuraNotation: bravuraNotation // Check if empty strings returned
-                });
-            }
-
-            // REMOVED: renderPatternWithHeights - causes vertical misalignment in notepad
-            // const renderPatternWithHeights = ... 
-            // const bravuraNotationWithHeights = renderPatternWithHeights(noteMap, tipis, nimidi);
-
-            // DEBUG: Log visualization data for odd/even check
-            console.log(`[applyTextLayer] Measure ${i}:`, {
-                nimidi, tipis, color,
-                bravuraLength: bravuraNotation.length,
-                isOdd: i % 2 !== 0
-            });
-
-            // Create detailed tooltip text
-            const tooltipText = `Tarareo: ${text}\nNotas: ${notesInfo}\nTiempos: ${timesInfo}`;
-
-            // Create a word block span for this compás
-            const span = document.createElement('span');
-            // MUSICOLI: Flag as custom content to prevent notepad.js from stripping HTML/styles
-            span.dataset.customContent = 'true';
-
-            // Explicitly set font size on the span to override container defaults if needed
-            span.style.fontSize = '12px'; // Base size for the block
-
-            // MUSICOLI: Apply background color from item
-            if (color) {
-                span.style.backgroundColor = color;
-                // Add simple contrast logic for text
-                const rgbMatch = color.match(/\d+/g);
-                if (rgbMatch) {
-                    const brightness = (parseInt(rgbMatch[0]) * 299 + parseInt(rgbMatch[1]) * 587 + parseInt(rgbMatch[2]) * 114) / 1000;
-                    span.style.color = brightness > 125 ? 'black' : 'white';
-                }
-            }
-
-            // MIDI numbers only display
-            let midiNumbers = nimidi.join(', ');
-
-            // MUSICOLI: Display '-' for rests (negative tipis)
-            // Handle MIXED patterns by checking each note individually
-            if (tipis && tipis.length === nimidi.length) {
-                midiNumbers = nimidi.map((note, idx) => {
-                    return tipis[idx] < 0 ? '-' : note;
-                }).join(', ');
-            } else if (tipis && tipis.length > 0 && tipis.some(t => t < 0)) {
-                // Fallback
-                midiNumbers = '-';
-            }
-
-            // Structure content with HTML
-            // Using inline-flex column centered for better alignment
-            // Number styling depends on mode
-            const numberStyle = currentEditMode === 'ritmo'
-                ? 'position: absolute; top: 2px; left: 2px; font-size: 0.7em; font-weight: bold; color: inherit; user-select: none;'
-                : 'position: absolute; top: 2px; left: 2px; font-size: 0.7em; font-weight: bold; color: #fff; background: #999; padding: 1px 4px; border-radius: 2px; cursor: pointer; user-select: none;';
-
-            span.innerHTML = `
-            <div class="measure-number" data-measure-index="${i}" style="${numberStyle}">${i + 1}</div>
-            <div style="${(typeof editMode !== 'undefined' && editMode === 'lyrics') ? 'display:block; font-size: 1.1em; margin-bottom: 5px; font-weight: bold; color: inherit;' : 'display:none;'}">${text}</div>
-            <!--<div style="font-family: 'Bravura'; font-size: 1.7em; margin-top: 8px; margin-bottom: 1px; line-height: 1;">${bravuraNotation}</div>-->
-            
-            <div style="font-family: 'Bravura'; font-size: 1.7em; margin-top: ${(typeof editMode !== 'undefined' && editMode === 'lyrics') ? '0' : '8'}px; margin-bottom: 4px; line-height: 1; order: 1;">${bravuraNotation}</div>
-            
-            <div style="font-size:0.85em; font-weight:bold; opacity:0.9; line-height:1.1; color: inherit; margin-top: -3px; order: 2;">${midiNumbers}</div>
-            
-            <div style="display:none;">${notesInfo}</div>
-            <div style="display:none;">${timesInfo}</div>
-        `;
-
-
-            // Add click listener to measure number (always add, but check mode on click)
-            const measureNumberEl = span.querySelector('.measure-number');
-            if (measureNumberEl) {
-                measureNumberEl.addEventListener('mousedown', (e) => {
-                    console.log('🖱️ Mousedown on measure number, mode:', currentEditMode);
-
-                    // Only handle click if NOT in ritmo mode
-                    if (currentEditMode === 'ritmo') {
-                        console.log('ℹ️ Click ignored in Ritmo mode');
-                        return;
-                    }
-
-                    e.preventDefault(); // Prevent notepad from handling
-                    e.stopPropagation(); // Prevent notepad click
-                    const measureIdx = parseInt(measureNumberEl.dataset.measureIndex);
-
-                    // Update global variable
-                    window.selectedMeasureIndex = measureIdx;
-                    selectedMeasureIndex = measureIdx;
-
-                    console.log('📍 Measure selected via number click:', measureIdx + 1);
-                    console.log('🔍 selectedMeasureIndex is now:', selectedMeasureIndex);
-                    console.log('🔍 window.selectedMeasureIndex is now:', window.selectedMeasureIndex);
-
-                    // Update visual highlight
-                    document.querySelectorAll('.measure-number').forEach(el => {
-                        el.style.background = '#999';
-                    });
-                    measureNumberEl.style.background = '#FF9800'; // Orange for selected
-
-                    // If in dinámica mode, refresh the dynamics editor
-                    if (currentEditMode === 'dinamica' && typeof createDinamicaEditor === 'function') {
-                        createDinamicaEditor();
-                    }
-                });
-
-                // Add hover effect (always add)
-                measureNumberEl.addEventListener('mouseenter', () => {
-                    if (currentEditMode !== 'ritmo' && selectedMeasureIndex !== i) {
-                        measureNumberEl.style.background = '#bbb';
-                    }
-                });
-                measureNumberEl.addEventListener('mouseleave', () => {
-                    if (currentEditMode !== 'ritmo' && selectedMeasureIndex !== i) {
-                        measureNumberEl.style.background = '#999';
-                    }
-                });
-
-                // Set initial highlight if this is the selected measure
-                if (selectedMeasureIndex === i) {
-                    measureNumberEl.style.background = '#FF9800';
-                }
-            }
-
-
-            span.title = tooltipText; // Tooltip
-
-            span.style.display = 'inline-flex';
-            span.style.flexDirection = 'column';
-            span.style.alignItems = 'center';
-            span.style.justifyContent = 'center';
-            span.style.position = 'relative'; // For absolute positioning of number
-            span.style.verticalAlign = 'top'; // Prevent baseline alignment issues
-
-            // MUSICOLI: Support gradients for background and adjust contrast calculation
-            let contrastBaseColor = color;
-            if (color.includes('gradient')) {
-                // Extract first color for contrast calculation (hex or rgb)
-                const colorMatch = color.match(/#(?:[0-9a-fA-F]{3}){1,2}|rgb\([^)]+\)|hsl\([^)]+\)/);
-                if (colorMatch) contrastBaseColor = colorMatch[0];
-            }
-
-            // Force background with !important to prevent overrides
-            span.style.cssText += `background: ${color} !important;`;
-            span.style.color = Notepad.getContrastColor(contrastBaseColor);
-            span.style.padding = `${np6.opts.letterPadY}px ${np6.opts.letterPadX}px`;
-            span.style.margin = (typeof np6.opts.letterMarginX === 'number') ? `0 ${np6.opts.letterMarginX}px` : np6.opts.letterMarginX;
-            span.style.borderRadius = np6.opts.letterBorderRadius + 'px';
-            span.dataset.color = contrastBaseColor; // Store solid color in dataset
-            span.dataset.isWordBlock = 'true';
-
-            // Allow word wrapping if notes are very long
-            span.style.maxWidth = '200px';
-            span.style.minWidth = '40px'; // Ensure visibility even if empty
-            span.style.whiteSpace = 'normal';
-            span.style.textAlign = 'center';
-
-            // Add border if configured (or force one for debugging if invisible)
-            // span.style.border = '1px solid red'; // DEBUG
-            if (np6.opts.letterBorderWidth > 0) {
-                span.style.border = np6.opts.letterBorderWidth + 'px solid ' + np6.opts.letterBorderColor;
-            }
-
-            np6.letterNodes.push(span);
-        }
-
-        // Preserve cursor position unless np6 was empty or cursor was at the end
-        if (typeof np6.cursorPos === 'undefined' || np6.cursorPos >= oldNodesCount) {
-            np6.cursorPos = np6.letterNodes.length;
+        // Initialize default selection if undefined or out of bounds
+        if (typeof window.selectedMeasureIndex === 'undefined' || window.selectedMeasureIndex === null) {
+            window.selectedMeasureIndex = (typeof bdiRef !== 'undefined') ? bdiRef.length : 0;
         } else {
-            np6.cursorPos = Math.min(np6.cursorPos, np6.letterNodes.length);
+            // If index is out of bounds (greater than length), reset to end
+            if (window.selectedMeasureIndex > bdiRef.length) {
+                window.selectedMeasureIndex = bdiRef.length;
+            }
+
+            // AUTO-FOLLOW: If new measures were added, select the last one
+            if (typeof window.lastBdiLength !== 'undefined' && bdiRef.length > window.lastBdiLength) {
+                window.selectedMeasureIndex = bdiRef.length - 1;
+                if (typeof window.openMidiEditor === 'function') {
+                    const newIdx = window.selectedMeasureIndex;
+                    setTimeout(() => {
+                        // Only open if index still valid
+                        if (newIdx >= 0 && newIdx < window.bdi.bar.length) {
+                            window.openMidiEditor(newIdx);
+                        }
+                    }, 50);
+                }
+            }
         }
 
-        np6._render();
-        // SOLICITADO POR MUSICOLI: Auto-scroll to cursor after render
-        if (typeof np6.scrollToCursor === 'function') {
-            np6.scrollToCursor();
+        // Sync Score Indicators
+        if (typeof window.updateScoreIndicators === 'function') {
+            window.updateScoreIndicators();
         }
-        np6._emit('change');
+
+        // Sync Mock np6 cursorPos
+        if (np6) {
+            // NP6 cursorPos should be 0 even if -1 in our system to avoid internal errors
+            np6.cursorPos = Math.max(0, window.selectedMeasureIndex);
+            if (typeof np6._emit === 'function') np6._emit('change');
+            if (typeof np6._render === 'function') np6._render(); // Force np6 to show its cursor if any
+        }
+
         if (typeof updateDetailedJSON === 'function') {
             updateDetailedJSON();
         }
-        // Renderizar botones de frases al cargar la página
+
+        // Update last known length
+        window.lastBdiLength = bdiRef.length;
         if (typeof renderFrasesButtons === 'function') {
             renderFrasesButtons();
         }
+
+        // Final visual update
+        setTimeout(() => {
+            if (typeof window.updateMeasureSelectionVisuals === 'function') {
+                window.updateMeasureSelectionVisuals();
+            }
+        }, 0);
     }
+
+    // --- NEW SELECTION HELPER FUNCTION ---
+    window.updateMeasureSelectionVisuals = function () {
+
+        // 1. SYNC HEADER 2 FIELDS
+        if (typeof window.updateScoreIndicators === 'function') {
+            window.updateScoreIndicators();
+        }
+
+        // 2. HIGHLIGHT BASED ON SELECTED INDEX
+        const allNumbers = document.querySelectorAll('.measure-number');
+
+        allNumbers.forEach(numEl => {
+            const idx = parseInt(numEl.dataset.measureIndex);
+
+            if (idx === window.selectedMeasureIndex) {
+                numEl.classList.add('selected-number');
+                numEl.style.setProperty('background', '#FF9800', 'important');
+                // Also ensure parent doesn't override
+                if (numEl.parentElement) {
+                    // numEl.parentElement.style.border = '2px solid #FF9800'; // Optional visual reinforcement
+                }
+            } else {
+                numEl.classList.remove('selected-number');
+                numEl.style.setProperty('background', 'rgba(0,0,0,0.4)', 'important');
+                if (numEl.parentElement) {
+                    // numEl.parentElement.style.border = ''; 
+                }
+            }
+        });
+
+        // NEW: Always refresh visual tracks to sync matrix and selection
+        if (typeof renderVisualTracks === 'function') {
+            renderVisualTracks();
+        }
+
+        // 3. AUTO-OPEN EDITOR IF IN RITMO MODE
+        // Users requested: Open modal when measure is highlighted (selected)
+        if (window.currentEditMode === 'ritmo' && typeof window.openMidiEditor === 'function') {
+            // Only open if there is a valid measure to edit (selectedMeasureIndex >= 0)
+            if (window.selectedMeasureIndex >= 0 && window.selectedMeasureIndex < window.bdi.bar.length) {
+                window.openMidiEditor(window.selectedMeasureIndex);
+            }
+        }
+    };
 
     // SOLICITADO POR MUSICOLI: Switch voice view and update voiceline div
     const vSelector = document.getElementById('voice-selector');
@@ -13765,6 +16612,11 @@ ${codigos.join('\n  ')}
             }
 
             applyTextLayer();
+
+            // Store length after apply to stabilize auto-follow state
+            if (typeof window.bdi !== 'undefined' && window.bdi.bar) {
+                window.lastBdiLength = window.bdi.bar.length;
+            }
 
             // MUSICOLI: Update screen layout for active voice
             if (typeof updateTrackLayout === 'function') {
@@ -14003,7 +16855,6 @@ ${codigos.join('\n  ')}
         }
     };
 
-    console.log('✅ [INIT] window.applyTextLayer real implementation ready');
 
     // Process any queued calls
     if (typeof window._processApplyTextLayerQueue === 'function') {
@@ -14023,29 +16874,78 @@ document.addEventListener('DOMContentLoaded', () => {
         'mode-tonalidad': 'tonalidad',
         'mode-lyrics': 'lyrics',
         'mode-dinamica': 'dinamica',
-        'mode-instrumentacion': 'instrumentacion'
+        'mode-instrumentacion': 'instrumentacion',
+        'mode-composicion': 'composicion'
     };
 
     // Editor element IDs
     const editors = {
-        'ritmo': 'editor-ritmo',
+        'ritmo': 'rhythm-controls-container',
         'tonalidad': 'editor-tonalidad',
         'lyrics': 'editor-lyrics',
         'dinamica': 'editor-dinamica',
-        'instrumentacion': 'editor-instrumentacion'
+        'instrumentacion': 'panel-modo-instrumentacion', // Updated ID
+        'composicion': 'editor-composicion',
+        'tarareo': 'editor-tarareo' // Added Tarareo just in case
     };
 
     // Function to switch mode
     function switchMode(mode) {
-        console.log('🔄 Switching to mode:', mode);
 
-        // Update body class for theme
-        document.body.classList.remove('app-mode-ritmo', 'app-mode-tonalidad', 'app-mode-lyrics', 'app-mode-dinamica', 'app-mode-instrumentacion');
+        document.body.classList.remove('app-mode-ritmo', 'app-mode-tonalidad', 'app-mode-lyrics', 'app-mode-dinamica', 'app-mode-instrumentacion', 'app-mode-composicion');
         document.body.classList.add('app-mode-' + mode);
 
+        // MUSICOLI: Hide silence variations column if not in rhythm mode
+        if (mode !== 'ritmo') {
+            const silenceColumn = document.getElementById('silence-variations-column');
+            if (silenceColumn) {
+                silenceColumn.style.display = 'none';
+            }
+        } else {
+            const silenceColumn = document.getElementById('silence-variations-column');
+            if (silenceColumn) {
+                silenceColumn.style.display = 'flex';
+            }
+        }
+
+        // MUSICOLI: Manage Modal Display (MIDI Editor) visibility
+        // Showing in RITMO and TONALIDAD as requested
+        const modalDisplay = document.getElementById('modal-display-container');
+        if (modalDisplay) {
+            if (mode === 'ritmo' || mode === 'tonalidad') {
+                modalDisplay.style.display = 'flex';
+            } else {
+                modalDisplay.style.display = 'none';
+            }
+        }
+
+        // MUSICOLI: Update status indicators color based on mode
+        const measurePosEl = document.getElementById('measurePos');
+        const totalMeasuresEl = document.getElementById('totalMeasures');
+        const modalMeasureNumEl = document.getElementById('midi-editor-measure-num');
+
+        if (measurePosEl && totalMeasuresEl) {
+            // Apply mode-specific styles to measure counters
+            if (mode === 'ritmo') {
+                measurePosEl.style.color = '#d0d0d0'; // Rhythm mode: Light Grey
+                totalMeasuresEl.style.color = '#d0d0d0';
+                if (modalMeasureNumEl) modalMeasureNumEl.style.color = '#d0d0d0';
+            } else {
+                measurePosEl.style.color = '#FF9800'; // Tonalidad/Default: Orange
+                totalMeasuresEl.style.color = '#FF9800';
+                if (modalMeasureNumEl) modalMeasureNumEl.style.color = '#FF9800';
+            }
+        }
+
         // Update current edit mode global variable
-        if (typeof window.currentEditMode !== 'undefined') {
-            window.currentEditMode = mode;
+        window.currentEditMode = mode;
+
+        // MUSICOLI: Force re-render of text layer when switching to RITMO to ensure selection is visible
+        if (mode === 'ritmo' && typeof applyTextLayer === 'function') {
+            console.log('🔄 Switched to Ritmo - forcing applyTextLayer to show selection');
+            setTimeout(() => {
+                applyTextLayer();
+            }, 50);
         }
 
         // Update button states - remove 'active' from all, add to selected
@@ -14062,15 +16962,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show/hide editors
         Object.keys(editors).forEach(editorMode => {
-            const editor = document.getElementById(editors[editorMode]);
+            const editorId = editors[editorMode];
+            const editor = document.getElementById(editorId);
             if (editor) {
                 if (editorMode === mode) {
-                    editor.style.display = 'block';
+                    // Show active editor
+                    editor.style.display = 'flex';
+                    editor.classList.add('active');
                 } else {
+                    // Hide inactive editors
                     editor.style.display = 'none';
+                    editor.classList.remove('active');
                 }
+            } else {
+                // Warn only if it's expected to exist (composicion/tarareo might be WIP)
+                // console.warn('Editor not found for mode:', editorMode, editorId); 
             }
         });
+
+        // MUSICOLI: Manage Core UI Visibility (Notepad & Visuals)
+        // MUSICOLI: Manage Core UI Visibility (Notepad & Visuals)
+        const trackMatrix = document.getElementById('track-matrix-container'); // Keeps legacy var name if needed elsewhere, though unused here now
+        const exampleContainer = document.getElementById('example-container');
+        const tracksContainer = document.getElementById('macoti-tracks-container');
+
+        // Always ensure main container is visible (it wraps editors now)
+        if (exampleContainer) exampleContainer.style.display = 'flex';
+
+        if (mode === 'composicion') {
+            // SHOW tracks in composition mode as well (User Request)
+            if (tracksContainer) tracksContainer.style.display = 'flex';
+        } else {
+            // Restore visibility for ALL other modes
+            if (tracksContainer) tracksContainer.style.display = 'flex';
+        }
 
         // Mode-specific logic
 
@@ -14157,10 +17082,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cont) cont.style.display = 'none';
         }
 
-        // Tonalidad Ladder: Only in Ritmo
+        // Tonalidad Ladder: Visible in Ritmo and Tonalidad
         const tonalidadLadder = document.getElementById('editor-tonalidad-ladder');
         if (tonalidadLadder) {
-            tonalidadLadder.style.display = (mode === 'ritmo') ? 'inline' : 'none';
+            tonalidadLadder.style.display = (mode === 'ritmo' || mode === 'tonalidad') ? 'inline' : 'none';
         }
 
         // Lyrics Title Input: Only in Lyrics mode
@@ -14180,9 +17105,64 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('🎵 Scale controls (escoci) visibility:', mode === 'tonalidad' ? 'visible' : 'hidden');
         }
 
+        // Instrumentation Panel: Only in Instrumentación mode
+        const panelModoInstrumentacion = document.getElementById('panel-modo-instrumentacion');
+        if (panelModoInstrumentacion) {
+            panelModoInstrumentacion.style.display = (mode === 'instrumentacion') ? 'flex' : 'none';
+            console.log('🎺 Instrumentation panel visibility:', mode === 'instrumentacion' ? 'visible' : 'hidden');
+        }
+
+        // Rhythm Color Info: Only in Ritmo mode
+        // Rhythm Color Info: Visible in Ritmo and Tonalidad
+        const rhythmColorInfoDiv = document.getElementById('rhythm-color-info-div');
+        if (rhythmColorInfoDiv) {
+            rhythmColorInfoDiv.style.display = (mode === 'ritmo' || mode === 'tonalidad') ? 'flex' : 'none';
+            console.log('🎨 Rhythm color info visibility:', (mode === 'ritmo' || mode === 'tonalidad') ? 'visible' : 'hidden');
+        }
+
+        // Force refresh of makeladi (Tool Ladder) when switching modes
+        // to update UI elements (hide/show note selector)
+        if (mode === 'ritmo' || mode === 'tonalidad') {
+            if (typeof makeladi === 'function') {
+                setTimeout(() => makeladi(), 10);
+            }
+        }
+
         // Refresh notepad display to update measure number styling
         if (typeof window.applyTextLayer === 'function') {
             window.applyTextLayer();
+        }
+
+        // COMPOSICION MODE: Populate available phrases
+        if (mode === 'composicion') {
+            const listContainer = document.getElementById('available-phrases-list');
+            if (listContainer) {
+                listContainer.innerHTML = '';
+                const frases = (typeof window.getSavedFrases === 'function') ? window.getSavedFrases() : [];
+
+                if (frases.length === 0) {
+                    listContainer.innerHTML = '<span style="color:#888; font-style:italic;">No hay frases guardadas. Crea y guarda frases en los otros modos primero.</span>';
+                } else {
+                    frases.forEach((frase, index) => {
+                        const letter = String.fromCharCode(65 + (index % 26));
+                        const compasesCount = frase.bdi ? frase.bdi.length : 0;
+
+                        const badge = document.createElement('div');
+                        badge.style.cssText = 'background: #e0e0e0; border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-family: monospace; font-size: 11px; display: flex; align-items: center; gap: 5px; cursor: pointer;';
+                        badge.title = `Clic para añadir ${letter} a la estructura`;
+                        badge.innerHTML = `<span style="font-weight:bold; background: #2196F3; color: white; padding: 1px 4px; border-radius: 2px;">${letter}</span> <span>${compasesCount} compases</span>`;
+
+                        badge.onclick = () => {
+                            const input = document.getElementById('composition-structure');
+                            if (input) {
+                                input.value += letter;
+                            }
+                        };
+
+                        listContainer.appendChild(badge);
+                    });
+                }
+            }
         }
 
         console.log('✅ Mode switched to:', mode);
@@ -14201,6 +17181,91 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('⚠️ Button not found:', buttonId);
         }
     });
+
+    // Generate Composition Button Handler
+    const generateCompBtn = document.getElementById('generate-composition-btn');
+    if (generateCompBtn) {
+        generateCompBtn.addEventListener('click', () => {
+            const input = document.getElementById('composition-structure');
+            if (!input) return;
+
+            const structure = input.value.toUpperCase().replace(/[^A-Z]/g, '');
+            if (!structure) {
+                alert('Por favor introduce una estructura válida (ej. ABBC).');
+                return;
+            }
+
+            const frases = (typeof window.getSavedFrases === 'function') ? window.getSavedFrases() : [];
+            if (frases.length === 0) {
+                alert('No hay frases guardadas para usar.');
+                return;
+            }
+
+            // Map letters directly to array indices (A=0, B=1...)
+            let newMeasures = [];
+            let invalidChars = [];
+
+            const letters = structure.split('');
+            letters.forEach(char => {
+                const index = char.charCodeAt(0) - 65; // A=0, B=1
+                if (index >= 0 && index < frases.length) {
+                    const frase = frases[index];
+                    // Determine measures source
+                    let measures = [];
+                    if (Array.isArray(frase.bdi)) {
+                        measures = frase.bdi;
+                    } else if (frase.bdi && Array.isArray(frase.bdi.bar)) {
+                        measures = frase.bdi.bar;
+                    }
+
+                    if (measures.length > 0) {
+                        // Deep clone measures
+                        const cloned = JSON.parse(JSON.stringify(measures));
+                        newMeasures = newMeasures.concat(cloned);
+                    }
+                } else {
+                    if (!invalidChars.includes(char)) invalidChars.push(char);
+                }
+            });
+
+            if (invalidChars.length > 0) {
+                alert(`Las siguientes letras no corresponden a ninguna frase guardada: ${invalidChars.join(', ')}`);
+                return;
+            }
+
+            if (newMeasures.length === 0) {
+                alert('La estructura generada está vacía.');
+                return;
+            }
+
+            // Confirm overwrite
+            if (confirm(`¿Generar composición con estructura ${structure} (${newMeasures.length} compases)?\nSe reemplazará la composición actual.`)) {
+                // Update window.bdi.bar
+                if (typeof saveBdiState === 'function') saveBdiState();
+
+                // Re-index numi
+                newMeasures.forEach((m, i) => { m.numi = i; });
+
+                window.bdi.bar = newMeasures;
+
+                // Restore lyrics if needed
+                if (typeof window.ensureLyricsField === 'function') window.ensureLyricsField();
+
+                // Update systems
+                if (typeof updateAfterBdiChange === 'function') {
+                    updateAfterBdiChange();
+                } else {
+                    if (typeof rebuildRecordi === 'function') rebuildRecordi();
+                    if (typeof applyTextLayer === 'function') applyTextLayer();
+
+                    const bdiDisplay = document.getElementById('bdi-display');
+                    if (bdiDisplay) bdiDisplay.value = JSON.stringify(window.bdi.bar, null, 2);
+                }
+
+                alert('✅ Composición generada exitosamente.');
+            }
+        });
+    }
 
     // Initialize with ritmo mode active (default)
     console.log('🎵 Initializing mode system...');
@@ -14434,13 +17499,376 @@ setTimeout(() => {
                 <p style="color: #666; font-family: monospace; margin-bottom: 15px;">
                     Selecciona un patrón rítmico y haz clic en una escala para comenzar
                 </p>
-                <div style="font-family: 'Bravura', serif; font-size: 48px; color: #ccc; user-select: none;">
-                    𝅝
-                </div>
-                <p style="color: #999; font-family: monospace; font-size: 11px; margin-top: 10px;">
-                    MIDI: 60 (Do central) - Nota redonda
-                </p>
+               
             </div>
         `;
     }
 }, 600); // Wait for other initializations to complete
+
+///////////////////////////////////////
+// TRACKS CONFIGURATION MANAGEMENT
+///////////////////////////////////////
+
+/**
+ * Initializes the track configuration inputs with current values
+ */
+function initializeTracksConfigInputs() {
+    tracksConfig.forEach(track => {
+        const nameInput = document.getElementById(`track-name-${track.key}`);
+        const instrumentSelect = document.getElementById(`track-instrument-${track.key}`);
+
+        if (nameInput) {
+            nameInput.value = track.displayName;
+        }
+
+        if (instrumentSelect) {
+            // Set value to 'perc' if percussion, otherwise use instrument number
+            if (track.percussion) {
+                instrumentSelect.value = 'perc';
+            } else {
+                instrumentSelect.value = track.instrument;
+            }
+        }
+    });
+
+    console.log('🎺 Track configuration inputs initialized');
+}
+
+/**
+ * Saves the track configuration from inputs to tracksConfig array
+ */
+function saveTracksConfig() {
+    tracksConfig.forEach(track => {
+        const nameInput = document.getElementById(`track-name-${track.key}`);
+        const instrumentSelect = document.getElementById(`track-instrument-${track.key}`);
+
+        if (nameInput && nameInput.value.trim() !== '') {
+            track.displayName = nameInput.value.trim();
+        } else {
+            // Si está vacío, usar el nombre permanente
+            track.displayName = track.permanentName;
+        }
+
+        if (instrumentSelect) {
+            const value = instrumentSelect.value;
+            if (value === 'perc') {
+                // Percussion - use special value
+                track.instrument = 0; // Or any special value for percussion
+                track.percussion = true;
+            } else {
+                track.instrument = parseInt(value);
+                track.percussion = false;
+            }
+        }
+    });
+
+    // Sync with bdi.metadata.voices
+    syncTracksConfigToBdi();
+
+    // Update visual labels
+    updateTrackLabels();
+
+    console.log('💾 Tracks configuration saved:', tracksConfig);
+
+    // Rebuild MIDI if there are measures
+    if (window.bdi.bar && window.bdi.bar.length > 0) {
+        if (typeof rebuildRecordi === 'function') {
+            rebuildRecordi();
+        }
+    }
+
+    // Show confirmation
+    alert('✅ Configuración guardada correctamente');
+}
+
+/**
+ * Saves the track configuration silently (without alert)
+ * Used for auto-save when selects change
+ */
+function saveTracksConfigSilent() {
+    tracksConfig.forEach(track => {
+        const nameInput = document.getElementById(`track-name-${track.key}`);
+        const instrumentSelect = document.getElementById(`track-instrument-${track.key}`);
+
+        if (nameInput && nameInput.value.trim() !== '') {
+            track.displayName = nameInput.value.trim();
+        } else {
+            // Si está vacío, usar el nombre permanente
+            track.displayName = track.permanentName;
+        }
+
+        if (instrumentSelect) {
+            const value = instrumentSelect.value;
+            if (value === 'perc') {
+                // Percussion - use special value
+                track.instrument = 0; // Or any special value for percussion
+                track.percussion = true;
+            } else {
+                track.instrument = parseInt(value);
+                track.percussion = false;
+            }
+        }
+    });
+
+    // Sync with bdi.metadata.voices
+    syncTracksConfigToBdi();
+
+    // Update visual labels
+    updateTrackLabels();
+
+    console.log('💾 Tracks configuration auto-saved:', tracksConfig);
+
+    // Rebuild MIDI if there are measures
+    if (window.bdi.bar && window.bdi.bar.length > 0) {
+        if (typeof rebuildRecordi === 'function') {
+            rebuildRecordi();
+        }
+    }
+}
+
+/**
+ * Synchronizes tracksConfig to bdi.metadata.voices
+ */
+function syncTracksConfigToBdi() {
+    if (!window.bdi.metadata) {
+        window.bdi.metadata = { voices: {} };
+    }
+    if (!window.bdi.metadata.voices) {
+        window.bdi.metadata.voices = {};
+    }
+
+    tracksConfig.forEach(track => {
+        if (!window.bdi.metadata.voices[track.key]) {
+            window.bdi.metadata.voices[track.key] = {};
+        }
+
+        window.bdi.metadata.voices[track.key].instrument = track.instrument;
+        window.bdi.metadata.voices[track.key].percussion = track.percussion !== undefined ? track.percussion : false;
+    });
+
+    console.log('🔄 Track config synced to bdi.metadata.voices');
+}
+
+/**
+ * Updates the visual track labels with displayName from tracksConfig
+ */
+function updateTrackLabels() {
+    tracksConfig.forEach(track => {
+        const labelElement = document.getElementById(`voiceline-${track.key}`);
+        if (labelElement) {
+            labelElement.textContent = track.displayName;
+        }
+    });
+
+    console.log('🏷️ Track labels updated');
+}
+
+/**
+ * Gets the track config for a specific voice key
+ * @param {string} voiceKey - The voice key ('s', 'a', 't', 'b')
+ * @returns {object|null} - The track config object or null
+ */
+function getTrackConfig(voiceKey) {
+    return tracksConfig.find(track => track.key === voiceKey) || null;
+}
+
+// Initialize track configuration inputs when in instrumentacion mode
+setTimeout(() => {
+    const saveBtn = document.getElementById('save-tracks-config');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            saveTracksConfig();
+        });
+        console.log('🎺 Save tracks config button listener attached');
+    }
+
+    // Initialize inputs with default values
+    initializeTracksConfigInputs();
+
+    // Sync initial config to bdi
+    syncTracksConfigToBdi();
+
+    // General instrument selector - applies to all tracks
+    const generalInstrumentSelector = document.getElementById('instrument-selector');
+    if (generalInstrumentSelector) {
+        generalInstrumentSelector.addEventListener('change', (e) => {
+            const selectedValue = e.target.value;
+            console.log('🎺 General instrument selector changed to:', selectedValue);
+
+            // Update all individual track selectors
+            ['s', 'a', 't', 'b'].forEach(key => {
+                const trackSelector = document.getElementById(`track-instrument-${key}`);
+                if (trackSelector) {
+                    trackSelector.value = selectedValue;
+                }
+            });
+
+            console.log('✅ All track selectors updated to:', selectedValue);
+
+            // Auto-save configuration when general selector changes
+            saveTracksConfigSilent();
+        });
+        console.log('🎺 General instrument selector listener attached');
+    }
+
+    // Add auto-save listeners to individual track instrument selectors
+    ['s', 'a', 't', 'b'].forEach(key => {
+        const trackInstrumentSelect = document.getElementById(`track-instrument-${key}`);
+        if (trackInstrumentSelect) {
+            trackInstrumentSelect.addEventListener('change', () => {
+                console.log(`🎺 Track ${key} instrument changed`);
+                saveTracksConfigSilent();
+            });
+            console.log(`🎺 Auto-save listener attached to track-instrument-${key}`);
+        }
+
+        // Also add listener to track name inputs
+        const trackNameInput = document.getElementById(`track-name-${key}`);
+        if (trackNameInput) {
+            trackNameInput.addEventListener('blur', () => {
+                console.log(`🏷️ Track ${key} name changed`);
+                saveTracksConfigSilent();
+            });
+            console.log(`🏷️ Auto-save listener attached to track-name-${key}`);
+        }
+    });
+}, 700);
+
+// Export functions to window for global access
+window.tracksConfig = tracksConfig;
+window.getTrackConfig = getTrackConfig;
+window.updateTrackLabels = updateTrackLabels;
+window.syncTracksConfigToBdi = syncTracksConfigToBdi;
+window.saveTracksConfig = saveTracksConfig;
+window.saveTracksConfigSilent = saveTracksConfigSilent;
+window.initializeTracksConfigInputs = initializeTracksConfigInputs;
+
+// End of file
+
+
+/**
+ * Populates the silence variations column in the modal header
+ * Usage: Call when Rhythm Mode is active and currentGroup (note count) changes
+ */
+window.populateSilenceVariationsColumn = function () {
+    const column = document.getElementById('silence-variations-column');
+    const content = document.getElementById('silence-variations-content');
+
+    if (!column || !content) return;
+
+    // Only show in Rhythm (ritmo) mode
+    const isRhythmMode = (typeof currentEditMode !== 'undefined' && currentEditMode === 'ritmo');
+    if (!isRhythmMode) {
+        column.style.display = 'none';
+        return;
+    }
+
+    // Clear existing content
+    content.innerHTML = '';
+
+    // Verify we have a valid group
+    if (typeof currentGroup === 'undefined' || currentGroup < 1) {
+        column.style.display = 'none';
+        return;
+    }
+
+    // Get a base pattern. 
+    // We'll use 4 (Eighth notes) as the default duration.
+    const basePattern = Array(currentGroup).fill(4);
+
+    // Generate variations using metrica.js 'resti' function
+    // resti generates all combinations of silences for the pattern
+    let allVariations = [];
+    if (typeof resti === 'function') {
+        allVariations = resti(basePattern);
+    } else if (typeof generateSilenceVariations === 'function') {
+        // Fallback manual generation (1 silence)
+        allVariations = generateSilenceVariations(basePattern, 1);
+    }
+
+    // If no variations
+    if (allVariations.length === 0) {
+        column.style.display = 'none';
+        return;
+    }
+
+    // Limit variations to prevent performance issues (e.g. max 30)
+    // Sort by number of silences (count negative values)
+    allVariations.sort((a, b) => {
+        const silencesA = a.filter(n => n < 0).length;
+        const silencesB = b.filter(n => n < 0).length;
+        return silencesA - silencesB;
+    });
+
+    const displayLimit = 30;
+    const finalVariations = allVariations.slice(0, displayLimit);
+
+    finalVariations.forEach(variation => {
+        const btn = document.createElement('button');
+        btn.className = 'theme-btn';
+        btn.style.width = '100%';
+        btn.style.marginBottom = '5px';
+        btn.style.padding = '4px';
+        btn.style.fontFamily = 'Bravura'; // Music font
+        btn.style.fontSize = '16px';
+        btn.style.textAlign = 'center';
+        btn.style.backgroundColor = '#fff';
+        btn.style.border = '1px solid #ccc';
+        btn.style.cursor = 'pointer';
+        btn.style.color = '#000';
+
+        // Render text using noteMap
+        let htmlContent = '';
+        variation.forEach(val => {
+            const key = String(val);
+            if (window.noteMap && window.noteMap[key]) {
+                htmlContent += window.noteMap[key];
+                // Add thin space if needed
+            } else {
+                htmlContent += '?';
+            }
+        });
+        btn.innerHTML = htmlContent;
+
+        btn.onclick = () => {
+            // Populate inputs
+            // 1. Rhythm Values
+            const rhythmInput = document.getElementById('rhythm-values-input');
+            if (rhythmInput) {
+                rhythmInput.value = variation.join(' ');
+                // Trigger input event
+                const event = new Event('input', { bubbles: true });
+                rhythmInput.dispatchEvent(event);
+            }
+
+            // 2. MIDI Single Input (Pitches)
+            const midiInput = document.getElementById('midi-single-input');
+            if (midiInput) {
+                // Determine pitch based on current voice
+                const voiceSelector = document.getElementById('voice-selector');
+                const currentVoiceKey = voiceSelector ? voiceSelector.value : 's';
+
+                // Default pitches per voice
+                const defaultPitches = {
+                    's': 72, // C5
+                    'a': 67, // G4
+                    't': 60, // C4
+                    'b': 55  // G3
+                };
+                const pitch = defaultPitches[currentVoiceKey] || 72;
+
+                const midiValues = variation.map(v => v > 0 ? pitch : 0);
+                midiInput.value = midiValues.join(' ');
+                const event = new Event('input', { bubbles: true });
+                midiInput.dispatchEvent(event);
+            }
+        };
+
+        btn.onmouseover = () => { btn.style.backgroundColor = '#e0e0e0'; };
+        btn.onmouseout = () => { btn.style.backgroundColor = '#fff'; };
+
+        content.appendChild(btn);
+    });
+
+    column.style.display = 'flex';
+};

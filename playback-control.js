@@ -3,7 +3,24 @@
 (function () {
     // console.log('🎵 Initializing Playback Control...');
 
-    const selector = document.getElementById('playback-selector');
+    // Self-healing: Create selector if it doesn't exist
+    let selector = document.getElementById('playback-selector');
+    if (!selector) {
+        console.warn('⚠️ Playback selector not found in DOM, creating it dynamically...');
+        selector = document.createElement('select');
+        selector.id = 'playback-selector';
+        selector.style.display = 'none';
+
+        // Add default options (all active)
+        const allOption = document.createElement('option');
+        allOption.value = 's,a,t,b';
+        allOption.selected = true;
+        selector.appendChild(allOption);
+
+        document.body.appendChild(selector);
+        console.log('✅ Created temporary playback-selector');
+    }
+
     const voiceLabels = {
         's': document.getElementById('voiceline-s'),
         'a': document.getElementById('voiceline-a'),
@@ -11,13 +28,9 @@
         'b': document.getElementById('voiceline-b')
     };
 
-    if (!selector) {
-        // console.warn('⚠️ Playback selector not found!');
-        return;
-    }
-
     // Helper: Update label styles based on selector value
     function updateLabelStyles() {
+        if (!selector) return;
         const selectedValue = selector.value;
         const activeVoices = selectedValue.split(',');
 
@@ -46,6 +59,8 @@
 
     // Helper: Toggle a voice
     function toggleVoice(voiceKey) {
+        if (!selector) return;
+
         let currentVoices = selector.value.split(',').filter(v => v); // Remove empty strings
 
         if (currentVoices.includes(voiceKey)) {
@@ -63,25 +78,19 @@
         const newValue = currentVoices.join(',');
 
         // Check if this combination exists in selector
-        const optionExists = Array.from(selector.options).some(opt => opt.value === newValue);
+        let optionExists = Array.from(selector.options).some(opt => opt.value === newValue);
 
-        if (optionExists || newValue === '') {
-            // If empty, maybe we should just not change or allow empty? 
-            // Selector options don't have empty usually, but let's try.
-            // If no option matches, we can't set it directly unless we add dynamic options, 
-            // but user said "select already has all combinations".
-            if (newValue === '') {
-                console.log('⚠️ No voices selected. Resetting to default or keeping previous?');
-                // Let's allow empty if logic permits, or just warn.
-            }
-
-            selector.value = newValue;
-            // Dispatch change event
-            const event = new Event('change');
-            selector.dispatchEvent(event);
-        } else {
-            console.warn(`⚠️ Combination "${newValue}" not found in selector options.`);
+        // Dynamic: Create option if it doesn't exist
+        if (!optionExists) {
+            const newOpt = document.createElement('option');
+            newOpt.value = newValue;
+            selector.appendChild(newOpt);
         }
+
+        selector.value = newValue;
+        // Dispatch change event
+        const event = new Event('change');
+        selector.dispatchEvent(event);
     }
 
     // Attach Listeners
