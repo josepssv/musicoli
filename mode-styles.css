@@ -501,15 +501,7 @@ body.app-mode-composicion #macoti-tracks-container {
   /* Asegurar que no tenga margen incluso si se selecciona */
 }
 
-/* MUSICOLI: Ensure Modal Apply Button is Visible */
-#midi-editor-accept {
-  display: inline-block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  background-color: #4CAF50 !important;
-  color: white !important;
-  z-index: 9999;
-}
+
 
 /* Opcional: Asegurar que el margen se resetee también al hacer focus/active si notepad.js añade algo 
 .compasi:focus,

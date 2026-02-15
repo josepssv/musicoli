@@ -353,3 +353,42 @@ function convernai(cadena, sonis, duribi, numero = 4) {
         .join("");
 }
 
+
+
+// Escala ×32 para trabajar con enteros (compás 4/4)
+const durationi = [128, 64, 32, 16, 8, 4, 2, 1];
+
+// Mapa global: duración en "medias unidades" → código de nota (string)
+const halfDurationToCode = new Map();
+durationi.forEach((base, index) => {
+    halfDurationToCode.set(base * 2, String(index));        // nota simple
+    if (base > 0) halfDurationToCode.set(base * 3, String(index) + '5'); // con puntillo
+});
+
+/**
+ * Convierte una especificación de nota a su duración en medias unidades.
+ * @param {number|string} spec - Código: índice o "índice5"
+ * @returns {number} Duración en medias unidades (2×base o 3×base)
+ */
+function parseNoteDuration(spec) {
+    const str = String(spec);
+    const dotted = str.endsWith('5');
+    const indexStr = dotted ? str.slice(0, -1) : str;
+    const index = parseInt(indexStr, 10);
+    if (isNaN(index) || index < 0 || index >= durationi.length) return 0;
+    const base = durationi[index];
+    return base * (dotted ? 3 : 2);
+}
+
+/**
+ * Intenta reducir dos o más notas a una sola nota.
+ * @param {Array<number|string>} notes - Lista de códigos de notas.
+ * @returns {string|null} Código de la nota equivalente (ej. "2", "25") o null si no es posible.
+ */
+function reduceToSingleNote(notes) {
+    if (!Array.isArray(notes) || notes.length < 2) return null;
+
+    const totalHalf = notes.reduce((sum, note) => sum + parseNoteDuration(note), 0);
+    return halfDurationToCode.get(totalHalf) ?? null;
+}
+

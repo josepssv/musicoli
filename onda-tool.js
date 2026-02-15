@@ -5,12 +5,27 @@
 
 
 
+// Helper to get element by ID, checking for mode-specific prefixes (ritmo-, comp-) first
+function getPrefixedElement(baseId) {
+    const activeModeBtn = document.querySelector('.mode-btn.active');
+    const modeId = activeModeBtn ? activeModeBtn.id : '';
+    let prefix = '';
+
+    if (modeId === 'mode-ritmo') prefix = 'ritmo-';
+    else if (modeId === 'mode-composicion') prefix = 'comp-';
+
+    // Try prefixed first, then fallback to original
+    let el = document.getElementById(prefix + baseId);
+    if (!el) el = document.getElementById(baseId);
+    return el;
+}
+
 // 2. STANDARD ONDA (Pitch Only)
 window.applyOndaFromUI = function () {
     console.log("Applying Onda (Pitch/MIDI Only) to Single Track with Tessitura Check...");
 
-    const ampSelect = document.getElementById('onda-amp');
-    const freqSelect = document.getElementById('onda-freq');
+    const ampSelect = getPrefixedElement('onda-amp');
+    const freqSelect = getPrefixedElement('onda-freq');
     if (!ampSelect || !freqSelect) {
         console.error("Onda controls not found");
         return;
@@ -88,13 +103,35 @@ window.applyOndaFromUI = function () {
         return nearestIdx;
     };
 
-    // --- APPLY WAVE TO SINGLE TRACK ---
+    // --- APPLY WAVE TO SELECTED MEASURES ---
 
     let globalNoteIndex = 0;
-    const measures = window.bdi.bar;
 
-    measures.forEach((measure) => {
-        if (!measure.voci || !Array.isArray(measure.voci)) return;
+    // Determine Index Range
+    let startIdx = 0;
+    let endIdx = window.bdi.bar.length - 1;
+
+    if (window.selectionRange && window.selectionRange.start !== -1) {
+        startIdx = window.selectionRange.start;
+        endIdx = window.selectionRange.end;
+    }
+
+    // Clamp
+    const total = window.bdi.bar.length;
+    startIdx = Math.max(0, Math.min(startIdx, total - 1));
+    endIdx = Math.max(0, Math.min(endIdx, total - 1));
+
+    console.log(`🌊 Applying Onda to range [${startIdx}, ${endIdx}]`);
+
+    // Save state for undo
+    if (typeof window.saveBdiState === 'function') {
+        window.saveBdiState();
+    }
+
+    // Process only selected range
+    for (let i = startIdx; i <= endIdx; i++) {
+        const measure = window.bdi.bar[i];
+        if (!measure.voci || !Array.isArray(measure.voci)) continue;
 
         // Find Target Voice Object
         const targetVoice = measure.voci.find(v => v.nami === selectedVoiceKey);
@@ -115,7 +152,9 @@ window.applyOndaFromUI = function () {
 
                     const currentScaleIdx = getScaleIndex(currentMidi);
 
-                    const t = (globalNoteIndex % cycleLength) / cycleLength;
+                    // FIX: Use cycleLength as frequency (cycles per note)
+                    // avoid (globalNoteIndex % cycleLength) / cycleLength which fails for small values < 1
+                    const t = globalNoteIndex * cycleLength;
                     const waveVal = Math.sin(t * 2 * Math.PI);
                     const offsetSteps = Math.round(waveVal * amplitude);
 
@@ -129,25 +168,16 @@ window.applyOndaFromUI = function () {
 
                     // STRICT TESSITURA CHECK
                     if (newMidi < range.min || newMidi > range.max) {
-                        // FORCE SILENCE via NEGATIVE NOTE & NEGATIVE TIPI
-
-                        // 1. UPDATE MIDI TO NEGATIVE
                         voiceMidis[vIdx] = -Math.abs(newMidi);
-
-                        // 2. UPDATE TIPI TO NEGATIVE (This is the critical flag for the UI/Player usually)
                         const oldTipi = voiceTipis[vIdx];
                         let newRestVal = -1;
                         if (oldTipi > 0) newRestVal = -oldTipi;
                         else if (oldTipi < 0) newRestVal = oldTipi;
                         else newRestVal = -1;
-
                         voiceTipis[vIdx] = newRestVal;
 
                     } else {
-                        // VALID NOTE: Ensure POSITIVE
-                        voiceMidis[vIdx] = Math.abs(newMidi); // Ensure MIDI is positive
-
-                        // Ensure Tipi is Positive to indicate Note ON
+                        voiceMidis[vIdx] = Math.abs(newMidi);
                         if (voiceTipis[vIdx] < 0) {
                             voiceTipis[vIdx] = Math.abs(voiceTipis[vIdx]);
                             if (voiceTipis[vIdx] === 0) voiceTipis[vIdx] = 1;
@@ -167,7 +197,7 @@ window.applyOndaFromUI = function () {
                 measure.tipis = [...voiceTipis];
             }
         }
-    });
+    }
 
     // 4. Update UI AND RELOAD PLAYER
     if (typeof window.applyTextLayer === 'function') {
@@ -195,7 +225,7 @@ window.applyOndaRitmoFromUI = function () {
 
     const voiceSelector = document.getElementById('voice-selector');
     const selectedVoiceKey = voiceSelector ? voiceSelector.value : 's';
-    const densitySelect = document.getElementById('onda-ritmo-density');
+    const densitySelect = getPrefixedElement('onda-ritmo-density');
 
     // Check if trilipi is available
     if (typeof trilipi === 'undefined' || trilipi.length === 0) {
@@ -223,12 +253,12 @@ window.applyOndaRitmoFromUI = function () {
     }
 
     // Get repetition setting
-    const blockSelect = document.getElementById('onda-ritmo-block');
+    const blockSelect = getPrefixedElement('onda-ritmo-block');
     const blockValue = blockSelect ? blockSelect.value : 'all'; // '1', '2', '4', '8', 'all'
     const blockSize = blockValue === 'all' ? Infinity : parseInt(blockValue);
 
     // Get Mode: 'random' or 'cyclic'
-    const modeSelect = document.getElementById('onda-ritmo-mode');
+    const modeSelect = getPrefixedElement('onda-ritmo-mode');
     const mode = modeSelect ? modeSelect.value : 'random';
 
     // Pick Initial Random (Pattern A)
@@ -241,11 +271,11 @@ window.applyOndaRitmoFromUI = function () {
     if (mode === 'cyclic') console.log("Cyclic Pattern (B):", patternB);
 
     // Action: Modify or Generate
-    const actionSelect = document.getElementById('onda-ritmo-action');
+    const actionSelect = getPrefixedElement('onda-ritmo-action');
     const action = actionSelect ? actionSelect.value : 'modify';
 
     // Quantity / Count (Used for both Generation count AND Modification range)
-    const countInput = document.getElementById('onda-ritmo-count');
+    const countInput = getPrefixedElement('onda-ritmo-count');
     let countVal = countInput ? parseInt(countInput.value) : 4;
     if (isNaN(countVal) || countVal < 1) countVal = 4;
 
@@ -391,3 +421,237 @@ window.applyOndaRitmoFromUI = function () {
     }
 };
 
+
+// 4. DYNAMIC SHAPE MODELING
+window.applyDynamicShapeFromUI = function () {
+    console.log("Applying Dynamic Shape Modeling...");
+
+    const shapeTypeEl = getPrefixedElement('dynamic-shape-type');
+    const shapeType = shapeTypeEl ? shapeTypeEl.value : 'crescendo';
+
+    const minEl = getPrefixedElement('dynamic-min');
+    const minVal = minEl ? parseInt(minEl.value) : 40;
+
+    const maxEl = getPrefixedElement('dynamic-max');
+    const maxVal = maxEl ? parseInt(maxEl.value) : 110;
+
+    const extraEl = getPrefixedElement('dynamic-extra-val');
+    const extraVal = extraEl ? parseFloat(extraEl.value) : 1;
+
+    // 1. Identify Target Voices (from playback selector if available, else current voice)
+    const voiceSelector = document.getElementById('voice-selector');
+    const playbackSelector = document.getElementById('playback-selector');
+
+    let voiceKeys = [];
+    if (playbackSelector && playbackSelector.value) {
+        voiceKeys = playbackSelector.value.split(',').filter(v => v);
+    } else if (voiceSelector) {
+        voiceKeys = [voiceSelector.value];
+    } else {
+        voiceKeys = ['s'];
+    }
+
+    if (typeof window.bdi === 'undefined' || !window.bdi.bar || window.bdi.bar.length === 0) {
+        alert("No hay compases cargados.");
+        return;
+    }
+
+    // Determine Index Range
+    let startIdx = 0;
+    let endIdx = window.bdi.bar.length - 1;
+
+    if (window.selectionRange && window.selectionRange.start !== -1) {
+        startIdx = window.selectionRange.start;
+        endIdx = window.selectionRange.end;
+    }
+
+    // Clamp
+    const total = window.bdi.bar.length;
+    startIdx = Math.max(0, Math.min(startIdx, total - 1));
+    endIdx = Math.max(0, Math.min(endIdx, total - 1));
+
+    console.log(`🌊 Applying Dynamic Shape Modeling to range [${startIdx}, ${endIdx}]`);
+
+    // Process only selected range
+    // Apply to each selected voice
+    voiceKeys.forEach(voiceKey => {
+        // 2. Count total notes for normalization in selection
+        let totalNotes = 0;
+        for (let i = startIdx; i <= endIdx; i++) {
+            const measure = window.bdi.bar[i];
+            const targetVoice = (measure.voci && Array.isArray(measure.voci)) ?
+                measure.voci.find(v => v.nami === voiceKey) :
+                (measure.voci ? measure.voci[voiceKey] : null);
+            if (targetVoice && targetVoice.nimidi) {
+                totalNotes += targetVoice.nimidi.length;
+            }
+        }
+
+        if (totalNotes === 0) {
+            console.warn("No se encontraron notas para la voz: " + voiceKey);
+            return; // Skip this voice
+        }
+
+        let globalNoteIdx = 0;
+
+        for (let i = startIdx; i <= endIdx; i++) {
+            const measure = window.bdi.bar[i];
+            const targetVoice = (measure.voci && Array.isArray(measure.voci)) ?
+                measure.voci.find(v => v.nami === voiceKey) :
+                (measure.voci ? measure.voci[voiceKey] : null);
+
+            if (!targetVoice || !targetVoice.nimidi) continue;
+
+            if (!targetVoice.dinami || targetVoice.dinami.length !== targetVoice.nimidi.length) {
+                targetVoice.dinami = new Array(targetVoice.nimidi.length).fill(64);
+            }
+
+            const numNotesInMeasure = targetVoice.nimidi.length;
+
+            for (let n = 0; n < numNotesInMeasure; n++) {
+                let dyn = 64;
+                const progress = totalNotes > 1 ? globalNoteIdx / (totalNotes - 1) : 0;
+
+                switch (shapeType) {
+                    case 'crescendo':
+                        dyn = minVal + (maxVal - minVal) * progress;
+                        break;
+                    case 'diminuendo':
+                        dyn = maxVal - (maxVal - minVal) * progress;
+                        break;
+                    case 'pico':
+                        if (progress <= 0.5) {
+                            dyn = minVal + (maxVal - minVal) * (progress * 2);
+                        } else {
+                            const p2 = (progress - 0.5) * 2;
+                            dyn = maxVal - (maxVal - minVal) * p2;
+                        }
+                        break;
+                    case 'valle':
+                        if (progress <= 0.5) {
+                            dyn = maxVal - (maxVal - minVal) * (progress * 2);
+                        } else {
+                            const p2 = (progress - 0.5) * 2;
+                            dyn = minVal + (maxVal - minVal) * p2;
+                        }
+                        break;
+                    case 'uniforme':
+                        const noteNum = globalNoteIdx + 1;
+                        const nStep = Math.round(extraVal) || 4;
+                        dyn = (noteNum % nStep === 0) ? maxVal : minVal;
+                        break;
+                    case 'ondas':
+                        const wavelength = extraVal || 8;
+                        const tWave = globalNoteIdx / wavelength;
+                        const wave = 0.5 + 0.5 * Math.sin(tWave * 2 * Math.PI);
+                        dyn = minVal + (maxVal - minVal) * wave;
+                        break;
+                }
+
+                targetVoice.dinami[n] = Math.max(0, Math.min(127, Math.round(dyn)));
+                globalNoteIdx++;
+            }
+
+            if (voiceKey === 's') {
+                measure.dinami = [...targetVoice.dinami];
+            }
+        }
+    });
+
+    // Finalize Changes
+    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+    if (typeof window.updatePlayer === 'function') {
+        window.updatePlayer();
+    } else {
+        const player = document.querySelector('midi-player');
+        if (player && typeof player.reload === 'function') player.reload();
+    }
+
+    // Save state for undo
+    if (typeof window.saveBdiState === 'function') {
+        window.saveBdiState();
+    }
+
+    console.log(`Dynamic shape ${shapeType} applied to voices: ${voiceKeys.join(', ')}`);
+};
+
+
+// 5. COMBINED ONDA (Rhythm + Pitch)
+window.applyOndaCompletaFromUI = function () {
+    console.log("🌊 Applying Combined Onda (Rhythm + Pitch)...");
+
+    // 1. Identify Target Voice and Current State
+    const voiceSelector = document.getElementById('voice-selector');
+    const selectedVoiceKey = voiceSelector ? voiceSelector.value : 's';
+
+    // Save state for undo
+    if (typeof window.saveBdiState === 'function') {
+        window.saveBdiState();
+    }
+
+    // 2. Determine indices BEFORE running rhythm
+    let startIndex = 0;
+    if (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0) {
+        startIndex = window.selectedMeasureIndex;
+    }
+    const countInput = getPrefixedElement('onda-ritmo-count');
+    let countVal = countInput ? parseInt(countInput.value) : 4;
+
+    // 3. APPLY RHYTHM FIRST
+    window.applyOndaRitmoFromUI();
+
+    // 4. APPLY PITCH ONDA to the EXACT same range
+    // We temporarily override selectionRange to force applyOndaFromUI to work on the new/modified block
+    const oldSelection = window.selectionRange ? { ...window.selectionRange } : null;
+
+    window.selectionRange = {
+        start: startIndex,
+        end: startIndex + countVal - 1
+    };
+
+    console.log(`Applying Pitch layer to range [${window.selectionRange.start}, ${window.selectionRange.end}]`);
+
+    // 5. APPLY PITCH ONDA
+    window.applyOndaFromUI();
+
+    // 6. APPLY DYNAMICS (VOLUME)
+    window.applyDynamicShapeFromUI();
+
+    // Restore selection
+    if (oldSelection) {
+        window.selectionRange = oldSelection;
+    }
+
+    // FINAL SYNC for UI
+    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+    if (typeof window.updatePlayer === 'function') window.updatePlayer();
+
+    console.log("✅ Combined Onda finalized.");
+};
+
+// UI Listener for Shape Type
+document.addEventListener('DOMContentLoaded', () => {
+    const shapeTypeSelect = document.getElementById('dynamic-shape-type');
+    const extraParams = document.getElementById('dynamic-params-extra');
+    const extraLabel = document.getElementById('dynamic-extra-label');
+    const extraInput = document.getElementById('dynamic-extra-val');
+
+    if (shapeTypeSelect) {
+        shapeTypeSelect.addEventListener('change', () => {
+            const val = shapeTypeSelect.value;
+            if (val === 'uniforme') {
+                extraParams.style.display = 'flex';
+                extraLabel.textContent = 'Cada N:';
+                extraInput.value = 4;
+                extraInput.step = 1;
+            } else if (val === 'ondas') {
+                extraParams.style.display = 'flex';
+                extraLabel.textContent = 'Ciclo (N):';
+                extraInput.value = 8;
+                extraInput.step = 0.5;
+            } else {
+                extraParams.style.display = 'none';
+            }
+        });
+    }
+});
