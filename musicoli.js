@@ -51,24 +51,23 @@ const noteMap = {
     '-55': '&#xE4E7; &#xE1E7;'   // rest16th dot
 };
 
-let bdi = {}
-bdi.metadata =
-{
-    "type": "metadata",
-    "title": "emotion",
-    "bpm": 120,
-    "timeSignature": [4, 4],
-    "voici": 's',
-    "voices": {
-        "s": { "instrument": 1, "percussion": false },
-        "a": { "instrument": 1, "percussion": false },
-        "t": { "instrument": 1, "percussion": false },
-        "b": { "instrument": 1, "percussion": false }
-    }
-}
-bdi.bar = []
-//let bdi = []
-//let bdi = [{ "idi": 5345507.300786394, "numi": 0, "nami": "Perla Negra", "coli": [3, 10, 14, 255], "hexi": "#030A0E", "pinti": { "c": 1, "m": 1, "y": 1, "k": 0.868, "w": 0 }, "nimidi": [84, 84, 84, 79, 48], "timis": [3, 2, 2, 3, 2], "tipis": [4, 3, 3, 4, 3], "dinami": [64,64,64,64,64],"chordi": false }]
+window.bdi = {
+    metadata: {
+        "type": "metadata",
+        "title": "emotion",
+        "bpm": 120,
+        "timeSignature": [4, 4],
+        "voici": 's',
+        "voices": {
+            "s": { "instrument": 1, "percussion": false },
+            "a": { "instrument": 1, "percussion": false },
+            "t": { "instrument": 1, "percussion": false },
+            "b": { "instrument": 1, "percussion": false }
+        }
+    },
+    bar: []
+};
+const bdi = window.bdi; // Local reference for compatibility
 
 ///////////////////////////////////////
 // GLOBAL TRACKS CONFIGURATION
@@ -10580,6 +10579,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function updatePlayerMIDI(player, tracks = traki) {
         if (!player) return;
+
         const escribi = new MidiWriter.Writer(tracks);
         const dataUri = escribi.dataUri();
         if (dataUri.length < 50) {
@@ -10615,12 +10615,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.updatePlayerMIDI = updatePlayerMIDI;
+
     function recordi(basi, nc, targetTracks = traki, voicesOverride = null) {
         let item = basi[nc];
         if (!item) return;
         const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
         const currentActiveVoice = metadata.voici || 's';
-        const voiceMap = { 's': 0, 'a': 1, 't': 2, 'b': 3 };
+        const voiceMap = { 's': 1, 'a': 2, 't': 3, 'b': 4 };
 
         const processVoice = (voiceData, trackIndex, voiceKey) => {
             if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
@@ -10631,7 +10633,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let dati = [];
             const voiceMeta = metadata.voices ? metadata.voices[voiceKey] : null;
-            const instrument = (voiceMeta && voiceMeta.instrument !== undefined) ? parseInt(voiceMeta.instrument) || 1 : 1;
+            let instrument = (voiceMeta && voiceMeta.instrument !== undefined) ? parseInt(voiceMeta.instrument) : 1;
+            // Ensure instrument 0 is not defaulted to 1 (Acoustic Grand Piano)
+            if (isNaN(instrument)) instrument = 1;
             const isPercussion = voiceMeta ? voiceMeta.percussion : false;
             const trackVol = (voiceMeta && typeof voiceMeta.volume !== 'undefined') ? voiceMeta.volume : 100;
             const volFactor = trackVol / 127;
@@ -10704,7 +10708,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!vData && (vKey === currentActiveVoice || vKey === window.currentVoice || (voiceCodes.length === 1 && voiceCodes[0] === vKey))) vData = item;
 
                 if (!vData && effectiveMode === 'dependent' && typeof generateHarmonyForVoice === 'function') {
-                    // Fallback: use item data but ensure it has the basics
                     const sourceData = {
                         nimidi: item.nimidi || [],
                         tipis: item.tipis || item.timis || [],
@@ -10712,18 +10715,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         chordi: item.chordi || false
                     };
                     vData = generateHarmonyForVoice(sourceData, vKey, currentActiveVoice);
-                    // Ensure generated data has the correct tipis/dinami if missing
                     if (!vData.tipis || vData.tipis.length === 0) vData.tipis = [...sourceData.tipis];
                     if (!vData.dinami || vData.dinami.length === 0) vData.dinami = [...sourceData.dinami];
                 }
 
                 if (vData) {
                     const tIdx = voiceMap[vKey];
-                    // Ensure track exists and has an instrument event even if it's the first note
+                    // Ensure track exists and set metadata once at the start of the file (nc === 0)
                     if (targetTracks[tIdx]) {
                         const vMeta = metadata.voices ? metadata.voices[vKey] : null;
-                        const inst = vMeta ? vMeta.instrument : 1;
-                        targetTracks[tIdx].addEvent(new MidiWriter.ProgramChangeEvent({ instrument: inst, channel: tIdx + 1 }));
+                        let inst = (vMeta && vMeta.instrument !== undefined) ? parseInt(vMeta.instrument) : 1;
+                        if (isNaN(inst)) inst = 1;
+                        const isPerc = vMeta ? vMeta.percussion : false;
+                        const chan = isPerc ? 10 : tIdx;
+
+                        if (nc === 0) {
+                            console.log(`🎻 Initializing Track ${tIdx} (${vKey}): Inst ${inst} on Chan ${chan}`);
+                            targetTracks[tIdx].addTrackName('Voice ' + vKey.toUpperCase());
+                            targetTracks[tIdx].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
+                        }
                     }
                     processVoice(vData, tIdx, vKey);
                 }
@@ -11111,6 +11121,8 @@ ${codigos.join('\n  ')}
     } */
 
 
+    window.recordi = recordi;
+
     function addi(dati, ntraki, targetTracks = traki, channelOverride = null) {
         // Safety check: ensure targetTracks and targetTracks[ntraki] exist
         if (typeof targetTracks === 'undefined' || !targetTracks || !targetTracks[ntraki]) {
@@ -11123,12 +11135,11 @@ ${codigos.join('\n  ')}
             }
         }
 
-        let chani = (channelOverride !== null) ? channelOverride : (ntraki + 1);
+        let chani = (channelOverride !== null) ? channelOverride : ntraki;
         if (dati[6] == 'p') { chani = 10; } // Channel 10 for percussion
 
-        targetTracks[ntraki].addEvent(
-            new MidiWriter.ProgramChangeEvent({ instrument: dati[0], channel: chani })
-        );
+        // ProgramChangeEvent is now handled at track/measure level in recordi 
+        // to avoid redundant events for every note which can confuse some synthesizers.
         targetTracks[ntraki].addEvent(
             new MidiWriter.NoteEvent({
                 pitch: dati[1],
@@ -11142,25 +11153,48 @@ ${codigos.join('\n  ')}
         );
     }
 
+    window.addi = addi;
+
     function initrakiAll(tempi, metri) {
-        traki = [];
-        // Support 4 tracks for vocal voices (indexed 0-3)
+        traki = new Array(5);
+        const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
+        const voicesMeta = metadata.voices || {};
+
+        // Track 0: Conductor & Pre-declaration
+        traki[0] = new MidiWriter.Track();
+        if (metri) traki[0].setTimeSignature(metri, 4);
+        if (tempi) traki[0].setTempo(tempi);
+        traki[0].addTrackName('Master');
+
+        // Pre-declare instruments to force loading
+        ['s', 'a', 't', 'b'].forEach((key, idx) => {
+            const vMeta = voicesMeta[key] || { instrument: 1, percussion: false };
+            const inst = parseInt(vMeta.instrument) || 1;
+            const chan = vMeta.percussion ? 10 : (idx + 1);
+            // Use raw data object for Program Change to support channels
+            traki[0].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
+        });
         for (let i = 0; i < 4; i++) {
-            traki[i] = new MidiWriter.Track();
-            if (metri) traki[i].setTimeSignature(metri, 4);
-            if (tempi) traki[i].setTempo(tempi);
+            const vKey = ['s', 'a', 't', 'b'][i];
+            traki[i + 1] = new MidiWriter.Track();
+
+            // Add name and instrument at the start of each track
+            const vMeta = voicesMeta[vKey] || { instrument: 1, percussion: false };
+            const inst = parseInt(vMeta.instrument) || 1;
+            const chan = (vMeta.percussion) ? 10 : (i + 1);
+
+            traki[i + 1].addTrackName('Voice ' + vKey.toUpperCase());
+            traki[i + 1].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
         }
     }
 
+    window.initrakiAll = initrakiAll;
+
     function initraki(tempi, metri) {
-        traki = [];
-        // Always create 4 tracks to avoid index errors when switching voices
-        for (let i = 0; i < 4; i++) {
-            traki[i] = new MidiWriter.Track();
-            if (metri) traki[i].setTimeSignature(metri, 4);
-            if (tempi) traki[i].setTempo(tempi);
-        }
+        initrakiAll(tempi, metri);
     }
+    window.initraki = initraki;
+
     function cleari() {
         const metadata = bdi.metadata;
         const tempi = metadata ? metadata.bpm : bpmValue;
@@ -11173,7 +11207,24 @@ ${codigos.join('\n  ')}
         bdi.bar = []
         var playi = document.getElementById("player15");
         playi.src = ''
+
+        // Clear visual tracks
+        const containers = {
+            's': document.getElementById('visual-track-s'),
+            'a': document.getElementById('visual-track-a'),
+            't': document.getElementById('visual-track-t'),
+            'b': document.getElementById('visual-track-b')
+        };
+        Object.values(containers).forEach(c => {
+            if (c) c.innerHTML = '';
+        });
+
+        // Reset state
+        window.selectedMeasureIndex = -1;
+        if (typeof window.renderVisualTracks === 'function') window.renderVisualTracks();
+        if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
     }
+    window.cleari = cleari;
 
     // Rebuild recordi with all bdi entries
     function rebuildRecordi() {
@@ -11205,15 +11256,16 @@ ${codigos.join('\n  ')}
         }
         updatePlayerMIDI(document.getElementById("player15"), traki);
     }
+    window.rebuildRecordi = rebuildRecordi;
 
     // Expose variables to global scope for index.html access
     window.bdi = bdi;
-    window.recordi = recordi;
-    window.rebuildRecordi = rebuildRecordi;
+    // window.recordi = recordi; // Already exposed
+    // window.rebuildRecordi = rebuildRecordi; // Already exposed
     window.bpmValue = bpmValue;
     window.tempi = tempi;
-    window.initraki = initraki;
-    window.cleari = cleari;
+    // window.initraki = initraki; // Already exposed
+    // window.cleari = cleari; // Already exposed
     window.ac = ac;
     window.currentPattern = currentPattern;
 
@@ -12126,6 +12178,20 @@ ${codigos.join('\n  ')}
                 window.bdiRedoStack = [];
 
             }
+
+            // Clear visual tracks manually (since we don't call cleari)
+            const containers = {
+                's': document.getElementById('visual-track-s'),
+                'a': document.getElementById('visual-track-a'),
+                't': document.getElementById('visual-track-t'),
+                'b': document.getElementById('visual-track-b')
+            };
+            Object.values(containers).forEach(c => {
+                if (c) c.innerHTML = '';
+            });
+            window.selectedMeasureIndex = -1;
+            if (typeof renderVisualTracks === 'function') renderVisualTracks();
+            if (typeof updateScoreIndicators === 'function') updateScoreIndicators();
 
             // Visual feedback
             const originalText = empezarBtn.textContent;
@@ -16171,82 +16237,16 @@ ${codigos.join('\n  ')}
         });
     }
     //////////INSTRUMENT SELECTOR
-    // Instrument selector replaces old percussion button
-    const instrumentSelector = document.getElementById('instrument-selector');
+    // Expose init function globally
+    window.initInstrumentSelector = () => {
+        const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
+        const voicesMeta = metadata.voices || {};
 
-    if (instrumentSelector) {
-        // Event listener for instrument change
-        instrumentSelector.addEventListener('change', function () {
-            const selectedValue = this.value;
-
-            // Get selected voices from playback selector
-            const playbackSelector = document.getElementById('playback-selector');
-            const selectedVoices = playbackSelector ? playbackSelector.value : 's,a,t,b';
-            const voiceCodes = selectedVoices.split(',');
-
-            // Ensure metadata structure exists
-            if (!bdi.metadata) bdi.metadata = { voices: {} };
-            if (!bdi.metadata.voices) bdi.metadata.voices = {};
-
-            // Apply instrument to all selected voices
-            voiceCodes.forEach(voiceCode => {
-                if (!bdi.metadata.voices[voiceCode]) {
-                    bdi.metadata.voices[voiceCode] = { instrument: 1, percussion: false };
-                }
-
-                if (selectedValue === 'perc') {
-                    // Percussion mode: use channel 10
-                    bdi.metadata.voices[voiceCode].percussion = true;
-                    bdi.metadata.voices[voiceCode].instrument = 1; // Instrument doesn't matter for percussion
-                } else {
-                    // Regular instrument mode
-                    bdi.metadata.voices[voiceCode].percussion = false;
-                    bdi.metadata.voices[voiceCode].instrument = parseInt(selectedValue);
-                }
-            });
-
-            console.log('🎹 Instrument changed to:', selectedValue, 'for voices:', voiceCodes);
-
-            // Rebuild player with new instrument setting
-            rebuildRecordi();
-
-            // Refresh rhythm pattern UI if percussion mode changed
-            if (typeof buildGroupButtons === 'function' && typeof buildPatternGrid === 'function') {
-                console.log('🔄 Refrescando UI de patrones rítmicos...');
-                buildGroupButtons();
-                if (typeof currentGroup !== 'undefined') {
-                    buildPatternGrid(currentGroup);
-                }
-            }
-        });
-
-        // Initialize selector based on current playback voice
-        window.initInstrumentSelector = () => {
-            const playbackSelector = document.getElementById('playback-selector');
-            const selectedVoices = playbackSelector ? playbackSelector.value : 's,a,t,b';
-            const voiceCodes = selectedVoices.split(',');
-
-            if (!bdi.metadata) bdi.metadata = { voices: {} };
-            if (!bdi.metadata.voices) bdi.metadata.voices = {};
-
-            // Check first selected voice for instrument
-            const firstVoiceCode = voiceCodes[0];
-            if (!bdi.metadata.voices[firstVoiceCode]) {
-                bdi.metadata.voices[firstVoiceCode] = { instrument: 1, percussion: false };
-            }
-
-            const voiceMeta = bdi.metadata.voices[firstVoiceCode];
-
-            if (voiceMeta.percussion) {
-                instrumentSelector.value = 'perc';
-            } else {
-                instrumentSelector.value = voiceMeta.instrument.toString();
-            }
-        };
-
-        // Initialize on load
-        window.initInstrumentSelector();
-    }
+        // Use tracksConfig to initialize selectors
+        if (typeof initializeTracksConfigInputs === 'function') {
+            initializeTracksConfigInputs();
+        }
+    };
     // END INSTRUMENT SELECTOR
 
     // Voice selector - refresh rhythm patterns when voice changes
@@ -18516,6 +18516,7 @@ function syncTracksConfigToBdi() {
 
         window.bdi.metadata.voices[track.key].instrument = track.instrument;
         window.bdi.metadata.voices[track.key].percussion = track.percussion !== undefined ? track.percussion : false;
+        window.bdi.metadata.voices[track.key].displayName = track.displayName || track.permanentName;
     });
 
     console.log('🔄 Track config synced to bdi.metadata.voices');
@@ -18559,26 +18560,72 @@ setTimeout(() => {
 
     // Sync initial config to bdi
     syncTracksConfigToBdi();
+    updateTrackLabels(); // Ensure labels are updated on load
 
     // General instrument selector - applies to all tracks
     const generalInstrumentSelector = document.getElementById('instrument-selector');
     if (generalInstrumentSelector) {
         generalInstrumentSelector.addEventListener('change', (e) => {
             const selectedValue = e.target.value;
-            console.log('🎺 General instrument selector changed to:', selectedValue);
+            const selectedOption = e.target.options[e.target.selectedIndex];
 
-            // Update all individual track selectors
+            // Extract instrument name (e.g., "1 - Acoustic Grand Piano" -> "Acoustic Grand Piano")
+            let instrumentName = selectedOption.text;
+            if (instrumentName.includes(' - ')) {
+                instrumentName = instrumentName.split(' - ')[1];
+            } else if (instrumentName.includes('🥁 ')) {
+                instrumentName = "Percussion";
+            }
+
+            console.log('🎺 General instrument selector changed to:', selectedValue, '(', instrumentName, ')');
+
+            // Update all individual track selectors, names and tracksConfig
             ['s', 'a', 't', 'b'].forEach(key => {
+                const trackCfg = tracksConfig.find(t => t.key === key);
+
+                // Update name if default or empty
+                const nameInput = document.getElementById(`track-name-${key}`);
+                if (nameInput) {
+                    const currentVal = nameInput.value.trim().toLowerCase();
+                    if (currentVal === '' || currentVal.includes('piano')) {
+                        nameInput.value = instrumentName + (key.toUpperCase());
+                    }
+                }
+
+                if (trackCfg) {
+                    if (selectedValue === 'perc') {
+                        trackCfg.instrument = 0;
+                        trackCfg.percussion = true;
+                    } else {
+                        trackCfg.instrument = parseInt(selectedValue);
+                        trackCfg.percussion = false;
+                    }
+                    if (nameInput) trackCfg.displayName = nameInput.value;
+                }
+
                 const trackSelector = document.getElementById(`track-instrument-${key}`);
                 if (trackSelector) {
                     trackSelector.value = selectedValue;
                 }
             });
 
-            console.log('✅ All track selectors updated to:', selectedValue);
+            console.log('✅ All tracks updated to:', instrumentName);
 
-            // Auto-save configuration when general selector changes
-            saveTracksConfigSilent();
+            // Sync to BDI and Rebuild
+            syncTracksConfigToBdi();
+            updateTrackLabels(); // Force update visual labels immediately
+            if (typeof rebuildRecordi === 'function') rebuildRecordi();
+
+            // Configuration already synced and rebuild called above
+
+            // Refresh rhythm pattern UI if percussion mode might have changed
+            if (typeof buildGroupButtons === 'function' && typeof buildPatternGrid === 'function') {
+                console.log('🔄 Refrescando UI de patrones rítmicos...');
+                buildGroupButtons();
+                if (typeof currentGroup !== 'undefined') {
+                    buildPatternGrid(currentGroup);
+                }
+            }
         });
         console.log('🎺 General instrument selector listener attached');
     }

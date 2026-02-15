@@ -20,9 +20,33 @@ function getPrefixedElement(baseId) {
     return el;
 }
 
+// Helper to determine which voices to affect
+function getTargetVoiceKeys() {
+    const activeModeBtn = document.querySelector('.mode-btn.active');
+    const isCompositionMode = activeModeBtn && activeModeBtn.id === 'mode-composicion';
+
+    if (isCompositionMode) {
+        const targetSelect = document.getElementById('comp-onda-target');
+        const targetMode = targetSelect ? targetSelect.value : 'selected';
+
+        if (targetMode === 'audible') {
+            const playbackSelector = document.getElementById('playback-selector');
+            if (playbackSelector && playbackSelector.value) {
+                return playbackSelector.value.split(',').filter(v => v);
+            }
+            // Fallback to all standard voices if nothing selected but mode is audible
+            return ['s', 'a', 't', 'b'];
+        }
+    }
+
+    // Default: Only the currently selected voice in the main UI
+    const voiceSelector = document.getElementById('voice-selector');
+    return [voiceSelector ? voiceSelector.value : 's'];
+}
+
 // 2. STANDARD ONDA (Pitch Only)
 window.applyOndaFromUI = function () {
-    console.log("Applying Onda (Pitch/MIDI Only) to Single Track with Tessitura Check...");
+    console.log("Applying Onda (Pitch/MIDI Only)...");
 
     const ampSelect = getPrefixedElement('onda-amp');
     const freqSelect = getPrefixedElement('onda-freq');
@@ -34,9 +58,8 @@ window.applyOndaFromUI = function () {
     const amplitude = parseFloat(ampSelect.value);
     const cycleLength = parseFloat(freqSelect.value);
 
-    // 1. Identify Target Voice
-    const voiceSelector = document.getElementById('voice-selector');
-    const selectedVoiceKey = voiceSelector ? voiceSelector.value : 's';
+    // 1. Identify Target Voices
+    const targetVoiceKeys = getTargetVoiceKeys();
 
     // DEFINE TESSITURA RANGES
     const tessitura = {
@@ -45,10 +68,6 @@ window.applyOndaFromUI = function () {
         't': { min: 48, max: 69 }, // C3 - A4
         'b': { min: 40, max: 62 }  // E2 - D4
     };
-
-    // Explicit Fallback for range
-    const range = tessitura[selectedVoiceKey] || { min: 0, max: 127 };
-    console.log(`Checking range for ${selectedVoiceKey}: ${range.min} to ${range.max}`);
 
     // Basic Validation
     if (typeof window.bdi === 'undefined' || !window.bdi.bar || window.bdi.bar.length === 0) {
@@ -105,7 +124,10 @@ window.applyOndaFromUI = function () {
 
     // --- APPLY WAVE TO SELECTED MEASURES ---
 
-    let globalNoteIndex = 0;
+    // Save state for undo
+    if (typeof window.saveBdiState === 'function') {
+        window.saveBdiState();
+    }
 
     // Determine Index Range
     let startIdx = 0;
@@ -121,83 +143,85 @@ window.applyOndaFromUI = function () {
     startIdx = Math.max(0, Math.min(startIdx, total - 1));
     endIdx = Math.max(0, Math.min(endIdx, total - 1));
 
-    console.log(`🌊 Applying Onda to range [${startIdx}, ${endIdx}]`);
+    console.log(`🌊 Applying Onda to range [${startIdx}, ${endIdx}] for voices: ${targetVoiceKeys.join(', ')}`);
 
-    // Save state for undo
-    if (typeof window.saveBdiState === 'function') {
-        window.saveBdiState();
-    }
+    targetVoiceKeys.forEach((selectedVoiceKey, voiceIdx) => {
+        const range = tessitura[selectedVoiceKey] || { min: 0, max: 127 };
 
-    // Process only selected range
-    for (let i = startIdx; i <= endIdx; i++) {
-        const measure = window.bdi.bar[i];
-        if (!measure.voci || !Array.isArray(measure.voci)) continue;
+        // Start each voice with a different phase/offset so they are independent
+        let globalNoteIndex = Math.floor(voiceIdx * (cycleLength / targetVoiceKeys.length || 1.618));
 
-        // Find Target Voice Object
-        const targetVoice = measure.voci.find(v => v.nami === selectedVoiceKey);
+        // Process only selected range
+        for (let i = startIdx; i <= endIdx; i++) {
+            const measure = window.bdi.bar[i];
+            if (!measure.voci || !Array.isArray(measure.voci)) continue;
 
-        if (targetVoice && targetVoice.tipis && targetVoice.tipis.length > 0) {
+            // Find Target Voice Object
+            const targetVoice = measure.voci.find(v => v.nami === selectedVoiceKey);
 
-            if (!targetVoice.nimidi) targetVoice.nimidi = [];
-            const voiceMidis = [...targetVoice.nimidi];
-            const voiceTipis = [...targetVoice.tipis];
+            if (targetVoice && targetVoice.tipis && targetVoice.tipis.length > 0) {
 
-            targetVoice.tipis.forEach((vVal, vIdx) => {
-                const isRest = vVal < 0;
-                if (isRest) {
-                    // Existing rest stays rest
-                } else {
-                    let currentMidi = voiceMidis[vIdx];
-                    if (!currentMidi && currentMidi !== 0) currentMidi = 60; // Fallback
+                if (!targetVoice.nimidi) targetVoice.nimidi = [];
+                const voiceMidis = [...targetVoice.nimidi];
+                const voiceTipis = [...targetVoice.tipis];
 
-                    const currentScaleIdx = getScaleIndex(currentMidi);
-
-                    // FIX: Use cycleLength as frequency (cycles per note)
-                    // avoid (globalNoteIndex % cycleLength) / cycleLength which fails for small values < 1
-                    const t = globalNoteIndex * cycleLength;
-                    const waveVal = Math.sin(t * 2 * Math.PI);
-                    const offsetSteps = Math.round(waveVal * amplitude);
-
-                    let newScaleIdx = currentScaleIdx + offsetSteps;
-
-                    // Force clamps to remain within MIDI table
-                    if (newScaleIdx < 0) newScaleIdx = 0;
-                    if (newScaleIdx >= validMidiNotes.length) newScaleIdx = validMidiNotes.length - 1;
-
-                    const newMidi = validMidiNotes[newScaleIdx];
-
-                    // STRICT TESSITURA CHECK
-                    if (newMidi < range.min || newMidi > range.max) {
-                        voiceMidis[vIdx] = -Math.abs(newMidi);
-                        const oldTipi = voiceTipis[vIdx];
-                        let newRestVal = -1;
-                        if (oldTipi > 0) newRestVal = -oldTipi;
-                        else if (oldTipi < 0) newRestVal = oldTipi;
-                        else newRestVal = -1;
-                        voiceTipis[vIdx] = newRestVal;
-
+                targetVoice.tipis.forEach((vVal, vIdx) => {
+                    const isRest = vVal < 0;
+                    if (isRest) {
+                        // Existing rest stays rest
                     } else {
-                        voiceMidis[vIdx] = Math.abs(newMidi);
-                        if (voiceTipis[vIdx] < 0) {
-                            voiceTipis[vIdx] = Math.abs(voiceTipis[vIdx]);
-                            if (voiceTipis[vIdx] === 0) voiceTipis[vIdx] = 1;
+                        let currentMidi = voiceMidis[vIdx];
+                        if (!currentMidi && currentMidi !== 0) currentMidi = 60; // Fallback
+
+                        const currentScaleIdx = getScaleIndex(currentMidi);
+
+                        // FIX: Use cycleLength as frequency (cycles per note)
+                        // avoid (globalNoteIndex % cycleLength) / cycleLength which fails for small values < 1
+                        const t = globalNoteIndex * cycleLength;
+                        const waveVal = Math.sin(t * 2 * Math.PI);
+                        const offsetSteps = Math.round(waveVal * amplitude);
+
+                        let newScaleIdx = currentScaleIdx + offsetSteps;
+
+                        // Force clamps to remain within MIDI table
+                        if (newScaleIdx < 0) newScaleIdx = 0;
+                        if (newScaleIdx >= validMidiNotes.length) newScaleIdx = validMidiNotes.length - 1;
+
+                        const newMidi = validMidiNotes[newScaleIdx];
+
+                        // STRICT TESSITURA CHECK
+                        if (newMidi < range.min || newMidi > range.max) {
+                            voiceMidis[vIdx] = -Math.abs(newMidi);
+                            const oldTipi = voiceTipis[vIdx];
+                            let newRestVal = -1;
+                            if (oldTipi > 0) newRestVal = -oldTipi;
+                            else if (oldTipi < 0) newRestVal = oldTipi;
+                            else newRestVal = -1;
+                            voiceTipis[vIdx] = newRestVal;
+
+                        } else {
+                            voiceMidis[vIdx] = Math.abs(newMidi);
+                            if (voiceTipis[vIdx] < 0) {
+                                voiceTipis[vIdx] = Math.abs(voiceTipis[vIdx]);
+                                if (voiceTipis[vIdx] === 0) voiceTipis[vIdx] = 1;
+                            }
                         }
                     }
+
+                    globalNoteIndex++;
+                });
+
+                targetVoice.nimidi = voiceMidis;
+                targetVoice.tipis = voiceTipis;
+
+                // Sync S if needed
+                if (selectedVoiceKey === 's') {
+                    measure.nimidi = [...voiceMidis];
+                    measure.tipis = [...voiceTipis];
                 }
-
-                globalNoteIndex++;
-            });
-
-            targetVoice.nimidi = voiceMidis;
-            targetVoice.tipis = voiceTipis;
-
-            // Sync S if needed
-            if (selectedVoiceKey === 's') {
-                measure.nimidi = [...voiceMidis];
-                measure.tipis = [...voiceTipis];
             }
         }
-    }
+    });
 
     // 4. Update UI AND RELOAD PLAYER
     if (typeof window.applyTextLayer === 'function') {
@@ -215,16 +239,13 @@ window.applyOndaFromUI = function () {
             player.reload();
         }
     }
-
-    console.log(`Onda Finalized for Voice ${selectedVoiceKey}. Checked Range: ${range.min}-${range.max}`);
 };
 
 // 3. ONDA RITMO (Random Rhythm from patterns)
 window.applyOndaRitmoFromUI = function () {
     console.log("Applying Onda Ritmo (Random Rhythm)...");
 
-    const voiceSelector = document.getElementById('voice-selector');
-    const selectedVoiceKey = voiceSelector ? voiceSelector.value : 's';
+    const targetVoiceKeys = getTargetVoiceKeys();
     const densitySelect = getPrefixedElement('onda-ritmo-density');
 
     // Check if trilipi is available
@@ -332,68 +353,71 @@ window.applyOndaRitmoFromUI = function () {
     let changedCount = 0;
 
     // Apply Logic to workingMeasures
-    workingMeasures.forEach((measure, localIndex) => {
-        // "Absolute" logical index for pattern consistency. 
-        // If we want the pattern to flow continuously from the start of the song, we use (startIndex + localIndex).
-        // If we want the pattern to start fresh for this block, use localIndex.
-        // Usually "Onda" implies continuity, so (startIndex + localIndex) might be better, 
-        // BUT if I generate a block, I probably want it to start with Pattern A.
-        // Let's use localIndex for predictable "Block" generation.
-        // OR better: if Modify -> Continuity (startIndex + localIndex). If Generate -> Fresh (localIndex)?
-        // User request "Debe también generar n compases".
-        // Let's stick to localIndex (relative to operation) for now as it's cleaner for "Insert Pattern Here".
+    targetVoiceKeys.forEach((vKey, vIdx) => {
+        // Individual patterns for each voice
+        let localPatternA = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+        let localPatternB = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+        let currentPattern = localPatternA;
 
-        const effectiveIndex = localIndex;
+        workingMeasures.forEach((measure, localIndex) => {
+            const effectiveIndex = localIndex;
 
-        if (blockValue !== 'all') {
-            const blockIndex = Math.floor(effectiveIndex / blockSize);
-            if (mode === 'cyclic') {
-                currentPattern = (blockIndex % 2 === 0) ? patternA : patternB;
+            if (mode === 'structure') {
+                // FIXED STRUCTURE: Multiplicandose por dos desde la pista bajo (Bajo=Lento, Soprano=Rápido)
+                // Disminuyendo a la mitad desde la capa superior (Soprano=8, Contralto=4, Tenor=2, Bajo=1)
+                if (vKey === 's') currentPattern = [4, 4, 4, 4, 4, 4, 4, 4]; // 8 corcheas
+                else if (vKey === 'a') currentPattern = [3, 3, 3, 3];        // 4 negras
+                else if (vKey === 't') currentPattern = [2, 2];              // 2 blancas
+                else if (vKey === 'b') currentPattern = [1];                 // 1 redonda
+                else currentPattern = [3, 3, 3, 3]; // Fallback
+            } else if (blockValue !== 'all') {
+                const blockIndex = Math.floor(effectiveIndex / blockSize);
+                if (mode === 'cyclic') {
+                    currentPattern = (blockIndex % 2 === 0) ? localPatternA : localPatternB;
+                } else {
+                    if (effectiveIndex > 0 && effectiveIndex % blockSize === 0) {
+                        currentPattern = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+                    }
+                }
             } else {
-                if (effectiveIndex > 0 && effectiveIndex % blockSize === 0) {
-                    currentPattern = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+                currentPattern = localPatternA;
+            }
+
+            // Apply to Voice
+            let targetVoice = null;
+            if (measure.voci) targetVoice = measure.voci.find(v => v.nami === vKey);
+
+            if (targetVoice) {
+                const oldMidis = targetVoice.nimidi || [];
+                const newTipis = [...currentPattern];
+                const newMidis = [];
+
+                if (oldMidis.length > 0) {
+                    newTipis.forEach((t, k) => {
+                        const existingMidi = oldMidis[k % oldMidis.length];
+                        newMidis.push(Math.abs(existingMidi));
+                    });
+                } else {
+                    newTipis.forEach(() => newMidis.push(60));
+                }
+
+                targetVoice.tipis = newTipis;
+                targetVoice.nimidi = newMidis;
+
+                // Dynamics
+                if (!targetVoice.dinami || targetVoice.dinami.length !== newMidis.length) {
+                    targetVoice.dinami = new Array(newMidis.length).fill(64);
+                }
+
+                // Sync S
+                if (vKey === 's') {
+                    measure.tipis = [...targetVoice.tipis];
+                    measure.nimidi = [...targetVoice.nimidi];
+                    measure.timis = new Array(newTipis.length).fill(1e-9);
+                    measure.dinami = [...targetVoice.dinami];
                 }
             }
-        } else {
-            currentPattern = patternA;
-        }
-
-        // Apply to Voice
-        let targetVoice = null;
-        if (measure.voci) targetVoice = measure.voci.find(v => v.nami === selectedVoiceKey);
-
-        // Handle case where voice might not exist in empty text-generated measure (though we inited it above)
-        if (targetVoice) {
-            const oldMidis = targetVoice.nimidi || [];
-            const newTipis = [...currentPattern];
-            const newMidis = [];
-
-            if (oldMidis.length > 0) {
-                newTipis.forEach((t, k) => {
-                    const existingMidi = oldMidis[k % oldMidis.length];
-                    newMidis.push(Math.abs(existingMidi));
-                });
-            } else {
-                newTipis.forEach(() => newMidis.push(60));
-            }
-
-            targetVoice.tipis = newTipis;
-            targetVoice.nimidi = newMidis;
-
-            // Dynamics
-            if (!targetVoice.dinami || targetVoice.dinami.length !== newMidis.length) {
-                targetVoice.dinami = new Array(newMidis.length).fill(64);
-            }
-
-            // Sync S
-            if (selectedVoiceKey === 's') {
-                measure.tipis = [...targetVoice.tipis];
-                measure.nimidi = [...targetVoice.nimidi];
-                measure.timis = new Array(newTipis.length).fill(1e-9); // Placeholder time
-                measure.dinami = [...targetVoice.dinami];
-            }
-            changedCount++;
-        }
+        });
     });
 
     // Finalize Changes
@@ -438,18 +462,8 @@ window.applyDynamicShapeFromUI = function () {
     const extraEl = getPrefixedElement('dynamic-extra-val');
     const extraVal = extraEl ? parseFloat(extraEl.value) : 1;
 
-    // 1. Identify Target Voices (from playback selector if available, else current voice)
-    const voiceSelector = document.getElementById('voice-selector');
-    const playbackSelector = document.getElementById('playback-selector');
-
-    let voiceKeys = [];
-    if (playbackSelector && playbackSelector.value) {
-        voiceKeys = playbackSelector.value.split(',').filter(v => v);
-    } else if (voiceSelector) {
-        voiceKeys = [voiceSelector.value];
-    } else {
-        voiceKeys = ['s'];
-    }
+    // 1. Identify Target Voices
+    const voiceKeys = getTargetVoiceKeys();
 
     if (typeof window.bdi === 'undefined' || !window.bdi.bar || window.bdi.bar.length === 0) {
         alert("No hay compases cargados.");
@@ -474,7 +488,8 @@ window.applyDynamicShapeFromUI = function () {
 
     // Process only selected range
     // Apply to each selected voice
-    voiceKeys.forEach(voiceKey => {
+    voiceKeys.forEach((voiceKey, vIdx) => {
+        const voicePhaseShift = vIdx * 0.25;
         // 2. Count total notes for normalization in selection
         let totalNotes = 0;
         for (let i = startIdx; i <= endIdx; i++) {
@@ -542,7 +557,7 @@ window.applyDynamicShapeFromUI = function () {
                         break;
                     case 'ondas':
                         const wavelength = extraVal || 8;
-                        const tWave = globalNoteIdx / wavelength;
+                        const tWave = (globalNoteIdx / wavelength) + voicePhaseShift;
                         const wave = 0.5 + 0.5 * Math.sin(tWave * 2 * Math.PI);
                         dyn = minVal + (maxVal - minVal) * wave;
                         break;

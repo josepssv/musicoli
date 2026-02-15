@@ -680,6 +680,7 @@
                       style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
                       <option value="random">Aleatorio</option>
                       <option value="cyclic">Cíclico (A-B-A-B...)</option>
+                      <option value="structure" selected>Estructura</option>
                     </select>
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px;">
@@ -1401,28 +1402,49 @@
 
               <!-- ONDA TOOLS (RITMO + MODULACIÓN) FOR COMPOSITION MODE -->
               <div id="comp-onda-tools-section"
-                style="margin-bottom: 20px; padding: 20px; background: #e0faff; border: 2px solid #00acc1; border-radius: 8px;">
+                style="margin-bottom: 10px; padding: 10px; background: #e0faff; border: 2px solid #00acc1; border-radius: 8px;">
+
+                <!-- COMBINED TOOL ACTION (MOVED FROM BOTTOM) -->
+                <div style="margin-bottom: 10px; display: flex; justify-content: center;">
+                  <button id="comp-onda-total-btn" onclick="applyOndaCompletaFromUI(); return false;" class="theme-btn"
+                    style="border: none; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: linear-gradient(135deg, #00acc1 0%, #007c91 100%); color: white; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform 0.2s; width: 100%; justify-content: center;">
+                    🌊 🎲 ONDA TOTAL (Ritmo + Melodía)
+                  </button>
+                </div>
+
+                <!-- TARGET TRACK SELECTOR -->
+                <div
+                  style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px; background: rgba(0, 172, 193, 0.1); padding: 6px; border-radius: 6px; border: 1px solid #00acc1;">
+                  <label style="font-family: monospace; font-size: 13px; font-weight: bold; color: #00838f;">🎯 Aplicar
+                    a:</label>
+                  <select id="comp-onda-target"
+                    style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333; flex-grow: 1;">
+                    <option value="selected">Solo Pista Seleccionada</option>
+                    <option value="audible" selected>Todas las Pistas Audibles</option>
+                  </select>
+                </div>
 
                 <!-- ONDA RITMO PART -->
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 14px; font-weight: bold;">
+                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
                   🌊 Onda Ritmo
                 </h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
                       style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Modo:</label>
                     <select id="comp-onda-ritmo-mode"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
                       <option value="random">Aleatorio</option>
                       <option value="cyclic">Cíclico</option>
+                      <option value="structure" selected>Estructura</option>
                     </select>
                   </div>
                   <div style="display: flex; align-items: center; gap: 5px;">
-                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cambiar
-                      cada:</label>
+                    <label
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Bio:</label>
                     <select id="comp-onda-ritmo-block"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
                       <option value="1">1 Compás</option>
                       <option value="2">2 Compases</option>
                       <option value="4">4 Compases</option>
@@ -1431,38 +1453,38 @@
                   </div>
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cant:</label>
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cnt:</label>
                     <input type="number" id="comp-onda-ritmo-count" value="4" min="1" max="100"
-                      style="width: 40px; font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px;">
+                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
                   </div>
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acción:</label>
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acc:</label>
                     <select id="comp-onda-ritmo-action"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="modify" selected>Modificar</option>
-                      <option value="generate">Generar</option>
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      <option value="modify">Modif</option>
+                      <option value="generate" selected>Generar</option>
                     </select>
                   </div>
                   <button id="comp-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
-                    style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🎲 Onda Ritmo
+                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    🎲 Onda
                   </button>
                 </div>
 
-                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 15px 0;">
+                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
 
                 <!-- ONDA MODULACIÓN PART -->
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 14px; font-weight: bold;">
+                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
                   🌊 Onda (Modulación)
                 </h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
                       style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Amp:</label>
                     <select id="comp-onda-amp"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
                       <option value="1">1</option>
                       <option value="2">2</option>
                       <option value="3" selected>3</option>
@@ -1474,64 +1496,58 @@
                     <label
                       style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Freq:</label>
                     <select id="comp-onda-freq"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
                       <option value="0.05">Lento</option>
                       <option value="0.15" selected>Normal</option>
                       <option value="0.3">Rápido</option>
                     </select>
                   </div>
                   <button id="comp-onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
-                    style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🌊 Onda Mod.
+                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    🌊 Onda
                   </button>
                 </div>
 
-                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 15px 0;">
+                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
 
                 <!-- DINÁMICA PART -->
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 14px; font-weight: bold;">
+                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
                   ✨ Dinámica (Volumen)
                 </h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Forma:</label>
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Fma:</label>
                     <select id="comp-dynamic-shape-type"
-                      style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="crescendo" selected>Crescendo</option>
-                      <option value="diminuendo">Diminuendo</option>
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                      <option value="crescendo" selected>Cresc</option>
+                      <option value="diminuendo">Dim</option>
                       <option value="pico">Pico</option>
                       <option value="valle">Valle</option>
-                      <option value="uniforme">Uniforme</option>
+                      <option value="uniforme">Unif</option>
                       <option value="ondas">Ondas</option>
                     </select>
                   </div>
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Min:</label>
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mn:</label>
                     <input type="number" id="comp-dynamic-min" value="40" min="0" max="127"
-                      style="width: 45px; font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px;">
+                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
                   </div>
                   <div style="display: flex; align-items: center; gap: 5px;">
                     <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Max:</label>
+                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mx:</label>
                     <input type="number" id="comp-dynamic-max" value="110" min="0" max="127"
-                      style="width: 45px; font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px;">
+                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
                   </div>
                   <button id="comp-dynamic-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
-                    style="border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ✨ Dinámica
+                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ✨
                   </button>
                 </div>
 
-                <!-- COMBINED TOOL ACTION -->
-                <div style="margin-top: 15px; display: flex; justify-content: center;">
-                  <button id="comp-onda-total-btn" onclick="applyOndaCompletaFromUI(); return false;" class="theme-btn"
-                    style="border: none; padding: 12px 24px; border-radius: 8px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 15px; background: linear-gradient(135deg, #00acc1 0%, #007c91 100%); color: white; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: transform 0.2s;">
-                    🌊 🎲 ONDA TOTAL (Ritmo + Melodía)
-                  </button>
-                </div>
+
 
               </div>
 
