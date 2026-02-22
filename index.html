@@ -16,14 +16,19 @@
 
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.js"></script>
 
-  <script src="metrica.js"></script>
-  <script src="soundfont-player.js"></script>
-  <script src="midiWriter.js"></script>
+  <script src="midi-writer.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/soundfont-player/0.12.0/soundfont-player.min.js"></script>
+
   <script src="silaba.js"></script>
   <script src="languages.js"></script>
+  <script src="metrica.js"></script>
   <script src="perci.js"></script>
+  <script src="pattern-selection.js"></script>
+  <script src="voice-pattern-config.js"></script>
   <script
-    src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
+    src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0">
+    </script>
+  <script src="tarareo-melodic.js"></script> <!-- Melodic Tarareo Logic -->
   <script src="musicoli.js"></script>
 
 
@@ -66,6 +71,21 @@
       height: 0;
       margin: 0;
       padding: 0;
+    }
+
+    /* MUSICOLI: Force visibility of musical notation */
+    .m3,
+    .colai,
+    .measure-span {
+      font-family: 'Bravura', 'Bravura Text', sans-serif !important;
+      color: #000000 !important;
+      font-size: 24px;
+      /* Ensure audible size */
+      line-height: 1;
+    }
+
+    #notepi6 span {
+      color: #000 !important;
     }
 
     /* MUSICOLI: Robust selection style */
@@ -359,129 +379,153 @@
 </head>
 
 <body>
-  <header class="theme-header"
-    style="padding: 4px 20px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <div style="font-size: 16px; font-weight: bold;">Musicoli</div>
-      <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active"
-        style="padding: 3px 8px; font-size: 11px;">Ritmo</button>
-      <button id="mode-tarareo"
-        style="padding: 3px 8px; font-size: 11px; font-family: monospace; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold; display:none;">Tarareo</button>
-      <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad"
-        style="padding: 3px 8px; font-size: 11px;">Melodía</button>
-      <button id="mode-dinamica" class="mode-btn mode-btn-dinamica"
-        style="padding: 3px 8px; font-size: 11px;">Dinámica</button>
-      <button id="mode-lyrics" class="mode-btn mode-btn-lyrics"
-        style="padding: 3px 8px; font-size: 11px;">Lyrics</button>
+  <!-- Centered App Wrapper -->
+  <div id="app-wrapper"
+    style="width: 100%; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; padding-bottom: 120px; box-shadow: 0 0 15px rgba(0,0,0,0.5); background-color: #555;">
+    <header class="theme-header"
+      style="padding: 4px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <div style="font-size: 16px; font-weight: bold;">Musicoli</div>
+        <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active"
+          style="padding: 3px 8px; font-size: 11px;">Ritmo</button>
+        <button id="mode-tarareo"
+          style="padding: 3px 8px; font-size: 11px; font-family: monospace; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold; display:none;">Tarareo</button>
+        <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad"
+          style="padding: 3px 8px; font-size: 11px;">Melodía</button>
+        <button id="mode-dinamica" class="mode-btn mode-btn-dinamica"
+          style="padding: 3px 8px; font-size: 11px;">Dinámica</button>
+        <button id="mode-lyrics" class="mode-btn mode-btn-lyrics"
+          style="padding: 3px 8px; font-size: 11px;">Lyrics</button>
 
 
-      <button id="mode-instrumentacion" class="mode-btn mode-btn-instrumentacion"
-        style="padding: 3px 8px; font-size: 11px;">Instrumentación</button>
-      <button id="mode-composicion" class="mode-btn mode-btn-composicion"
-        style="padding: 3px 8px; font-size: 11px;">Composición</button>
+        <button id="mode-instrumentacion" class="mode-btn mode-btn-instrumentacion"
+          style="padding: 3px 8px; font-size: 11px;">Instrumentación</button>
+        <button id="mode-composicion" class="mode-btn mode-btn-composicion"
+          style="padding: 3px 8px; font-size: 11px;">Composición</button>
 
-    </div>
-    <div style="display: flex; gap: 6px; align-items: center; font-size: 12px;">
-      <span>BPM:</span>
-      <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
-        style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
-      <span>Compás: <select id="compas-select">
-          <option value="[4,4]">4/4</option>
-          <option value="[3,4]">3/4</option>
-          <option value="[2,4]">2/4</option>
-        </select></span>
-      <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
-        style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
-      <!-- Hidden voice selector for state management -->
-      <select id="voice-selector" style="display: none;">
-        <option value="s" selected>Soprano</option>
-        <option value="a">Contralto</option>
-        <option value="t">Tenor</option>
-        <option value="b">Bajo</option>
-      </select>
-    </div>
-  </header>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap;">
+        <span>BPM:</span>
+        <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
+          style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
+        <span>Compás: <select id="compas-select">
+            <option value="[4,4]">4/4</option>
+            <option value="[3,4]">3/4</option>
+            <option value="[2,4]">2/4</option>
+          </select></span>
+        <span>Key:
+          <select id="scale-root"
+            style="background: #444; color: white; border: 1px solid #666; padding: 4px; border-radius: 3px; font-family: monospace;">
+            <option value="C" selected>C</option>
+            <option value="C#">C#</option>
+            <option value="D">D</option>
+            <option value="D#">D#</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="F#">F#</option>
+            <option value="G">G</option>
+            <option value="G#">G#</option>
+            <option value="A">A</option>
+            <option value="A#">A#</option>
+            <option value="B">B</option>
+          </select>
+          <select id="scale-mode"
+            style="background: #444; color: white; border: 1px solid #666; padding: 4px; border-radius: 3px; font-family: monospace;">
+            <option value="Major" selected>Mayor</option>
+            <option value="Minor">Menor</option>
+          </select></span>
+        <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
+          style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+        <!-- Hidden voice selector for state management -->
+        <select id="voice-selector" style="display: none;">
+          <option value="s" selected>Soprano</option>
+          <option value="a">Contralto</option>
+          <option value="t">Tenor</option>
+          <option value="b">Bajo</option>
+        </select>
+      </div>
+    </header>
 
-  <!-- Header 2: Edition Buttons -->
-  <div class="mode-header-2"
-    style="padding: 2px 20px; display: flex; gap: 4px; align-items: center; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: #555;">
-    <button id="frase-btn" class="theme-btn-accent"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      Frase
-    </button>
-    <button id="copy-measures-btn" class="theme-btn"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      Copiar
-    </button>
-    <button id="paste-measures-btn" class="theme-btn"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      Pegar
-    </button>
-    <div id="status-indicators"
-      style="display: flex; gap: 8px; margin-left: auto; color: #ddd; font-size: 10px; padding-right: 15px; border-right: 1px solid #666; margin-right: 8px;">
-      <div style="cursor: pointer;" title="Ir a posición de cursor" onclick="jumpToPosition()">POS: <span id="cursorPos"
-          style="color: #4CAF50; font-weight: bold;">0</span></div>
-      <div style="cursor: pointer;" title="Ir a compás" onclick="jumpToMeasure()">COMP: <span id="measurePos"
-          style="color: #FF9800; font-weight: bold;">0</span> / <span id="totalMeasures"
-          style="color: #FF9800; font-weight: bold;">0</span></div>
-    </div>
-    <button id="empezar-btn" class="theme-btn rhythm-only"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      Empezar
-    </button>
-    <button id="undo-btn" class="theme-btn rhythm-only"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      ←
-    </button>
-    <button id="redo-btn" class="theme-btn rhythm-only"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-      →
-    </button>
-    <!-- Dependent/Independent Mode Toggle -->
-    <button id="html-mode-toggle" class="mode-btn"
-      style="padding: 3px; font-size: 14px; font-family: monospace; border: none; border-radius: 20px; background: #4CAF50; color: white; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 28px; height: 28px;"
-      title="Modo: Dependiente (armonía automática)">
-      <span id="html-mode-icon">🔗</span>
-    </button>
-
-    <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
-      style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
-      title="Borrar compás seleccionado (o último si ninguno seleccionado)">
-      🗑️
-    </button>
-    <span id="escoci" style="display: none; margin-left: 20px;">
-      <select id="keyin" class="theme-btn scale-control"
+    <!-- Header 2: Edition Buttons -->
+    <div class="mode-header-2"
+      style="padding: 2px 20px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: #555;">
+      <button id="frase-btn" class="theme-btn-accent"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-        <option value="C" selected="">C</option>
-        <option value="C#">C#</option>
-        <option value="D">D</option>
-        <option value="D#">D#</option>
-        <option value="E">E</option>
-        <option value="F">F</option>
-        <option value="F#">F#</option>
-        <option value="G">G</option>
-        <option value="G#">G#</option>
-        <option value="A">A</option>
-        <option value="A#">A#</option>
-        <option value="B">B</option>
-      </select>
-      <button id="mayor" class="theme-btn scale-control"
+        Frase
+      </button>
+      <button id="copy-measures-btn" class="theme-btn"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-        Mayor
+        Copiar
       </button>
-      <button id="menor" class="theme-btn scale-control"
-        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
-        Menor
+      <button id="paste-measures-btn" class="theme-btn"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        Pegar
       </button>
-      <button id="cromatica" class="theme-btn scale-control"
-        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
-        Cromática
+      <div id="status-indicators"
+        style="display: flex; gap: 8px; margin-left: auto; color: #ddd; font-size: 10px; padding-right: 15px; border-right: 1px solid #666; margin-right: 8px;">
+        <div style="cursor: pointer;" title="Ir a posición de cursor" onclick="jumpToPosition()">POS: <span
+            id="cursorPos" style="color: #4CAF50; font-weight: bold;">0</span></div>
+        <div style="cursor: pointer;" title="Ir a compás" onclick="jumpToMeasure()">COMP: <span id="measurePos"
+            style="color: #FF9800; font-weight: bold;">0</span> / <span id="totalMeasures"
+            style="color: #FF9800; font-weight: bold;">0</span></div>
+      </div>
+      <button id="empezar-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        Empezar
       </button>
-    </span>
-  </div>
+      <button id="undo-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        ←
+      </button>
+      <button id="redo-btn" class="theme-btn rhythm-only"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        →
+      </button>
+      <!-- Dependent/Independent Mode Toggle -->
+      <button id="html-mode-toggle" class="mode-btn"
+        style="padding: 3px; font-size: 14px; font-family: monospace; border: none; border-radius: 20px; background: #4CAF50; color: white; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 28px; height: 28px;"
+        title="Modo: Dependiente (armonía automática)">
+        <span id="html-mode-icon">🔗</span>
+      </button>
 
-  <!-- MUSICOLI: Global Timeline / Measure Selector -->
-  <div id="transport-ruler" style="
+      <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        title="Borrar compás seleccionado (o último si ninguno seleccionado)">
+        🗑️
+      </button>
+      <span id="escoci" style="display: none; margin-left: 20px;">
+        <select id="keyin" class="theme-btn scale-control"
+          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+          <option value="C" selected="">C</option>
+          <option value="C#">C#</option>
+          <option value="D">D</option>
+          <option value="D#">D#</option>
+          <option value="E">E</option>
+          <option value="F">F</option>
+          <option value="F#">F#</option>
+          <option value="G">G</option>
+          <option value="G#">G#</option>
+          <option value="A">A</option>
+          <option value="A#">A#</option>
+          <option value="B">B</option>
+        </select>
+        <button id="mayor" class="theme-btn scale-control"
+          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+          Mayor
+        </button>
+        <button id="menor" class="theme-btn scale-control"
+          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
+          Menor
+        </button>
+        <button id="cromatica" class="theme-btn scale-control"
+          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
+          Cromática
+        </button>
+      </span>
+    </div>
+
+    <!-- MUSICOLI: Global Timeline / Measure Selector -->
+    <div id="transport-ruler" style="
       height: 15px; 
       background-color: #222; 
       width: 100%; 
@@ -491,13 +535,14 @@
       user-select: none;
       display: flex;
   ">
-    <!-- Label area spacer -->
-    <div style="width: 80px; min-width: 80px; background: #333; border-right: 1px solid #555; height: 100%;"></div>
+      <!-- Label area spacer -->
+      <div id="ruler-label-spacer"
+        style="width: 80px; min-width: 80px; background: #333; border-right: 1px solid #555; height: 100%;"></div>
 
-    <!-- Interaction area -->
-    <div id="ruler-interactive-area" style="flex: 1; position: relative; height: 100%; overflow: hidden;">
-      <!-- Selection Rect -->
-      <div id="selection-range-indicator" style="
+      <!-- Interaction area -->
+      <div id="ruler-interactive-area" style="flex: 1; position: relative; height: 100%; overflow: hidden;">
+        <!-- Selection Rect -->
+        <div id="selection-range-indicator" style="
             position: absolute;
             height: 100%;
             background-color: rgba(255, 50, 50, 0.5);
@@ -508,1147 +553,1286 @@
             width: 0%;
             display: none; /* Hidden by default until selection */
         ">
-        <!-- Resize Handles -->
-        <div id="selection-handle-left" class="ruler-handle" style="
+          <!-- Resize Handles -->
+          <div id="selection-handle-left" class="ruler-handle" style="
                 position: absolute; left: 0; top: 0; bottom: 0; width: 8px; 
                 cursor: w-resize; background: rgba(255,255,255,0.4);
                 z-index: 10;
             "></div>
-        <div id="selection-handle-right" class="ruler-handle" style="
+          <div id="selection-handle-right" class="ruler-handle" style="
                 position: absolute; right: 0; top: 0; bottom: 0; width: 8px; 
                 cursor: e-resize; background: rgba(255,255,255,0.4);
                 z-index: 10;
             "></div>
-      </div>
-    </div>
-  </div>
-  <div id="example-container"
-    style="background-color: #666; color: white; display: flex; flex-direction:column ; gap: 10px;">
-    <div id="timeline-split-view" style="display: flex; width: 100%; overflow: hidden; min-height: 100px;">
-
-      <!-- LEFT COLUMN: LABELS (Fixed) -->
-      <div id="timeline-labels-column"
-        style="width: auto; min-width: 80px; display: flex; flex-direction: column; background: #666; z-index: 50; flex-shrink: 0; padding: 0;">
-
-        <div id="label-wrapper-s" class="label-row"
-          style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
-          <div id="voiceline-s" class="track-label"
-            style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
-            pianoS</div>
-        </div>
-
-        <div id="label-wrapper-a" class="label-row"
-          style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
-          <div id="voiceline-a" class="track-label"
-            style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
-            pianoA</div>
-        </div>
-
-        <div id="label-wrapper-t" class="label-row"
-          style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
-          <div id="voiceline-t" class="track-label"
-            style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
-            pianoT</div>
-        </div>
-
-        <div id="label-wrapper-b" class="label-row"
-          style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
-          <div id="voiceline-b" class="track-label"
-            style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
-            pianoB</div>
-        </div>
-
-      </div>
-
-      <!-- RIGHT COLUMN: SCROLLABLE CONTENT -->
-      <div id="tracks-scroll-viewport"
-        style="flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; flex-direction: column; padding: 0;">
-        <div id="macoti-tracks-container"
-          style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px;">
-
-          <!-- Row S -->
-          <div id="content-row-s" class="content-row"
-            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
-            <div id="notepi6"
-              style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: auto; flex: none;">
-            </div>
-            <div id="visual-track-s" class="visual-track-container"
-              style="display: none; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
-            </div>
-          </div>
-
-          <!-- Row A -->
-          <div id="content-row-a" class="content-row"
-            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
-            <div id="visual-track-a" class="visual-track-container"
-              style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
-            </div>
-          </div>
-
-          <!-- Row T -->
-          <div id="content-row-t" class="content-row"
-            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
-            <div id="visual-track-t" class="visual-track-container"
-              style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
-            </div>
-          </div>
-
-          <!-- Row B -->
-          <div id="content-row-b" class="content-row"
-            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
-            <div id="visual-track-b" class="visual-track-container"
-              style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
+    <div id="example-container"
+      style="background-color: #666; color: white; display: flex; flex-direction:column ; gap: 10px;">
+      <div id="timeline-split-view" style="display: flex; width: 100%; overflow: hidden; min-height: 100px;">
 
-    <!-- NEW FLEX ROW: Splits Lower Content into Left (Player+Editor) and Right (Midi Sidebar) -->
-    <div id="lower-content-flex-row" style="display: flex; gap: 10px; align-items: flex-start;">
+        <!-- LEFT COLUMN: LABELS (Fixed) -->
+        <div id="timeline-labels-column"
+          style="width: auto; min-width: 80px; display: flex; flex-direction: column; background: #666; z-index: 50; flex-shrink: 0; padding: 0;">
 
-      <!-- LEFT COLUMN WRAPPER: Contains Player + Main Editor Row -->
-      <div id="left-column-wrapper" style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+          <div id="label-wrapper-s" class="label-row"
+            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
+            <div id="voiceline-s" class="track-label"
+              style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
+              pianoS</div>
+          </div>
 
-        <!-- PLAYER SECTION -->
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
-          <midi-visualizer id="staffi" type="staff" style="display: none; color:#000;"> </midi-visualizer>
-          <section id="section15" style="color: #000;">
-            <midi-player id="player15" src="" sound-font="" visualizer="#staffi" style="display:block;"
-              data-js-focus-visible=""></midi-player>
-            <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px; flex-wrap: wrap;">
-              <button id="loop-btn" class="theme-btn"
-                style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-                🔁 Loop OFF
-              </button>
-              <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
-                <a id="title-display"
-                  style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
-                  title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
-                <span style="display:inline-flex; align-items: center; gap: 2px;">
-                  <input id="title-input" type="text"
-                    style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
-                    value="emotion">
-                  <span id="title-extension"
-                    style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
+          <div id="label-wrapper-a" class="label-row"
+            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
+            <div id="voiceline-a" class="track-label"
+              style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
+              pianoA</div>
+          </div>
+
+          <div id="label-wrapper-t" class="label-row"
+            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
+            <div id="voiceline-t" class="track-label"
+              style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
+              pianoT</div>
+          </div>
+
+          <div id="label-wrapper-b" class="label-row"
+            style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; border-right: 1px solid #777; margin: 0; padding: 0;">
+            <div id="voiceline-b" class="track-label"
+              style="padding: 0 10px; font-family: monospace; font-weight: bold; font-size: 11px; white-space: nowrap; color: white;">
+              pianoB</div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: SCROLLABLE CONTENT -->
+        <div id="tracks-scroll-viewport"
+          style="flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; flex-direction: column; padding: 0;">
+          <div id="macoti-tracks-container"
+            style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px;">
+
+            <!-- Row S -->
+            <div id="content-row-s" class="content-row"
+              style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
+              <div id="notepi6"
+                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: auto; flex: none;">
+              </div>
+              <div id="visual-track-s" class="visual-track-container"
+                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
+              </div>
+            </div>
+
+            <!-- Row A -->
+            <div id="content-row-a" class="content-row"
+              style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
+              <div id="visual-track-a" class="visual-track-container"
+                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
+              </div>
+            </div>
+
+            <!-- Row T -->
+            <div id="content-row-t" class="content-row"
+              style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
+              <div id="visual-track-t" class="visual-track-container"
+                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
+              </div>
+            </div>
+
+            <!-- Row B -->
+            <div id="content-row-b" class="content-row"
+              style="display: flex; align-items: center; min-height: 28.8px; height: 28.8px; width: 100%; margin: 0; padding: 0;">
+              <div id="visual-track-b" class="visual-track-container"
+                style="display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; width: auto; min-width: 0; overflow: visible; pointer-events: none; flex: none; height: 12px;">
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+
+      <!-- 2. EDITORS ROW (TWO EQUAL PANELS) -->
+      <div id="lower-content-flex-row" style="display: flex; gap: 10px; align-items: flex-start; width: 100%;">
+
+        <!-- LEFT COLUMN: Main Editors -->
+        <div id="left-column-wrapper"
+          style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+
+          <!-- 1. PLAYER SECTION (NOW IN LEFT COLUMN) -->
+          <div id="player-and-controls-section"
+            style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;">
+            <midi-visualizer id="staffi" type="staff" style="display: none; color:#000;"> </midi-visualizer>
+            <section id="section15"
+              style="color: #000; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 8px;">
+              <midi-player id="player15" src="" sound-font="" visualizer="#staffi"
+                style="display:block; width: 100%; margin-bottom: 5px;" data-js-focus-visible=""></midi-player>
+              <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px; flex-wrap: wrap;">
+                <button id="loop-btn" class="theme-btn"
+                  style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+                  🔁 Loop OFF
+                </button>
+                <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
+                  <a id="title-display"
+                    style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
+                    title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
+                  <span style="display:inline-flex; align-items: center; gap: 2px;">
+                    <input id="title-input" type="text"
+                      style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
+                      value="emotion">
+                    <span id="title-extension"
+                      style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
+                  </span>
+                  <a id="expi" style="display:none;"></a>
                 </span>
-                <a id="expi" style="display:none;"></a>
-              </span>
-              <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
+                <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
                             cursor:pointer;
                             text-decoration:underline;
                             color:#ddd;
                             font-family: monospace;
                             font-size: 14px;" data-listener-attached="true">
-                Resumen
-              </span>
-            </div>
-          </section>
-        </div>
-
-        <!-- EDITORS AND VARIATIONS ROW -->
-        <div id="editors-and-variations-row" style="display: flex; gap: 10px; align-items: flex-start;">
-
-          <!-- MAIN EDITORS CONTAINER -->
-          <div id="main-editors-container"
-            style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
-            <!-- SHARED: LADDER COMPONENT (Visible in Ritmo & Tonalidad) -->
-            <div id="editor-tonalidad-ladder" style="display: none;"></div>
-
-            <!-- 1. RHYTHM CONTROLS -->
-            <div id="rhythm-controls-container" class="mode-panel"
-              style="display: flex; flex-direction: column; gap: 5px;">
-
-              <div id="rhythm-color-info-div"
-                style="display: flex; align-items: center; gap: 1px; margin: 0px; font-size: 11px; font-family: monospace; background: transparent; padding: 1px; border-radius: 4px; border: none;">
+                  Resumen
+                </span>
               </div>
-              <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;"></div>
+            </section>
+          </div>
 
-              <!-- ONDA RITMO SECTION FOR RHYTHM MODE -->
-              <div id="ritmo-onda-ritmo-section"
-                style="margin-top: 10px; padding: 15px; background: #e0f7fa; border: 2px solid #00acc1; border-radius: 8px;">
-                <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                  🌊 Onda Ritmo
-                </h4>
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <label
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Modo:</label>
-                    <select id="ritmo-onda-ritmo-mode"
-                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="random">Aleatorio</option>
-                      <option value="cyclic">Cíclico (A-B-A-B...)</option>
-                      <option value="structure" selected>Estructura</option>
-                    </select>
+
+
+          <!-- EDITORS AND VARIATIONS ROW -->
+          <div id="editors-and-variations-row" style="display: flex; gap: 10px; align-items: flex-start;">
+
+            <!-- MAIN EDITORS CONTAINER -->
+            <div id="main-editors-container"
+              style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+              <!-- SHARED: LADDER COMPONENT (Visible in Ritmo & Tonalidad) -->
+              <div id="editor-tonalidad-ladder" style="display: none;"></div>
+
+              <!-- 1. RHYTHM CONTROLS -->
+              <div id="rhythm-controls-container" class="mode-panel"
+                style="display: flex; flex-direction: column; gap: 5px;">
+
+                <div id="rhythm-color-info-div"
+                  style="display: flex; align-items: center; gap: 1px; margin: 0px; font-size: 11px; font-family: monospace; background: transparent; padding: 1px; border-radius: 4px; border: none;">
+                </div>
+                <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;"></div>
+
+                <!-- ONDA RITMO SECTION FOR RHYTHM MODE -->
+                <div id="ritmo-onda-ritmo-section"
+                  style="margin-top: 10px; padding: 15px; background: #e0f7fa; border: 2px solid #00acc1; border-radius: 8px;">
+                  <h4
+                    style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
+                    🌊 Onda Ritmo
+                  </h4>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <label
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Modo:</label>
+                      <select id="ritmo-onda-ritmo-mode"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="random">Aleatorio</option>
+                        <option value="cyclic">Cíclico (A-B-A-B...)</option>
+                        <option value="structure" selected>Estructura</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <label
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Bloque:</label>
+                      <select id="ritmo-onda-ritmo-block"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="1">1 Compás</option>
+                        <option value="2">2 Compases</option>
+                        <option value="4">4 Compases</option>
+                        <option value="8">8 Compases</option>
+                        <option value="all" selected>Todo</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <label
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Acción:</label>
+                      <select id="ritmo-onda-ritmo-action"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="modify" selected>Modificar</option>
+                        <option value="generate">Generar</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <label
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Cant:</label>
+                      <input type="number" id="ritmo-onda-ritmo-count" value="4" min="1" max="100"
+                        style="width: 35px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                    </div>
+                    <button id="ritmo-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🎲 Onda Ritmo
+                    </button>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <label
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Bloque:</label>
-                    <select id="ritmo-onda-ritmo-block"
-                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="1">1 Compás</option>
-                      <option value="2">2 Compases</option>
-                      <option value="4">4 Compases</option>
-                      <option value="8">8 Compases</option>
-                      <option value="all" selected>Todo</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <label
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Acción:</label>
-                    <select id="ritmo-onda-ritmo-action"
-                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="modify" selected>Modificar</option>
-                      <option value="generate">Generar</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <label
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Cant:</label>
-                    <input type="number" id="ritmo-onda-ritmo-count" value="4" min="1" max="100"
-                      style="width: 35px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
-                  </div>
-                  <button id="ritmo-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
-                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🎲 Onda Ritmo
-                  </button>
                 </div>
               </div>
-            </div>
 
-            <!-- 2. TONALIDAD EDITOR -->
-            <div id="editor-tonalidad" class="mode-panel mode-editor editor-tonalidad" style="display: none;">
-              <!-- Content preserved -->
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 class="mode-editor-title">Editor de Paleta de Tonalidades</h3>
-                <select
-                  style="padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
-                  <option value="RGB">RGB</option>
-                  <option value="GREY_SCALE">GREY_SCALE</option>
-                  <option value="HSB">HSB</option>
-                  <option value="CMYK">CMYK</option>
-                  <option value="CMYKB">CMYKB</option>
-                </select>
-              </div>
-              <div id="harmonize-container"
-                style="margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+
+              <!-- TARAREO SECTION (Shared: Ritmo + Composicion) -->
+              <div id="comp-tarareo-section"
+                style="display: none; margin-bottom: 15px; padding: 15px; background: #f3e5f5; border: 2px solid #ab47bc; border-radius: 8px;">
                 <h4
-                  style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
-                  🎹 ZONA DE ARMONIZACIÓN</h4>
+                  style="margin: 0 0 10px 0; font-family: monospace; color: #7b1fa2; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                  🎤 Tarareo (Ritmo)
+                  <button id="tarareo-info-btn"
+                    style="background: #7b1fa2; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
+                    title="Información sobre el algoritmo">ℹ</button>
+                </h4>
 
-                <!-- PHRASE TOOLS (At Top, No Title) -->
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
-                    <input type="number" id="transpose-amount" value="0"
-                      style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
+                <!-- Tooltip de información (oculto por defecto) -->
+                <div id="tarareo-info-tooltip"
+                  style="display: none; margin-bottom: 10px; padding: 10px; background: #fff; border: 2px solid #7b1fa2; border-radius: 6px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); color: #333;">
+                  <div
+                    style="font-weight: bold; color: #4a148c; margin-bottom: 8px; border-bottom: 1px solid #7b1fa2; padding-bottom: 4px;">
+                    🎯 Algoritmo de Selección de
+                    Patrones</div>
+
+                  <div style="margin-bottom: 8px;">
+                    <strong style="color: #000;">Voz actual:</strong> <span id="current-voice-display"
+                      style="color: #6a1b9a; font-family: monospace; font-weight: bold;">S (Soprano)</span>
                   </div>
 
-                  <select id="transpose-unit"
-                    style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                    <option value="scale">Escala</option>
-                    <option value="semitone">Semitonos</option>
+                  <div
+                    style="background: #f3e5f5; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #e1bee7;">
+                    <strong style="color: #4a148c;">📋 Configuración por Voz:</strong>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #000;">
+                      <li><strong style="color: #1565C0;">S (Soprano):</strong> Random, tiempo normal</li>
+                      <li><strong style="color: #2E7D32;">A (Alto):</strong> Random, <em>descenso de tiempos (×0.5)</em>
+                      </li>
+                      <li><strong style="color: #E65100;">T (Tenor):</strong> Phonetic, tiempo normal</li>
+                      <li><strong style="color: #C62828;">B (Bajo):</strong> Phonetic, <em>descenso de tiempos
+                          (×0.5)</em></li>
+                    </ul>
+                  </div>
+
+                  <div style="margin-bottom: 8px;">
+                    <strong style="color: #000;">📝 Random (Aleatoria):</strong> <span style="color: #333;">Selección
+                      completamente al azar. Máxima variedad.</span>
+                  </div>
+
+                  <div style="margin-bottom: 8px;">
+                    <strong style="color: #000;">🧬 Phonetic (Fonética):</strong> <span style="color: #333;">Analiza
+                      cada
+                      sílaba:</span>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; color: #333;">
+                      <li>Consonantes largas → notas largas</li>
+                      <li>Vocales largas/diptongos → notas largas</li>
+                      <li>Sílabas simples → notas cortas</li>
+                    </ul>
+                  </div>
+
+                  <div style="margin-bottom: 8px;">
+                    <strong style="color: #000;">⏱️ Descenso de tiempos:</strong> <span style="color: #333;">Las
+                      duraciones se reducen a la mitad (negra → corchea, etc.)</span>
+                  </div>
+
+                  <div
+                    style="margin-bottom: 8px; background: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9;">
+                    <strong style="color: #1b5e20;">🎵 Nueva Opción: Generar Melodía</strong>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #333;">
+                      <li>Calcula el movimiento melódico según las consonantes.</li>
+                      <li><strong>Consonantes post-vocal:</strong> Sube el tono (ej. "trans" ↑).</li>
+                      <li><strong>Consonantes pre-vocal:</strong> Baja el tono (ej. "bla" ↓).</li>
+                      <li><strong>Diptongos:</strong> Amplifican el movimiento.</li>
+                    </ul>
+                  </div>
+
+                  <div
+                    style="background: #fff3e0; padding: 8px; border-radius: 4px; margin-top: 10px; border-left: 3px solid #ff9800; color: #333;">
+                    <strong>💡 Automático:</strong> El algoritmo cambia automáticamente según la voz activa.
+                  </div>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <label
+                    style="font-family: monospace; font-size: 12px; font-weight: bold; color: #7b1fa2;">Estrategia:</label>
+                  <select id="tarareo-strategy"
+                    style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ab47bc; border-radius: 4px; background: white; color: #333; flex-grow: 1;">
+                    <option value="syllabic-strict">1. Silábica Estricta (Random)</option>
+                    <option value="syllabic-grouped" selected>2. Silábica Agrupada (Random)</option>
+                    <option value="phonetic-smart">3. Fonética Inteligente (Agrupada)</option>
+                    <option value="syllabic-strict-smart">4. Estricta Inteligente (No Agrupada)</option>
+                    <option value="grouped-double-random">5. Doble Random (S ≠ T)</option>
                   </select>
 
-                  <button class="theme-btn" onclick="triggerTranspose(); return false;"
-                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    Trasponer
-                  </button>
-
-                  <button class="theme-btn" onclick="triggerDuplicate(); return false;"
-                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    Duplicar
-                  </button>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                  <button id="harmonize-btn" class="theme-btn"
-                    style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">✨
-                    Armonizar desde esta voz</button>
-                  <button id="harmonize-scale-btn" class="theme-btn"
-                    style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">🎼
-                    Ajustar a escala</button>
-                </div>
-
-                <!-- ONDA TOOL (Integrated) -->
-                <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
-                <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
-                  🌊 Onda (Modulación)</h4>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Amp:</label>
-                    <select id="onda-amp"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3" selected>3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="6">6</option>
-                      <option value="7">7</option>
-                      <option value="8">8</option>
-                      <option value="12">12</option>
-                    </select>
+                  <div
+                    style="display: flex; align-items: center; gap: 5px; background: #e1bee7; padding: 4px 8px; border-radius: 4px;">
+                    <input type="checkbox" id="tarareo-melodic-mode" style="cursor: pointer;">
+                    <label for="tarareo-melodic-mode"
+                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #4a148c; cursor: pointer;">Generar
+                      Melodía (Consonantes)</label>
                   </div>
-
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Freq:</label>
-                    <select id="onda-freq"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                      <option value="0.02">Muy Lento</option>
-                      <option value="0.05">Lento</option>
-                      <option value="0.1">Medio</option>
-                      <option value="0.15" selected>Normal</option>
-                      <option value="0.25">Rápido</option>
-                      <option value="0.4">Muy Rápido</option>
-                    </select>
-                  </div>
-
-                  <button id="onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
-                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🌊 Aplicar
-                  </button>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
+                  <textarea id="tarareo-input" rows="3"
+                    style="flex-grow: 1; font-family: monospace; font-size: 14px; padding: 8px; border: 1px solid #ce93d8; border-radius: 4px; resize: vertical;"
+                    placeholder="Escribe tu ritmo... (ej: ta ta ta ta)"></textarea>
+                  <button id="tarareo-submit" class="theme-btn" onclick="tarareoAritmo(); return false;"
+                    style="border: none; padding: 10px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; background: #ab47bc; color: white; display: flex; align-items: center; justify-content: center; height: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">→</button>
+                </div>
+                <div id="rhythm-notation-display" style="margin-top: 10px; display: flex; gap: 5px; min-height: 10px;">
+                </div>
+                <div id="tarareo-scale-info"
+                  style="margin-top: 10px; padding: 8px; background: #ffffff; border: 1px solid #e1bee7; border-radius: 4px; font-family: monospace; font-size: 11px; color: #4a148c; min-height: 20px; display: none;">
+                  <!-- Scale info will appear here -->
                 </div>
               </div>
-            </div>
 
-            <!-- 3. LYRICS EDITOR -->
-            <div id="editor-lyrics" class="mode-panel mode-editor editor-lyrics" style="display: none;">
-              <div style="margin-bottom: 15px;">
-                <h3 class="mode-editor-title">Editor de Lyrics</h3>
-              </div>
-              <div style="padding: 20px; text-align: center; color: #1a1a1a; font-family: monospace;">Configuración de
-                lyrics próximamente...</div>
-            </div>
+              <!-- 2. TONALIDAD EDITOR -->
+              <div id="editor-tonalidad" class="mode-panel mode-editor editor-tonalidad" style="display: none;">
+                <!-- Content preserved -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                  <h3 class="mode-editor-title">Editor de Paleta de Tonalidades</h3>
+                  <select
+                    style="padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
+                    <option value="RGB">RGB</option>
+                    <option value="GREY_SCALE">GREY_SCALE</option>
+                    <option value="HSB">HSB</option>
+                    <option value="CMYK">CMYK</option>
+                    <option value="CMYKB">CMYKB</option>
+                  </select>
+                </div>
+                <div id="harmonize-container"
+                  style="margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                  <h4
+                    style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
+                    🎹 ZONA DE ARMONIZACIÓN</h4>
 
-            <!-- 4. TARAREO -->
-            <div id="editor-tarareo" class="mode-panel"
-              style="padding: 15px; background: #f3e5f5; border-radius: 8px; display: none;">
-              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
-                <input type="text" id="tarareo-input" value="ta ta ta ta"
-                  style="width: 250px; font-family: monospace; font-size: 14px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px;">
-                <button id="tarareo-submit" class="theme-btn"
-                  style="border: none; padding: 6px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">→</button>
-              </div>
-            </div>
-
-            <!-- 5. DINAMICA EDITOR -->
-            <div id="editor-dinamica" class="mode-panel" style="display: none;">
-              <!-- NEW: DYNAMIC SHAPE MODELING -->
-              <div id="dynamic-shape-container"
-                style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border: 2px solid #90caf9; border-radius: 8px;">
-                <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #1565c0; font-size: 14px; font-weight: bold;">
-                  🌊 Modelado de Dinámica (Volumen/Velocity)
-                </h4>
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Forma:</label>
-                    <select id="dynamic-shape-type"
-                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px; background: white; color: #333;">
-                      <option value="crescendo" selected>Crescendo</option>
-                      <option value="diminuendo">Diminuendo</option>
-                      <option value="pico">Pico (Peak)</option>
-                      <option value="valle">Valle (Valley)</option>
-                      <option value="uniforme">Uniforme + Acento</option>
-                      <option value="ondas">Ondas (Wave)</option>
-                    </select>
-                  </div>
-
-                  <div id="dynamic-params-standard" style="display: flex; gap: 10px; align-items: center;">
+                  <!-- PHRASE TOOLS (At Top, No Title) -->
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Min:</label>
-                      <input type="number" id="dynamic-min" value="40" min="0" max="127"
-                        style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
+                      <input type="number" id="transpose-amount" value="0"
+                        style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
                     </div>
+
+                    <select id="transpose-unit"
+                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                      <option value="scale">Escala</option>
+                      <option value="semitone">Semitonos</option>
+                    </select>
+
+                    <button class="theme-btn" onclick="triggerTranspose(); return false;"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      Trasponer
+                    </button>
+
+                    <button class="theme-btn" onclick="triggerDuplicate(); return false;"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      Duplicar
+                    </button>
+                  </div>
+
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button id="harmonize-btn" class="theme-btn"
+                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">✨
+                      Armonizar desde esta voz</button>
+                    <button id="harmonize-scale-btn" class="theme-btn"
+                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">🎼
+                      Ajustar a escala</button>
+                  </div>
+
+                  <!-- ONDA TOOL (Integrated) -->
+                  <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
+                  <h4
+                    style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
+                    🌊 Onda (Modulación)</h4>
+
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Max:</label>
-                      <input type="number" id="dynamic-max" value="110" min="0" max="127"
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Amp:</label>
+                      <select id="onda-amp"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="12">12</option>
+                      </select>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Freq:</label>
+                      <select id="onda-freq"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
+                        <option value="0.02">Muy Lento</option>
+                        <option value="0.05">Lento</option>
+                        <option value="0.1">Medio</option>
+                        <option value="0.15" selected>Normal</option>
+                        <option value="0.25">Rápido</option>
+                        <option value="0.4">Muy Rápido</option>
+                      </select>
+                    </div>
+
+                    <button id="onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🌊 Aplicar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. LYRICS EDITOR MOVED TO RIGHT COLUMN -->
+              <!-- 5. DINAMICA EDITOR -->
+              <div id="editor-dinamica" class="mode-panel" style="display: none;">
+                <!-- NEW: DYNAMIC SHAPE MODELING -->
+                <div id="dynamic-shape-container"
+                  style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border: 2px solid #90caf9; border-radius: 8px;">
+                  <h4
+                    style="margin: 0 0 10px 0; font-family: monospace; color: #1565c0; font-size: 14px; font-weight: bold;">
+                    🌊 Modelado de Dinámica (Volumen/Velocity)
+                  </h4>
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Forma:</label>
+                      <select id="dynamic-shape-type"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px; background: white; color: #333;">
+                        <option value="crescendo" selected>Crescendo</option>
+                        <option value="diminuendo">Diminuendo</option>
+                        <option value="pico">Pico (Peak)</option>
+                        <option value="valle">Valle (Valley)</option>
+                        <option value="uniforme">Uniforme + Acento</option>
+                        <option value="ondas">Ondas (Wave)</option>
+                      </select>
+                    </div>
+
+                    <div id="dynamic-params-standard" style="display: flex; gap: 10px; align-items: center;">
+                      <div style="display: flex; align-items: center; gap: 5px;">
+                        <label
+                          style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Min:</label>
+                        <input type="number" id="dynamic-min" value="40" min="0" max="127"
+                          style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 5px;">
+                        <label
+                          style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Max:</label>
+                        <input type="number" id="dynamic-max" value="110" min="0" max="127"
+                          style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
+                      </div>
+                    </div>
+
+                    <div id="dynamic-params-extra" style="display: none; align-items: center; gap: 5px;">
+                      <label id="dynamic-extra-label"
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Nota
+                        N:</label>
+                      <input type="number" id="dynamic-extra-val" value="1" min="1" max="100" step="0.1"
                         style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
                     </div>
-                  </div>
 
-                  <div id="dynamic-params-extra" style="display: none; align-items: center; gap: 5px;">
-                    <label id="dynamic-extra-label"
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Nota
-                      N:</label>
-                    <input type="number" id="dynamic-extra-val" value="1" min="1" max="100" step="0.1"
-                      style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
-                  </div>
+                    <div id="dynamic-mode-beats-selector"
+                      style="display: none; align-items: center; gap: 4px; border: 1px dotted #1565c0; padding: 2px 4px; border-radius: 4px;">
+                      <label
+                        style="font-family: monospace; font-size: 10px; font-weight: bold; color: #1565c0;">Beats:</label>
+                      <div style="display: flex; gap: 2px;">
+                        <input type="checkbox" id="dynamic-beat-1" checked title="Beat 1">
+                        <input type="checkbox" id="dynamic-beat-2" title="Beat 2">
+                        <input type="checkbox" id="dynamic-beat-3" title="Beat 3">
+                        <input type="checkbox" id="dynamic-beat-4" title="Beat 4">
+                      </div>
+                    </div>
 
-                  <button id="dynamic-apply-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
-                    style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; background: #2196f3; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ✨ Aplicar
-                  </button>
-                </div>
-              </div>
-
-              <h3 style="margin-top: 5px; margin-bottom: 20px; font-family: monospace; color: #333;">🎚️ Mezclador de
-                Volúmenes</h3>
-              <div
-                style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #90caf9; margin-bottom: 20px;">
-                <label for="master-volume"
-                  style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 10px; color: #1565c0; font-size: 14px;">🔊
-                  Volumen General</label>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                  <span style="font-family: monospace; font-size: 12px; color: #666;">Min</span>
-                  <input type="range" id="master-volume" min="0" max="100" value="50"
-                    oninput="setMasterVolume(this.value)"
-                    style="flex-grow: 1; cursor: pointer; height: 8px; border-radius: 4px; background: #2196F3; appearance: auto;">
-                  <span style="font-family: monospace; font-size: 12px; color: #666;">Max</span>
-                </div>
-              </div>
-              <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
-                <label
-                  style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 15px; color: #e65100; font-size: 14px;">🎛️
-                  Mezcla por Pistas</label>
-                <div style="display: flex; justify-content: space-around; text-align: center;">
-                  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <input type="range" orient="vertical" min="0" max="127" value="100"
-                      oninput="updateTrackVolume('s', this.value)"
-                      style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
-                    <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">S</span><span
-                      style="font-family: monospace; color: #666; font-size: 10px;">Soprano</span>
-                  </div>
-                  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <input type="range" orient="vertical" min="0" max="127" value="100"
-                      oninput="updateTrackVolume('a', this.value)"
-                      style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
-                    <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">A</span><span
-                      style="font-family: monospace; color: #666; font-size: 10px;">Contralto</span>
-                  </div>
-                  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <input type="range" orient="vertical" min="0" max="127" value="100"
-                      oninput="updateTrackVolume('t', this.value)"
-                      style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
-                    <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">T</span><span
-                      style="font-family: monospace; color: #666; font-size: 10px;">Tenor</span>
-                  </div>
-                  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <input type="range" orient="vertical" min="0" max="127" value="100"
-                      oninput="updateTrackVolume('b', this.value)"
-                      style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
-                    <span style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">B</span><span
-                      style="font-family: monospace; color: #666; font-size: 10px;">Bajo</span>
+                    <button id="dynamic-apply-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; background: #2196f3; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      ✨ Aplicar
+                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- 6. INSTRUMENTATION PANEL -->
-            <div id="panel-modo-instrumentacion" class="mode-panel"
-              style="display: none; flex-direction: column; gap: 10px; padding: 10px; background: #f5f5f5; border-radius: 8px; margin-top: 10px;">
-
-              <h3 style="margin: 0 0 15px 0; font-family: monospace; color: #333; font-size: 16px;">🎺 Configuración
-                de
-                Instrumentos</h3>
-
-              <!-- Selector general para cambiar todos los instrumentos -->
-              <div
-                style="background: #fff; padding: 15px; border-radius: 4px; border: 2px solid #2196F3; margin-bottom: 15px;">
-                <label
-                  style="font-family: monospace; font-weight: bold; color: #333; font-size: 13px; display: block; margin-bottom: 8px;">
-                  🎹 Instrumento General (aplica a todas las voces):
-                </label>
-                <select id="instrument-selector"
-                  style="width: 100%; padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
-                  <optgroup label="Percussion">
-                    <option value="perc">🥁 Percussion (Channel 10)</option>
-                  </optgroup>
-                  <optgroup label="Piano">
-                    <option value="1" selected>1 - Acoustic Grand Piano</option>
-                    <option value="2">2 - Bright Acoustic Piano</option>
-                    <option value="3">3 - Electric Grand Piano</option>
-                    <option value="4">4 - Honky-tonk Piano</option>
-                    <option value="5">5 - Electric Piano 1</option>
-                    <option value="6">6 - Electric Piano 2</option>
-                    <option value="7">7 - Harpsichord</option>
-                    <option value="8">8 - Clavinet</option>
-                  </optgroup>
-                  <optgroup label="Chromatic Percussion">
-                    <option value="9">9 - Celesta</option>
-                    <option value="10">10 - Glockenspiel</option>
-                    <option value="11">11 - Music Box</option>
-                    <option value="12">12 - Vibraphone</option>
-                    <option value="13">13 - Marimba</option>
-                    <option value="14">14 - Xylophone</option>
-                  </optgroup>
-                  <optgroup label="Guitar">
-                    <option value="25">25 - Acoustic Guitar (nylon)</option>
-                    <option value="26">26 - Acoustic Guitar (steel)</option>
-                    <option value="27">27 - Electric Guitar (jazz)</option>
-                    <option value="28">28 - Electric Guitar (clean)</option>
-                    <option value="29">29 - Electric Guitar (muted)</option>
-                    <option value="30">30 - Overdriven Guitar</option>
-                    <option value="31">31 - Distortion Guitar</option>
-                  </optgroup>
-                  <optgroup label="Bass">
-                    <option value="33">33 - Acoustic Bass</option>
-                    <option value="34">34 - Electric Bass (finger)</option>
-                    <option value="35">35 - Electric Bass (pick)</option>
-                    <option value="36">36 - Fretless Bass</option>
-                  </optgroup>
-                  <optgroup label="Strings">
-                    <option value="41">41 - Violin</option>
-                    <option value="42">42 - Viola</option>
-                    <option value="43">43 - Cello</option>
-                    <option value="44">44 - Contrabass</option>
-                    <option value="46">46 - Pizzicato Strings</option>
-                    <option value="47">47 - Orchestral Harp</option>
-                  </optgroup>
-                  <optgroup label="Brass">
-                    <option value="57">57 - Trumpet</option>
-                    <option value="58">58 - Trombone</option>
-                    <option value="59">59 - Tuba</option>
-                    <option value="60">60 - Muted Trumpet</option>
-                    <option value="61">61 - French Horn</option>
-                  </optgroup>
-                  <optgroup label="Reed">
-                    <option value="65">65 - Soprano Sax</option>
-                    <option value="66">66 - Alto Sax</option>
-                    <option value="67">67 - Tenor Sax</option>
-                    <option value="68">68 - Baritone Sax</option>
-                    <option value="69">69 - Oboe</option>
-                    <option value="70">70 - English Horn</option>
-                    <option value="71">71 - Bassoon</option>
-                    <option value="72">72 - Clarinet</option>
-                  </optgroup>
-                  <optgroup label="Pipe">
-                    <option value="73">73 - Piccolo</option>
-                    <option value="74">74 - Flute</option>
-                    <option value="75">75 - Recorder</option>
-                    <option value="76">76 - Pan Flute</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              <!-- Tabla de instrumentos por voz -->
-              <table
-                style="width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <thead>
-                  <tr style="background: #333; color: white;">
-                    <th
-                      style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
-                      Voz</th>
-                    <th
-                      style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
-                      Nombre</th>
-                    <th style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px;">Instrumento
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Soprano -->
-                  <tr style="border-bottom: 1px solid #ddd;">
-                    <td
-                      style="padding: 10px; font-family: monospace; font-weight: bold; color: #2196F3; border-right: 1px solid #ddd;">
-                      S</td>
-                    <td style="padding: 10px; border-right: 1px solid #ddd;">
-                      <input type="text" id="track-name-s" placeholder="Nombre de pista"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
-                    </td>
-                    <td style="padding: 10px;">
-                      <select id="track-instrument-s"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
-                        <optgroup label="Percussion">
-                          <option value="perc">🥁 Percussion (Channel 10)</option>
-                        </optgroup>
-                        <optgroup label="Piano">
-                          <option value="1" selected>1 - Acoustic Grand Piano</option>
-                          <option value="2">2 - Bright Acoustic Piano</option>
-                          <option value="3">3 - Electric Grand Piano</option>
-                          <option value="4">4 - Honky-tonk Piano</option>
-                          <option value="5">5 - Electric Piano 1</option>
-                          <option value="6">6 - Electric Piano 2</option>
-                          <option value="7">7 - Harpsichord</option>
-                          <option value="8">8 - Clavinet</option>
-                        </optgroup>
-                        <optgroup label="Chromatic Percussion">
-                          <option value="9">9 - Celesta</option>
-                          <option value="10">10 - Glockenspiel</option>
-                          <option value="11">11 - Music Box</option>
-                          <option value="12">12 - Vibraphone</option>
-                          <option value="13">13 - Marimba</option>
-                          <option value="14">14 - Xylophone</option>
-                        </optgroup>
-                        <optgroup label="Guitar">
-                          <option value="25">25 - Acoustic Guitar (nylon)</option>
-                          <option value="26">26 - Acoustic Guitar (steel)</option>
-                          <option value="27">27 - Electric Guitar (jazz)</option>
-                          <option value="28">28 - Electric Guitar (clean)</option>
-                          <option value="29">29 - Electric Guitar (muted)</option>
-                          <option value="30">30 - Overdriven Guitar</option>
-                          <option value="31">31 - Distortion Guitar</option>
-                        </optgroup>
-                        <optgroup label="Bass">
-                          <option value="33">33 - Acoustic Bass</option>
-                          <option value="34">34 - Electric Bass (finger)</option>
-                          <option value="35">35 - Electric Bass (pick)</option>
-                          <option value="36">36 - Fretless Bass</option>
-                        </optgroup>
-                        <optgroup label="Strings">
-                          <option value="41">41 - Violin</option>
-                          <option value="42">42 - Viola</option>
-                          <option value="43">43 - Cello</option>
-                          <option value="44">44 - Contrabass</option>
-                          <option value="46">46 - Pizzicato Strings</option>
-                          <option value="47">47 - Orchestral Harp</option>
-                        </optgroup>
-                        <optgroup label="Brass">
-                          <option value="57">57 - Trumpet</option>
-                          <option value="58">58 - Trombone</option>
-                          <option value="59">59 - Tuba</option>
-                          <option value="60">60 - Muted Trumpet</option>
-                          <option value="61">61 - French Horn</option>
-                        </optgroup>
-                        <optgroup label="Reed">
-                          <option value="65">65 - Soprano Sax</option>
-                          <option value="66">66 - Alto Sax</option>
-                          <option value="67">67 - Tenor Sax</option>
-                          <option value="68">68 - Baritone Sax</option>
-                          <option value="69">69 - Oboe</option>
-                          <option value="70">70 - English Horn</option>
-                          <option value="71">71 - Bassoon</option>
-                          <option value="72">72 - Clarinet</option>
-                        </optgroup>
-                        <optgroup label="Pipe">
-                          <option value="73">73 - Piccolo</option>
-                          <option value="74">74 - Flute</option>
-                          <option value="75">75 - Recorder</option>
-                          <option value="76">76 - Pan Flute</option>
-                        </optgroup>
-                      </select>
-                    </td>
-                  </tr>
-
-                  <!-- Contralto -->
-                  <tr style="border-bottom: 1px solid #ddd;">
-                    <td
-                      style="padding: 10px; font-family: monospace; font-weight: bold; color: #4CAF50; border-right: 1px solid #ddd;">
-                      A</td>
-                    <td style="padding: 10px; border-right: 1px solid #ddd;">
-                      <input type="text" id="track-name-a" placeholder="Nombre de pista"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
-                    </td>
-                    <td style="padding: 10px;">
-                      <select id="track-instrument-a"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
-                        <optgroup label="Percussion">
-                          <option value="perc">🥁 Percussion (Channel 10)</option>
-                        </optgroup>
-                        <optgroup label="Piano">
-                          <option value="1" selected>1 - Acoustic Grand Piano</option>
-                          <option value="2">2 - Bright Acoustic Piano</option>
-                          <option value="3">3 - Electric Grand Piano</option>
-                          <option value="4">4 - Honky-tonk Piano</option>
-                          <option value="5">5 - Electric Piano 1</option>
-                          <option value="6">6 - Electric Piano 2</option>
-                          <option value="7">7 - Harpsichord</option>
-                          <option value="8">8 - Clavinet</option>
-                        </optgroup>
-                        <optgroup label="Chromatic Percussion">
-                          <option value="9">9 - Celesta</option>
-                          <option value="10">10 - Glockenspiel</option>
-                          <option value="11">11 - Music Box</option>
-                          <option value="12">12 - Vibraphone</option>
-                          <option value="13">13 - Marimba</option>
-                          <option value="14">14 - Xylophone</option>
-                        </optgroup>
-                        <optgroup label="Guitar">
-                          <option value="25">25 - Acoustic Guitar (nylon)</option>
-                          <option value="26">26 - Acoustic Guitar (steel)</option>
-                          <option value="27">27 - Electric Guitar (jazz)</option>
-                          <option value="28">28 - Electric Guitar (clean)</option>
-                          <option value="29">29 - Electric Guitar (muted)</option>
-                          <option value="30">30 - Overdriven Guitar</option>
-                          <option value="31">31 - Distortion Guitar</option>
-                        </optgroup>
-                        <optgroup label="Bass">
-                          <option value="33">33 - Acoustic Bass</option>
-                          <option value="34">34 - Electric Bass (finger)</option>
-                          <option value="35">35 - Electric Bass (pick)</option>
-                          <option value="36">36 - Fretless Bass</option>
-                        </optgroup>
-                        <optgroup label="Strings">
-                          <option value="41">41 - Violin</option>
-                          <option value="42">42 - Viola</option>
-                          <option value="43">43 - Cello</option>
-                          <option value="44">44 - Contrabass</option>
-                          <option value="46">46 - Pizzicato Strings</option>
-                          <option value="47">47 - Orchestral Harp</option>
-                        </optgroup>
-                        <optgroup label="Brass">
-                          <option value="57">57 - Trumpet</option>
-                          <option value="58">58 - Trombone</option>
-                          <option value="59">59 - Tuba</option>
-                          <option value="60">60 - Muted Trumpet</option>
-                          <option value="61">61 - French Horn</option>
-                        </optgroup>
-                        <optgroup label="Reed">
-                          <option value="65">65 - Soprano Sax</option>
-                          <option value="66">66 - Alto Sax</option>
-                          <option value="67">67 - Tenor Sax</option>
-                          <option value="68">68 - Baritone Sax</option>
-                          <option value="69">69 - Oboe</option>
-                          <option value="70">70 - English Horn</option>
-                          <option value="71">71 - Bassoon</option>
-                          <option value="72">72 - Clarinet</option>
-                        </optgroup>
-                        <optgroup label="Pipe">
-                          <option value="73">73 - Piccolo</option>
-                          <option value="74">74 - Flute</option>
-                          <option value="75">75 - Recorder</option>
-                          <option value="76">76 - Pan Flute</option>
-                        </optgroup>
-                      </select>
-                    </td>
-                  </tr>
-
-                  <!-- Tenor -->
-                  <tr style="border-bottom: 1px solid #ddd;">
-                    <td
-                      style="padding: 10px; font-family: monospace; font-weight: bold; color: #FF9800; border-right: 1px solid #ddd;">
-                      T</td>
-                    <td style="padding: 10px; border-right: 1px solid #ddd;">
-                      <input type="text" id="track-name-t" placeholder="Nombre de pista"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
-                    </td>
-                    <td style="padding: 10px;">
-                      <select id="track-instrument-t"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
-                        <optgroup label="Percussion">
-                          <option value="perc">🥁 Percussion (Channel 10)</option>
-                        </optgroup>
-                        <optgroup label="Piano">
-                          <option value="1" selected>1 - Acoustic Grand Piano</option>
-                          <option value="2">2 - Bright Acoustic Piano</option>
-                          <option value="3">3 - Electric Grand Piano</option>
-                          <option value="4">4 - Honky-tonk Piano</option>
-                          <option value="5">5 - Electric Piano 1</option>
-                          <option value="6">6 - Electric Piano 2</option>
-                          <option value="7">7 - Harpsichord</option>
-                          <option value="8">8 - Clavinet</option>
-                        </optgroup>
-                        <optgroup label="Chromatic Percussion">
-                          <option value="9">9 - Celesta</option>
-                          <option value="10">10 - Glockenspiel</option>
-                          <option value="11">11 - Music Box</option>
-                          <option value="12">12 - Vibraphone</option>
-                          <option value="13">13 - Marimba</option>
-                          <option value="14">14 - Xylophone</option>
-                        </optgroup>
-                        <optgroup label="Guitar">
-                          <option value="25">25 - Acoustic Guitar (nylon)</option>
-                          <option value="26">26 - Acoustic Guitar (steel)</option>
-                          <option value="27">27 - Electric Guitar (jazz)</option>
-                          <option value="28">28 - Electric Guitar (clean)</option>
-                          <option value="29">29 - Electric Guitar (muted)</option>
-                          <option value="30">30 - Overdriven Guitar</option>
-                          <option value="31">31 - Distortion Guitar</option>
-                        </optgroup>
-                        <optgroup label="Bass">
-                          <option value="33">33 - Acoustic Bass</option>
-                          <option value="34">34 - Electric Bass (finger)</option>
-                          <option value="35">35 - Electric Bass (pick)</option>
-                          <option value="36">36 - Fretless Bass</option>
-                        </optgroup>
-                        <optgroup label="Strings">
-                          <option value="41">41 - Violin</option>
-                          <option value="42">42 - Viola</option>
-                          <option value="43">43 - Cello</option>
-                          <option value="44">44 - Contrabass</option>
-                          <option value="46">46 - Pizzicato Strings</option>
-                          <option value="47">47 - Orchestral Harp</option>
-                        </optgroup>
-                        <optgroup label="Brass">
-                          <option value="57">57 - Trumpet</option>
-                          <option value="58">58 - Trombone</option>
-                          <option value="59">59 - Tuba</option>
-                          <option value="60">60 - Muted Trumpet</option>
-                          <option value="61">61 - French Horn</option>
-                        </optgroup>
-                        <optgroup label="Reed">
-                          <option value="65">65 - Soprano Sax</option>
-                          <option value="66">66 - Alto Sax</option>
-                          <option value="67">67 - Tenor Sax</option>
-                          <option value="68">68 - Baritone Sax</option>
-                          <option value="69">69 - Oboe</option>
-                          <option value="70">70 - English Horn</option>
-                          <option value="71">71 - Bassoon</option>
-                          <option value="72">72 - Clarinet</option>
-                        </optgroup>
-                        <optgroup label="Pipe">
-                          <option value="73">73 - Piccolo</option>
-                          <option value="74">74 - Flute</option>
-                          <option value="75">75 - Recorder</option>
-                          <option value="76">76 - Pan Flute</option>
-                        </optgroup>
-                      </select>
-                    </td>
-                  </tr>
-
-                  <!-- Bajo -->
-                  <tr>
-                    <td
-                      style="padding: 10px; font-family: monospace; font-weight: bold; color: #F44336; border-right: 1px solid #ddd;">
-                      B</td>
-                    <td style="padding: 10px; border-right: 1px solid #ddd;">
-                      <input type="text" id="track-name-b" placeholder="Nombre de pista"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
-                    </td>
-                    <td style="padding: 10px;">
-                      <select id="track-instrument-b"
-                        style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
-                        <optgroup label="Percussion">
-                          <option value="perc">🥁 Percussion (Channel 10)</option>
-                        </optgroup>
-                        <optgroup label="Piano">
-                          <option value="1" selected>1 - Acoustic Grand Piano</option>
-                          <option value="2">2 - Bright Acoustic Piano</option>
-                          <option value="3">3 - Electric Grand Piano</option>
-                          <option value="4">4 - Honky-tonk Piano</option>
-                          <option value="5">5 - Electric Piano 1</option>
-                          <option value="6">6 - Electric Piano 2</option>
-                          <option value="7">7 - Harpsichord</option>
-                          <option value="8">8 - Clavinet</option>
-                        </optgroup>
-                        <optgroup label="Chromatic Percussion">
-                          <option value="9">9 - Celesta</option>
-                          <option value="10">10 - Glockenspiel</option>
-                          <option value="11">11 - Music Box</option>
-                          <option value="12">12 - Vibraphone</option>
-                          <option value="13">13 - Marimba</option>
-                          <option value="14">14 - Xylophone</option>
-                        </optgroup>
-                        <optgroup label="Guitar">
-                          <option value="25">25 - Acoustic Guitar (nylon)</option>
-                          <option value="26">26 - Acoustic Guitar (steel)</option>
-                          <option value="27">27 - Electric Guitar (jazz)</option>
-                          <option value="28">28 - Electric Guitar (clean)</option>
-                          <option value="29">29 - Electric Guitar (muted)</option>
-                          <option value="30">30 - Overdriven Guitar</option>
-                          <option value="31">31 - Distortion Guitar</option>
-                        </optgroup>
-                        <optgroup label="Bass">
-                          <option value="33">33 - Acoustic Bass</option>
-                          <option value="34">34 - Electric Bass (finger)</option>
-                          <option value="35">35 - Electric Bass (pick)</option>
-                          <option value="36">36 - Fretless Bass</option>
-                        </optgroup>
-                        <optgroup label="Strings">
-                          <option value="41">41 - Violin</option>
-                          <option value="42">42 - Viola</option>
-                          <option value="43">43 - Cello</option>
-                          <option value="44">44 - Contrabass</option>
-                          <option value="46">46 - Pizzicato Strings</option>
-                          <option value="47">47 - Orchestral Harp</option>
-                        </optgroup>
-                        <optgroup label="Brass">
-                          <option value="57">57 - Trumpet</option>
-                          <option value="58">58 - Trombone</option>
-                          <option value="59">59 - Tuba</option>
-                          <option value="60">60 - Muted Trumpet</option>
-                          <option value="61">61 - French Horn</option>
-                        </optgroup>
-                        <optgroup label="Reed">
-                          <option value="65">65 - Soprano Sax</option>
-                          <option value="66">66 - Alto Sax</option>
-                          <option value="67">67 - Tenor Sax</option>
-                          <option value="68">68 - Baritone Sax</option>
-                          <option value="69">69 - Oboe</option>
-                          <option value="70">70 - English Horn</option>
-                          <option value="71">71 - Bassoon</option>
-                          <option value="72">72 - Clarinet</option>
-                        </optgroup>
-                        <optgroup label="Pipe">
-                          <option value="73">73 - Piccolo</option>
-                          <option value="74">74 - Flute</option>
-                          <option value="75">75 - Recorder</option>
-                          <option value="76">76 - Pan Flute</option>
-                        </optgroup>
-                      </select>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div
-                style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; border-left: 4px solid #2196F3;">
-                <p style="margin: 0; font-family: monospace; font-size: 12px; color: #1565C0;">
-                  💡 <strong>Tip:</strong> Los cambios se guardan automáticamente al modificar los selectores. Usa el
-                  botón "Guardar" para confirmar los nombres de pista.
-                </p>
-              </div>
-
-              <div style="margin-top: 10px; text-align: right;">
-                <button id="save-tracks-config"
-                  style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 14px;">💾
-                  Guardar Configuración</button>
-              </div>
-            </div>
-
-            <!-- 7. COMPOSITION EDITOR -->
-            <div id="editor-composicion" class="mode-panel mode-editor editor-composicion" style="display: none;">
-
-              <!-- ONDA TOOLS (RITMO + MODULACIÓN) FOR COMPOSITION MODE -->
-              <div id="comp-onda-tools-section"
-                style="margin-bottom: 10px; padding: 10px; background: #e0faff; border: 2px solid #00acc1; border-radius: 8px;">
-
-                <!-- COMBINED TOOL ACTION (MOVED FROM BOTTOM) -->
-                <div style="margin-bottom: 10px; display: flex; justify-content: center;">
-                  <button id="comp-onda-total-btn" onclick="applyOndaCompletaFromUI(); return false;" class="theme-btn"
-                    style="border: none; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: linear-gradient(135deg, #00acc1 0%, #007c91 100%); color: white; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform 0.2s; width: 100%; justify-content: center;">
-                    🌊 🎲 ONDA TOTAL (Ritmo + Melodía)
-                  </button>
-                </div>
-
-                <!-- TARGET TRACK SELECTOR -->
+                <h3 style="margin-top: 5px; margin-bottom: 20px; font-family: monospace; color: #333;">🎚️ Mezclador de
+                  Volúmenes</h3>
                 <div
-                  style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px; background: rgba(0, 172, 193, 0.1); padding: 6px; border-radius: 6px; border: 1px solid #00acc1;">
-                  <label style="font-family: monospace; font-size: 13px; font-weight: bold; color: #00838f;">🎯 Aplicar
-                    a:</label>
-                  <select id="comp-onda-target"
-                    style="font-family: monospace; font-size: 12px; padding: 6px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333; flex-grow: 1;">
-                    <option value="selected">Solo Pista Seleccionada</option>
-                    <option value="audible" selected>Todas las Pistas Audibles</option>
+                  style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #90caf9; margin-bottom: 20px;">
+                  <label for="master-volume"
+                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 10px; color: #1565c0; font-size: 14px;">🔊
+                    Volumen General</label>
+                  <div style="display: flex; align-items: center; gap: 15px;">
+                    <span style="font-family: monospace; font-size: 12px; color: #666;">Min</span>
+                    <input type="range" id="master-volume" min="0" max="100" value="50"
+                      oninput="setMasterVolume(this.value)"
+                      style="flex-grow: 1; cursor: pointer; height: 8px; border-radius: 4px; background: #2196F3; appearance: auto;">
+                    <span style="font-family: monospace; font-size: 12px; color: #666;">Max</span>
+                  </div>
+                </div>
+                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
+                  <label
+                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 15px; color: #e65100; font-size: 14px;">🎛️
+                    Mezcla por Pistas</label>
+                  <div style="display: flex; justify-content: space-around; text-align: center;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                      <input type="range" orient="vertical" min="0" max="127" value="100"
+                        oninput="updateTrackVolume('s', this.value)"
+                        style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+                      <span
+                        style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">S</span><span
+                        style="font-family: monospace; color: #666; font-size: 10px;">Soprano</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                      <input type="range" orient="vertical" min="0" max="127" value="100"
+                        oninput="updateTrackVolume('a', this.value)"
+                        style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+                      <span
+                        style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">A</span><span
+                        style="font-family: monospace; color: #666; font-size: 10px;">Contralto</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                      <input type="range" orient="vertical" min="0" max="127" value="100"
+                        oninput="updateTrackVolume('t', this.value)"
+                        style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+                      <span
+                        style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">T</span><span
+                        style="font-family: monospace; color: #666; font-size: 10px;">Tenor</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                      <input type="range" orient="vertical" min="0" max="127" value="100"
+                        oninput="updateTrackVolume('b', this.value)"
+                        style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
+                      <span
+                        style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">B</span><span
+                        style="font-family: monospace; color: #666; font-size: 10px;">Bajo</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. INSTRUMENTATION PANEL -->
+              <div id="panel-modo-instrumentacion" class="mode-panel"
+                style="display: none; flex-direction: column; gap: 10px; padding: 10px; background: #f5f5f5; border-radius: 8px; margin-top: 10px;">
+
+                <h3 style="margin: 0 0 15px 0; font-family: monospace; color: #333; font-size: 16px;">🎺 Configuración
+                  de
+                  Instrumentos</h3>
+
+                <!-- Selector general para cambiar todos los instrumentos -->
+                <div
+                  style="background: #fff; padding: 15px; border-radius: 4px; border: 2px solid #2196F3; margin-bottom: 15px;">
+                  <label
+                    style="font-family: monospace; font-weight: bold; color: #333; font-size: 13px; display: block; margin-bottom: 8px;">
+                    🎹 Instrumento General (aplica a todas las voces):
+                  </label>
+                  <select id="instrument-selector"
+                    style="width: 100%; padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
+                    <optgroup label="Percussion">
+                      <option value="perc">🥁 Percussion (Channel 10)</option>
+                    </optgroup>
+                    <optgroup label="Piano">
+                      <option value="1" selected>1 - Acoustic Grand Piano</option>
+                      <option value="2">2 - Bright Acoustic Piano</option>
+                      <option value="3">3 - Electric Grand Piano</option>
+                      <option value="4">4 - Honky-tonk Piano</option>
+                      <option value="5">5 - Electric Piano 1</option>
+                      <option value="6">6 - Electric Piano 2</option>
+                      <option value="7">7 - Harpsichord</option>
+                      <option value="8">8 - Clavinet</option>
+                    </optgroup>
+                    <optgroup label="Chromatic Percussion">
+                      <option value="9">9 - Celesta</option>
+                      <option value="10">10 - Glockenspiel</option>
+                      <option value="11">11 - Music Box</option>
+                      <option value="12">12 - Vibraphone</option>
+                      <option value="13">13 - Marimba</option>
+                      <option value="14">14 - Xylophone</option>
+                    </optgroup>
+                    <optgroup label="Guitar">
+                      <option value="25">25 - Acoustic Guitar (nylon)</option>
+                      <option value="26">26 - Acoustic Guitar (steel)</option>
+                      <option value="27">27 - Electric Guitar (jazz)</option>
+                      <option value="28">28 - Electric Guitar (clean)</option>
+                      <option value="29">29 - Electric Guitar (muted)</option>
+                      <option value="30">30 - Overdriven Guitar</option>
+                      <option value="31">31 - Distortion Guitar</option>
+                    </optgroup>
+                    <optgroup label="Bass">
+                      <option value="33">33 - Acoustic Bass</option>
+                      <option value="34">34 - Electric Bass (finger)</option>
+                      <option value="35">35 - Electric Bass (pick)</option>
+                      <option value="36">36 - Fretless Bass</option>
+                    </optgroup>
+                    <optgroup label="Strings">
+                      <option value="41">41 - Violin</option>
+                      <option value="42">42 - Viola</option>
+                      <option value="43">43 - Cello</option>
+                      <option value="44">44 - Contrabass</option>
+                      <option value="46">46 - Pizzicato Strings</option>
+                      <option value="47">47 - Orchestral Harp</option>
+                    </optgroup>
+                    <optgroup label="Brass">
+                      <option value="57">57 - Trumpet</option>
+                      <option value="58">58 - Trombone</option>
+                      <option value="59">59 - Tuba</option>
+                      <option value="60">60 - Muted Trumpet</option>
+                      <option value="61">61 - French Horn</option>
+                    </optgroup>
+                    <optgroup label="Reed">
+                      <option value="65">65 - Soprano Sax</option>
+                      <option value="66">66 - Alto Sax</option>
+                      <option value="67">67 - Tenor Sax</option>
+                      <option value="68">68 - Baritone Sax</option>
+                      <option value="69">69 - Oboe</option>
+                      <option value="70">70 - English Horn</option>
+                      <option value="71">71 - Bassoon</option>
+                      <option value="72">72 - Clarinet</option>
+                    </optgroup>
+                    <optgroup label="Pipe">
+                      <option value="73">73 - Piccolo</option>
+                      <option value="74">74 - Flute</option>
+                      <option value="75">75 - Recorder</option>
+                      <option value="76">76 - Pan Flute</option>
+                    </optgroup>
                   </select>
                 </div>
 
-                <!-- ONDA RITMO PART -->
-                <h4
-                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                  🌊 Onda Ritmo
-                </h4>
-                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Modo:</label>
-                    <select id="comp-onda-ritmo-mode"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="random">Aleatorio</option>
-                      <option value="cyclic">Cíclico</option>
-                      <option value="structure" selected>Estructura</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Bio:</label>
-                    <select id="comp-onda-ritmo-block"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="1">1 Compás</option>
-                      <option value="2">2 Compases</option>
-                      <option value="4">4 Compases</option>
-                      <option value="all" selected>Todo</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cnt:</label>
-                    <input type="number" id="comp-onda-ritmo-count" value="4" min="1" max="100"
-                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acc:</label>
-                    <select id="comp-onda-ritmo-action"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="modify">Modif</option>
-                      <option value="generate" selected>Generar</option>
-                    </select>
-                  </div>
-                  <button id="comp-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
-                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🎲 Onda
-                  </button>
-                </div>
+                <!-- Tabla de instrumentos por voz -->
+                <table
+                  style="width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <thead>
+                    <tr style="background: #333; color: white;">
+                      <th
+                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
+                        Voz</th>
+                      <th
+                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
+                        Nombre</th>
+                      <th style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px;">Instrumento
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Soprano -->
+                    <tr style="border-bottom: 1px solid #ddd;">
+                      <td
+                        style="padding: 10px; font-family: monospace; font-weight: bold; color: #2196F3; border-right: 1px solid #ddd;">
+                        S</td>
+                      <td style="padding: 10px; border-right: 1px solid #ddd;">
+                        <input type="text" id="track-name-s" placeholder="Nombre de pista"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
+                      </td>
+                      <td style="padding: 10px;">
+                        <select id="track-instrument-s"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                          <optgroup label="Percussion">
+                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                          </optgroup>
+                          <optgroup label="Piano">
+                            <option value="1" selected>1 - Acoustic Grand Piano</option>
+                            <option value="2">2 - Bright Acoustic Piano</option>
+                            <option value="3">3 - Electric Grand Piano</option>
+                            <option value="4">4 - Honky-tonk Piano</option>
+                            <option value="5">5 - Electric Piano 1</option>
+                            <option value="6">6 - Electric Piano 2</option>
+                            <option value="7">7 - Harpsichord</option>
+                            <option value="8">8 - Clavinet</option>
+                          </optgroup>
+                          <optgroup label="Chromatic Percussion">
+                            <option value="9">9 - Celesta</option>
+                            <option value="10">10 - Glockenspiel</option>
+                            <option value="11">11 - Music Box</option>
+                            <option value="12">12 - Vibraphone</option>
+                            <option value="13">13 - Marimba</option>
+                            <option value="14">14 - Xylophone</option>
+                          </optgroup>
+                          <optgroup label="Guitar">
+                            <option value="25">25 - Acoustic Guitar (nylon)</option>
+                            <option value="26">26 - Acoustic Guitar (steel)</option>
+                            <option value="27">27 - Electric Guitar (jazz)</option>
+                            <option value="28">28 - Electric Guitar (clean)</option>
+                            <option value="29">29 - Electric Guitar (muted)</option>
+                            <option value="30">30 - Overdriven Guitar</option>
+                            <option value="31">31 - Distortion Guitar</option>
+                          </optgroup>
+                          <optgroup label="Bass">
+                            <option value="33">33 - Acoustic Bass</option>
+                            <option value="34">34 - Electric Bass (finger)</option>
+                            <option value="35">35 - Electric Bass (pick)</option>
+                            <option value="36">36 - Fretless Bass</option>
+                          </optgroup>
+                          <optgroup label="Strings">
+                            <option value="41">41 - Violin</option>
+                            <option value="42">42 - Viola</option>
+                            <option value="43">43 - Cello</option>
+                            <option value="44">44 - Contrabass</option>
+                            <option value="46">46 - Pizzicato Strings</option>
+                            <option value="47">47 - Orchestral Harp</option>
+                          </optgroup>
+                          <optgroup label="Brass">
+                            <option value="57">57 - Trumpet</option>
+                            <option value="58">58 - Trombone</option>
+                            <option value="59">59 - Tuba</option>
+                            <option value="60">60 - Muted Trumpet</option>
+                            <option value="61">61 - French Horn</option>
+                          </optgroup>
+                          <optgroup label="Reed">
+                            <option value="65">65 - Soprano Sax</option>
+                            <option value="66">66 - Alto Sax</option>
+                            <option value="67">67 - Tenor Sax</option>
+                            <option value="68">68 - Baritone Sax</option>
+                            <option value="69">69 - Oboe</option>
+                            <option value="70">70 - English Horn</option>
+                            <option value="71">71 - Bassoon</option>
+                            <option value="72">72 - Clarinet</option>
+                          </optgroup>
+                          <optgroup label="Pipe">
+                            <option value="73">73 - Piccolo</option>
+                            <option value="74">74 - Flute</option>
+                            <option value="75">75 - Recorder</option>
+                            <option value="76">76 - Pan Flute</option>
+                          </optgroup>
+                        </select>
+                      </td>
+                    </tr>
 
-                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+                    <!-- Contralto -->
+                    <tr style="border-bottom: 1px solid #ddd;">
+                      <td
+                        style="padding: 10px; font-family: monospace; font-weight: bold; color: #4CAF50; border-right: 1px solid #ddd;">
+                        A</td>
+                      <td style="padding: 10px; border-right: 1px solid #ddd;">
+                        <input type="text" id="track-name-a" placeholder="Nombre de pista"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
+                      </td>
+                      <td style="padding: 10px;">
+                        <select id="track-instrument-a"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                          <optgroup label="Percussion">
+                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                          </optgroup>
+                          <optgroup label="Piano">
+                            <option value="1" selected>1 - Acoustic Grand Piano</option>
+                            <option value="2">2 - Bright Acoustic Piano</option>
+                            <option value="3">3 - Electric Grand Piano</option>
+                            <option value="4">4 - Honky-tonk Piano</option>
+                            <option value="5">5 - Electric Piano 1</option>
+                            <option value="6">6 - Electric Piano 2</option>
+                            <option value="7">7 - Harpsichord</option>
+                            <option value="8">8 - Clavinet</option>
+                          </optgroup>
+                          <optgroup label="Chromatic Percussion">
+                            <option value="9">9 - Celesta</option>
+                            <option value="10">10 - Glockenspiel</option>
+                            <option value="11">11 - Music Box</option>
+                            <option value="12">12 - Vibraphone</option>
+                            <option value="13">13 - Marimba</option>
+                            <option value="14">14 - Xylophone</option>
+                          </optgroup>
+                          <optgroup label="Guitar">
+                            <option value="25">25 - Acoustic Guitar (nylon)</option>
+                            <option value="26">26 - Acoustic Guitar (steel)</option>
+                            <option value="27">27 - Electric Guitar (jazz)</option>
+                            <option value="28">28 - Electric Guitar (clean)</option>
+                            <option value="29">29 - Electric Guitar (muted)</option>
+                            <option value="30">30 - Overdriven Guitar</option>
+                            <option value="31">31 - Distortion Guitar</option>
+                          </optgroup>
+                          <optgroup label="Bass">
+                            <option value="33">33 - Acoustic Bass</option>
+                            <option value="34">34 - Electric Bass (finger)</option>
+                            <option value="35">35 - Electric Bass (pick)</option>
+                            <option value="36">36 - Fretless Bass</option>
+                          </optgroup>
+                          <optgroup label="Strings">
+                            <option value="41">41 - Violin</option>
+                            <option value="42">42 - Viola</option>
+                            <option value="43">43 - Cello</option>
+                            <option value="44">44 - Contrabass</option>
+                            <option value="46">46 - Pizzicato Strings</option>
+                            <option value="47">47 - Orchestral Harp</option>
+                          </optgroup>
+                          <optgroup label="Brass">
+                            <option value="57">57 - Trumpet</option>
+                            <option value="58">58 - Trombone</option>
+                            <option value="59">59 - Tuba</option>
+                            <option value="60">60 - Muted Trumpet</option>
+                            <option value="61">61 - French Horn</option>
+                          </optgroup>
+                          <optgroup label="Reed">
+                            <option value="65">65 - Soprano Sax</option>
+                            <option value="66">66 - Alto Sax</option>
+                            <option value="67">67 - Tenor Sax</option>
+                            <option value="68">68 - Baritone Sax</option>
+                            <option value="69">69 - Oboe</option>
+                            <option value="70">70 - English Horn</option>
+                            <option value="71">71 - Bassoon</option>
+                            <option value="72">72 - Clarinet</option>
+                          </optgroup>
+                          <optgroup label="Pipe">
+                            <option value="73">73 - Piccolo</option>
+                            <option value="74">74 - Flute</option>
+                            <option value="75">75 - Recorder</option>
+                            <option value="76">76 - Pan Flute</option>
+                          </optgroup>
+                        </select>
+                      </td>
+                    </tr>
 
-                <!-- ONDA MODULACIÓN PART -->
-                <h4
-                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                  🌊 Onda (Modulación)
-                </h4>
-                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Amp:</label>
-                    <select id="comp-onda-amp"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3" selected>3</option>
-                      <option value="4">4</option>
-                      <option value="8">8</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Freq:</label>
-                    <select id="comp-onda-freq"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="0.05">Lento</option>
-                      <option value="0.15" selected>Normal</option>
-                      <option value="0.3">Rápido</option>
-                    </select>
-                  </div>
-                  <button id="comp-onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
-                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🌊 Onda
-                  </button>
-                </div>
+                    <!-- Tenor -->
+                    <tr style="border-bottom: 1px solid #ddd;">
+                      <td
+                        style="padding: 10px; font-family: monospace; font-weight: bold; color: #FF9800; border-right: 1px solid #ddd;">
+                        T</td>
+                      <td style="padding: 10px; border-right: 1px solid #ddd;">
+                        <input type="text" id="track-name-t" placeholder="Nombre de pista"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
+                      </td>
+                      <td style="padding: 10px;">
+                        <select id="track-instrument-t"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                          <optgroup label="Percussion">
+                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                          </optgroup>
+                          <optgroup label="Piano">
+                            <option value="1" selected>1 - Acoustic Grand Piano</option>
+                            <option value="2">2 - Bright Acoustic Piano</option>
+                            <option value="3">3 - Electric Grand Piano</option>
+                            <option value="4">4 - Honky-tonk Piano</option>
+                            <option value="5">5 - Electric Piano 1</option>
+                            <option value="6">6 - Electric Piano 2</option>
+                            <option value="7">7 - Harpsichord</option>
+                            <option value="8">8 - Clavinet</option>
+                          </optgroup>
+                          <optgroup label="Chromatic Percussion">
+                            <option value="9">9 - Celesta</option>
+                            <option value="10">10 - Glockenspiel</option>
+                            <option value="11">11 - Music Box</option>
+                            <option value="12">12 - Vibraphone</option>
+                            <option value="13">13 - Marimba</option>
+                            <option value="14">14 - Xylophone</option>
+                          </optgroup>
+                          <optgroup label="Guitar">
+                            <option value="25">25 - Acoustic Guitar (nylon)</option>
+                            <option value="26">26 - Acoustic Guitar (steel)</option>
+                            <option value="27">27 - Electric Guitar (jazz)</option>
+                            <option value="28">28 - Electric Guitar (clean)</option>
+                            <option value="29">29 - Electric Guitar (muted)</option>
+                            <option value="30">30 - Overdriven Guitar</option>
+                            <option value="31">31 - Distortion Guitar</option>
+                          </optgroup>
+                          <optgroup label="Bass">
+                            <option value="33">33 - Acoustic Bass</option>
+                            <option value="34">34 - Electric Bass (finger)</option>
+                            <option value="35">35 - Electric Bass (pick)</option>
+                            <option value="36">36 - Fretless Bass</option>
+                          </optgroup>
+                          <optgroup label="Strings">
+                            <option value="41">41 - Violin</option>
+                            <option value="42">42 - Viola</option>
+                            <option value="43">43 - Cello</option>
+                            <option value="44">44 - Contrabass</option>
+                            <option value="46">46 - Pizzicato Strings</option>
+                            <option value="47">47 - Orchestral Harp</option>
+                          </optgroup>
+                          <optgroup label="Brass">
+                            <option value="57">57 - Trumpet</option>
+                            <option value="58">58 - Trombone</option>
+                            <option value="59">59 - Tuba</option>
+                            <option value="60">60 - Muted Trumpet</option>
+                            <option value="61">61 - French Horn</option>
+                          </optgroup>
+                          <optgroup label="Reed">
+                            <option value="65">65 - Soprano Sax</option>
+                            <option value="66">66 - Alto Sax</option>
+                            <option value="67">67 - Tenor Sax</option>
+                            <option value="68">68 - Baritone Sax</option>
+                            <option value="69">69 - Oboe</option>
+                            <option value="70">70 - English Horn</option>
+                            <option value="71">71 - Bassoon</option>
+                            <option value="72">72 - Clarinet</option>
+                          </optgroup>
+                          <optgroup label="Pipe">
+                            <option value="73">73 - Piccolo</option>
+                            <option value="74">74 - Flute</option>
+                            <option value="75">75 - Recorder</option>
+                            <option value="76">76 - Pan Flute</option>
+                          </optgroup>
+                        </select>
+                      </td>
+                    </tr>
 
-                <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+                    <!-- Bajo -->
+                    <tr>
+                      <td
+                        style="padding: 10px; font-family: monospace; font-weight: bold; color: #F44336; border-right: 1px solid #ddd;">
+                        B</td>
+                      <td style="padding: 10px; border-right: 1px solid #ddd;">
+                        <input type="text" id="track-name-b" placeholder="Nombre de pista"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
+                      </td>
+                      <td style="padding: 10px;">
+                        <select id="track-instrument-b"
+                          style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                          <optgroup label="Percussion">
+                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                          </optgroup>
+                          <optgroup label="Piano">
+                            <option value="1" selected>1 - Acoustic Grand Piano</option>
+                            <option value="2">2 - Bright Acoustic Piano</option>
+                            <option value="3">3 - Electric Grand Piano</option>
+                            <option value="4">4 - Honky-tonk Piano</option>
+                            <option value="5">5 - Electric Piano 1</option>
+                            <option value="6">6 - Electric Piano 2</option>
+                            <option value="7">7 - Harpsichord</option>
+                            <option value="8">8 - Clavinet</option>
+                          </optgroup>
+                          <optgroup label="Chromatic Percussion">
+                            <option value="9">9 - Celesta</option>
+                            <option value="10">10 - Glockenspiel</option>
+                            <option value="11">11 - Music Box</option>
+                            <option value="12">12 - Vibraphone</option>
+                            <option value="13">13 - Marimba</option>
+                            <option value="14">14 - Xylophone</option>
+                          </optgroup>
+                          <optgroup label="Guitar">
+                            <option value="25">25 - Acoustic Guitar (nylon)</option>
+                            <option value="26">26 - Acoustic Guitar (steel)</option>
+                            <option value="27">27 - Electric Guitar (jazz)</option>
+                            <option value="28">28 - Electric Guitar (clean)</option>
+                            <option value="29">29 - Electric Guitar (muted)</option>
+                            <option value="30">30 - Overdriven Guitar</option>
+                            <option value="31">31 - Distortion Guitar</option>
+                          </optgroup>
+                          <optgroup label="Bass">
+                            <option value="33">33 - Acoustic Bass</option>
+                            <option value="34">34 - Electric Bass (finger)</option>
+                            <option value="35">35 - Electric Bass (pick)</option>
+                            <option value="36">36 - Fretless Bass</option>
+                          </optgroup>
+                          <optgroup label="Strings">
+                            <option value="41">41 - Violin</option>
+                            <option value="42">42 - Viola</option>
+                            <option value="43">43 - Cello</option>
+                            <option value="44">44 - Contrabass</option>
+                            <option value="46">46 - Pizzicato Strings</option>
+                            <option value="47">47 - Orchestral Harp</option>
+                          </optgroup>
+                          <optgroup label="Brass">
+                            <option value="57">57 - Trumpet</option>
+                            <option value="58">58 - Trombone</option>
+                            <option value="59">59 - Tuba</option>
+                            <option value="60">60 - Muted Trumpet</option>
+                            <option value="61">61 - French Horn</option>
+                          </optgroup>
+                          <optgroup label="Reed">
+                            <option value="65">65 - Soprano Sax</option>
+                            <option value="66">66 - Alto Sax</option>
+                            <option value="67">67 - Tenor Sax</option>
+                            <option value="68">68 - Baritone Sax</option>
+                            <option value="69">69 - Oboe</option>
+                            <option value="70">70 - English Horn</option>
+                            <option value="71">71 - Bassoon</option>
+                            <option value="72">72 - Clarinet</option>
+                          </optgroup>
+                          <optgroup label="Pipe">
+                            <option value="73">73 - Piccolo</option>
+                            <option value="74">74 - Flute</option>
+                            <option value="75">75 - Recorder</option>
+                            <option value="76">76 - Pan Flute</option>
+                          </optgroup>
+                        </select>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
 
-                <!-- DINÁMICA PART -->
-                <h4
-                  style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                  ✨ Dinámica (Volumen)
-                </h4>
-                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Fma:</label>
-                    <select id="comp-dynamic-shape-type"
-                      style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                      <option value="crescendo" selected>Cresc</option>
-                      <option value="diminuendo">Dim</option>
-                      <option value="pico">Pico</option>
-                      <option value="valle">Valle</option>
-                      <option value="uniforme">Unif</option>
-                      <option value="ondas">Ondas</option>
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mn:</label>
-                    <input type="number" id="comp-dynamic-min" value="40" min="0" max="127"
-                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <label
-                      style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mx:</label>
-                    <input type="number" id="comp-dynamic-max" value="110" min="0" max="127"
-                      style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
-                  </div>
-                  <button id="comp-dynamic-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
-                    style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ✨
-                  </button>
-                </div>
-
-
-
-              </div>
-
-              <div style="margin-bottom: 15px;">
-                <h3 class="mode-editor-title">🧩 Compositor de Estructuras</h3>
-              </div>
-              <div style="padding: 20px; background: #e8f5e9; border-radius: 8px; border: 2px solid #4CAF50;">
-                <p style="font-family: monospace; color: #333; margin-bottom: 20px; font-size: 14px;">Define la
-                  estructura usando letras (A, B, C...) que corresponden a tus frases guardadas.</p>
                 <div
-                  style="display: flex; gap: 10px; align-items: center; background: white; padding: 15px; border-radius: 8px; border: 1px solid #c8e6c9;">
-                  <input type="text" id="composition-structure" placeholder="Ej: ABBC"
-                    style="flex-grow: 1; padding: 12px; font-family: monospace; font-size: 18px; border: 2px solid #4CAF50; border-radius: 4px; text-transform: uppercase;">
-                  <button id="generate-composition-btn" class="theme-btn"
-                    style="padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">🚀
-                    Generar Estructura</button>
+                  style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; border-left: 4px solid #2196F3;">
+                  <p style="margin: 0; font-family: monospace; font-size: 12px; color: #1565C0;">
+                  </p>
                 </div>
-                <div style="margin-top: 15px; font-family: monospace; font-size: 12px; color: #666;">
-                  <strong>Frases Disponibles:</strong>
-                  <div id="available-phrases-list" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+              </div> <!-- CLOSE panel-modo-instrumentacion -->
+
+              <!-- 7. COMPOSITION EDITOR (LEFT PART: ONDA TOOLS) -->
+              <div id="editor-composicion-left" class="mode-panel mode-editor editor-composicion"
+                style="display: none;">
+                <div id="comp-onda-tools-section"
+                  style="margin-bottom: 10px; padding: 10px; background: #e0faff; border: 2px solid #00acc1; border-radius: 8px;">
+
+                  <!-- TOP CONTROLS: TARGET, ACTION, MAIN BUTTON -->
+                  <div
+                    style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto;">
+
+                    <!-- Apply To -->
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f; white-space: nowrap;">Aplicar
+                        a:</label>
+                      <select id="comp-onda-target"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333; max-width: 150px;">
+                        <option value="selected">Solo Selecc.</option>
+                        <option value="audible" selected>Todas Audibles</option>
+                      </select>
+                    </div>
+
+                    <!-- Action -->
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acc:</label>
+                      <select id="comp-onda-ritmo-action"
+                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="modify">Modif</option>
+                        <option value="generate" selected>Generar</option>
+                      </select>
+                    </div>
+
+                    <!-- Button -->
+                    <button id="comp-onda-total-btn" onclick="applyOndaCompletaFromUI(); return false;"
+                      class="theme-btn"
+                      style="flex-grow: 1; border: none; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: linear-gradient(135deg, #00acc1 0%, #007c91 100%); color: white; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">
+                      🌊 🎲 ONDA TOTAL
+                    </button>
+                  </div>
+
+                  <!-- ONDA RITMO PART -->
+                  <h4
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
+                    🌊 Onda Ritmo
+                  </h4>
+                  <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Modo:</label>
+                      <select id="comp-onda-ritmo-mode"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="random">Aleatorio</option>
+                        <option value="cyclic">Cíclico</option>
+                        <option value="structure" selected>Estructura</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Bio:</label>
+                      <select id="comp-onda-ritmo-block"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="1">1 Compás</option>
+                        <option value="2">2 Compases</option>
+                        <option value="4">4 Compases</option>
+                        <option value="all" selected>Todo</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cnt:</label>
+                      <input type="number" id="comp-onda-ritmo-count" value="4" min="1" max="100"
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                    </div>
+
+                    <button id="comp-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🎲 Onda
+                    </button>
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+
+                  <!-- ONDA MODULACIÓN PART -->
+                  <h4
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
+                    🌊 Onda (Modulación)
+                  </h4>
+                  <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Amp:</label>
+                      <select id="comp-onda-amp"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="4">4</option>
+                        <option value="8">8</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Freq:</label>
+                      <select id="comp-onda-freq"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="0.05">Lento</option>
+                        <option value="0.15" selected>Normal</option>
+                        <option value="0.3">Rápido</option>
+                      </select>
+                    </div>
+                    <button id="comp-onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      🌊 Onda
+                    </button>
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+
+                  <!-- DINÁMICA PART -->
+                  <h4
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
+                    ✨ Dinámica (Volumen)
+                  </h4>
+                  <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Fma:</label>
+                      <select id="comp-dynamic-shape-type"
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        <option value="crescendo" selected>Cresc</option>
+                        <option value="diminuendo">Dim</option>
+                        <option value="pico">Pico</option>
+                        <option value="valle">Valle</option>
+                        <option value="uniforme">Unif+Acc</option>
+                        <option value="ondas">Ondas</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mn:</label>
+                      <input type="number" id="comp-dynamic-min" value="40" min="0" max="127"
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mx:</label>
+                      <input type="number" id="comp-dynamic-max" value="110" min="0" max="127"
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                    </div>
+                    <button id="comp-dynamic-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      ✨
+                    </button>
                   </div>
                 </div>
               </div>
 
 
+
+            </div> <!-- END MAIN EDITORS CONTAINER -->
+
+            <!-- SILENCE VARIATIONS (MOVED NEXT TO EDITOR) -->
+            <div id="silence-variations-column"
+              style="width: 90px; background: #f5f5f5; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+              <h4
+                style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #666; font-weight: bold;">
+                Variaciones</h4>
+              <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;"></div>
             </div>
 
-          </div> <!-- END MAIN EDITORS CONTAINER -->
+          </div> <!-- END EDITORS AND VARIATIONS ROW -->
 
-          <!-- SILENCE VARIATIONS (MOVED NEXT TO EDITOR) -->
-          <div id="silence-variations-column"
-            style="width: 90px; background: #f5f5f5; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-            <h4
-              style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #666; font-weight: bold;">
-              Variaciones</h4>
-            <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;"></div>
+        </div> <!-- END LEFT COLUMN WRAPPER -->
+
+        <!-- RIGHT COLUMN: Tools & Composition -->
+        <div id="right-column-wrapper"
+          style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+
+          <!-- 7. COMPOSITION EDITOR (RIGHT PART: STRUCTURE GENERATOR) -->
+          <div id="editor-composicion" class="mode-panel mode-editor editor-composicion"
+            style="display: none; padding: 10px;">
+            <div style="margin-bottom: 10px;">
+              <h3 class="mode-editor-title" style="font-size: 14px; margin-bottom: 5px;">🧩 Compositor de Estructuras
+              </h3>
+            </div>
+            <div style="padding: 10px; background: #e8f5e9; border-radius: 8px; border: 2px solid #4CAF50;">
+              <p style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Define la estructura
+                (letras A, B, C...)</p>
+              <div
+                style="display: flex; gap: 5px; align-items: center; background: white; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9;">
+                <input type="text" id="composition-structure" placeholder="Ej: ABBC"
+                  style="flex-grow: 1; padding: 8px; font-family: monospace; font-size: 14px; border: 1px solid #4CAF50; border-radius: 4px; text-transform: uppercase;">
+                <button id="generate-composition-btn" class="theme-btn"
+                  style="padding: 8px 12px; font-size: 12px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">🚀
+                  Generar</button>
+              </div>
+              <div style="margin-top: 10px; font-family: monospace; font-size: 11px; color: #666;">
+                <strong>Frases Disponibles:</strong>
+                <div id="available-phrases-list" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+                </div>
+              </div>
+            </div>
           </div>
 
-        </div> <!-- END EDITORS AND VARIATIONS ROW -->
-
-      </div> <!-- END LEFT COLUMN WRAPPER -->
-
-      <!-- RIGHT COLUMN WRAPPER: Contains MIDI Editor Sidebar -->
-      <div id="right-column-wrapper"
-        style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
-
-        <!-- MODAL DISPLAY (MIDI EDITOR) - FULL HEIGHT SIDEBAR -->
-        <div id="modal-display-container"
-          style="flex: 1; background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; flex-direction: column; display:none;">
-          <div id="midi-editor-content" style="display: flex; flex-direction: column; height: 100%;">
-            <div
-              style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
-              <h3 id="midi-editor-header"
-                style="margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; flex: 1;">
-                📝
-                Editar MIDI del Compás <span id="midi-editor-measure-num"
-                  style="color: #FF9800; font-weight: bold;"></span></h3>
+          <!-- 3. LYRICS EDITOR (In Right Column) -->
+          <div id="editor-lyrics" class="mode-panel mode-editor editor-lyrics"
+            style="display: none; padding: 10px; background: #fff5f8; border-radius: 8px; border: 2px solid #e91e63; margin-bottom: 15px;">
+            <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <h3 class="mode-editor-title" style="font-size: 14px; margin: 0; color: #c2185b;">🎵 Editor de Letras
+                (Compás <span id="lyrics-measure-num" style="font-weight: bold; color: #e91e63;">-</span>)</h3>
             </div>
-            <div style="padding: 5px;">
-              <div id="midi-inputs-container"
-                style="display: flex; flex-direction: column; gap: 10px; max-height: 800px; overflow-y: auto; margin-bottom: 1px;">
-              </div>
-              <div style="display: flex; margin-top:0; gap: 10px; justify-content: flex-end; margin-top: 0;">
-                <button id="midi-editor-add"
-                  style="display: none; background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Añadir</button>
-                <button id="midi-editor-accept"
-                  style="display: none; visibility:hidden; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Aplicar</button>
+            <div>
+              <p style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Escribe una sílaba
+                por
+                nota. Usa espacios para separar.</p>
+              <input type="text" id="lyrics-input-static" placeholder="Ej: La la la..."
+                style="width: 100%; padding: 10px; border: 1px solid #e91e63; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 10px; box-sizing: border-box;">
+              <div style="display: flex; justify-content: flex-end;">
+                <button id="lyrics-editor-accept" class="theme-btn"
+                  style="background: #e91e63; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                  Guardar Letra
+                </button>
               </div>
             </div>
           </div>
+
+          <!-- 3. MIDI EDITOR (In Right Column) -->
+          <div id="modal-display-container"
+            style="background: #fff; border-radius: 8px; padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: none; flex-direction: column; margin-top: 10px;">
+            <div id="midi-editor-content" style="display: flex; flex-direction: column; width: 100%;">
+              <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
+                <h3 id="midi-editor-header"
+                  style="margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; flex: 1; font-size: 14px;">
+                  📝 Editar MIDI <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
+                </h3>
+              </div>
+              <div style="padding: 10px;">
+                <div id="midi-inputs-container"
+                  style="display: flex; flex-direction: column; gap: 10px; max-height: 800px; overflow-y: auto; margin-bottom: 5px;">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                  <button id="midi-editor-add"
+                    style="display: none; background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Añadir</button>
+                  <button id="midi-editor-accept"
+                    style="display: none; visibility:hidden; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Aplicar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div> <!-- END RIGHT COLUMN WRAPPER -->
+
+      </div> <!-- END LOWER CONTENT FLEX ROW -->
+
+
+
+      <!-- 4. BOTTOM TOOLS -->
+      <div id="codigi"
+        style="display: block; width: 100%; margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+        <label style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 5px;">DBI
+          (JSON):</label>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <textarea id="bdi-display"
+            style="width: 100%; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+          <button id="update-bdi-btn"
+            style="padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
+            Actualizar
+          </button>
         </div>
-
-      </div> <!-- END RIGHT COLUMN WRAPPER -->
-
-    </div> <!-- END LOWER CONTENT FLEX ROW -->
-
-
-    <div id="codigi" style="display: block;">
-      <label style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 5px;">DBI
-        (JSON):</label>
-      <div style="display: flex; gap: 10px; align-items: flex-start;">
-        <textarea id="bdi-display"
-          style="width: 100%; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
-        <button id="update-bdi-btn"
-          style="padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
-          Actualizar
-        </button>
+        <div id="vari" style="margin-top: 10px;">
+          <pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">[]</pre>
+        </div>
+        <div id="jasi" style="margin-top: 10px; font-family: monospace; font-size: 10px; color: #aaa;">
+          {"index":0,"char":"M","type":"character","color":"hsl(0, 100%,
+          50%)","rgb":null,"padding":{"y":12.5,"x":25},"margin":0,"borderRadius":50,"border":{"width":0,"color":"#000000"},"textColor":"rgb(0,
+          255, 255)"}
+        </div>
+        <button id="export-img-6" class="export-button"
+          style="display: block; margin-top: 10px; background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Exportar
+          a PNG</button>
       </div>
-    </div>
-    <div id="vari">
-      <pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">[]</pre>
-    </div>
-    <br> <br>
-    <div id="jasi">
-      {"index":0,"char":"M","type":"character","color":"hsl(0, 100%,
-      50%)","rgb":null,"padding":{"y":12.5,"x":25},"margin":0,"borderRadius":50,"border":{"width":0,"color":"#000000"},"textColor":"rgb(0,
-      255, 255)"}
-    </div>
-    <button id="export-img-6" class="export-button" style="display: block;">Exportar a PNG</button>
-  </div>
 
+    </div> <!-- END EXAMPLE CONTAINER -->
+  </div> <!-- END APP WRAPPER -->
 
   <div id="scale-info-footer"
     style="position: fixed; bottom: 0; left: 0; width: 100%; background: #aaa; border-top: 1px solid #ccc; padding: 10px; font-family: monospace; font-size: 12px; color: #333; z-index: 1000; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 5px;">
@@ -1661,7 +1845,7 @@
     </div>
   </div>
 
-  <!-- MIDI Editor Modal (deprecated - now in right column) -->
+  <!-- MIDI Editor Modal (deprecated - now at the bottom) -->
   <div id="midi-editor-modal" style="display: none;"></div>
 
   <script src="ruler_selection.js"></script>
@@ -1670,7 +1854,47 @@
   <script src="mode-toggle-listener.js"></script>
   <script src="voice-selector-listener.js"></script>
   <script src="playback-control.js"></script>
+  <script src="image-melody.js"></script>
 
+  <!-- Tarareo Info Button Script -->
+  <script>
+    // Toggle tarareo info tooltip
+    const tarareoInfoBtn = document.getElementById('tarareo-info-btn');
+    const tarareoInfoTooltip = document.getElementById('tarareo-info-tooltip');
+    const currentVoiceDisplay = document.getElementById('current-voice-display');
+
+    if (tarareoInfoBtn && tarareoInfoTooltip) {
+      tarareoInfoBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Toggle tooltip visibility
+        if (tarareoInfoTooltip.style.display === 'none') {
+          tarareoInfoTooltip.style.display = 'block';
+
+          // Update current voice display
+          if (currentVoiceDisplay && typeof VoicePatternConfig !== 'undefined') {
+            const voiceInfo = VoicePatternConfig.getCurrentVoiceInfo();
+            currentVoiceDisplay.textContent = voiceInfo.replace('Voz ', '');
+          } else if (currentVoiceDisplay && typeof window.bdi !== 'undefined' && window.bdi.metadata) {
+            const voice = window.bdi.metadata.voici || 's';
+            currentVoiceDisplay.textContent = voice.toUpperCase();
+          }
+        } else {
+          tarareoInfoTooltip.style.display = 'none';
+        }
+      });
+
+      // Close tooltip when clicking outside
+      document.addEventListener('click', (e) => {
+        if (tarareoInfoTooltip.style.display === 'block' &&
+          !tarareoInfoTooltip.contains(e.target) &&
+          !tarareoInfoBtn.contains(e.target)) {
+          tarareoInfoTooltip.style.display = 'none';
+        }
+      });
+    }
+  </script>
 
 </body>
 

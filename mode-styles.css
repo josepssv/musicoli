@@ -4,7 +4,7 @@
 
 /* Variables CSS para cada modo basadas en las paletas de las imágenes */
 :root {
-  /* RITMO - Grises (001.png) */
+  /* RITMO - Grises */
   --ritmo-primary: #4a4a4a;
   --ritmo-secondary: #6b6b6b;
   --ritmo-bg: #2a2a2a;
@@ -433,7 +433,7 @@ body.app-mode-composicion {
    ============================================ */
 
 /* Hide rhythm-only buttons when not in rhythm mode */
-body:not(.app-mode-ritmo) .rhythm-only {
+body:not(.app-mode-ritmo):not(.app-mode-composicion) .rhythm-only {
   visibility: hidden;
 }
 

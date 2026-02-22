@@ -12,3 +12,10 @@
     - Scale/Interval previews (approx. line 5076 in `musicoli.js`)
     - `atuci` helper function (approx. line 5567 in `musicoli.js`)
     - Other scattered usages found via `findstr "tuci(" musicoli.js`
+
+## Feature Integration
+
+## Preferences
+- **General Nomenclature Configuration**: Implement a configuration screen to select general settings, including nomenclature (e.g., Note Names: C/D/E vs Do/Re/Mi).
+- **General Harmony Configuration**: Create a general configuration panel to manage global harmony settings (e.g., enable/disable smart diatonic harmony, adjust interval offsets for voices).
+

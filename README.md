@@ -11,6 +11,7 @@
     *    **Lyrics (Letra)**: Añade y sincroniza texto con la música.
     *    **Dinámica**: Control preciso del volumen general y mezcla individual por pista.
     *    **Foco en el compás** La edición por compases añade más ritmo y sentido a las frases y la composición final.
+*   **🎤 Sistema de Tarareo**: Convierte texto en ritmo musical automáticamente. Escribe palabras o frases y el sistema las traduce en patrones rítmicos naturales basados en la silabificación del español. [Ver guía completa →](docs/TARAREO_QUICKSTART.md)
 *   **Sistema de Colores**: Visualización intuitiva donde los colores representan alturas y funciones tonales.
 *   **Reproducción MIDI**: Motor de audio integrado basado en *Soundfont* para una reproducción realista.
 *   **Exportación**: Genera y descarga archivos `.mid` (MIDI) y resúmenes en HTML de tus composiciones.
@@ -40,6 +41,17 @@ Musicoli está construido con tecnologías web estándar (HTML, CSS, JS) y **no 
 *   CSS3 (Variables CSS, Flexbox/Grid)
 *   JavaScript (ES6+)
 *   Web Audio API
+
+##  Documentación
+
+### 📚 Guías del Sistema de Tarareo
+
+El sistema de Tarareo es una característica única de Musicoli que convierte texto en ritmo musical:
+
+*   **[Guía Rápida](docs/TARAREO_QUICKSTART.md)**: Aprende a usar el Tarareo en 5 minutos
+*   **[Guía Técnica Completa](docs/TARAREO_GUIDE.md)**: Documentación detallada del sistema, algoritmos y patrones rítmicos
+*   **[Propuestas de Mejora](docs/TARAREO_PROPOSALS.md)**: Ideas y opciones futuras para expandir el sistema
+*   **[Guía Multi-Idioma](docs/TARAREO_MULTILANGUAGE.md)**: Implementación para español e inglés con el mismo algoritmo
 
 ##  Licencia
 

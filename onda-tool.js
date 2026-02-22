@@ -214,8 +214,9 @@ window.applyOndaFromUI = function () {
                 targetVoice.nimidi = voiceMidis;
                 targetVoice.tipis = voiceTipis;
 
-                // Sync S if needed
-                if (selectedVoiceKey === 's') {
+                // Sync active voice (metadata.voici) with root measure structure
+                const metaVoice = (window.bdi && window.bdi.metadata && window.bdi.metadata.voici) ? window.bdi.metadata.voici : 's';
+                if (selectedVoiceKey === metaVoice) {
                     measure.nimidi = [...voiceMidis];
                     measure.tipis = [...voiceTipis];
                 }
@@ -229,15 +230,9 @@ window.applyOndaFromUI = function () {
     }
 
     // Attempt to reload standard player if available
-    if (typeof window.updatePlayer === 'function') {
-        window.updatePlayer();
-        console.log("Player updated.");
-    } else {
-        // Fallback: Check if there's a loadMidi function or similar
-        const player = document.querySelector('midi-player');
-        if (player && typeof player.reload === 'function') {
-            player.reload();
-        }
+    if (typeof window.rebuildRecordi === 'function') {
+        window.rebuildRecordi();
+        console.log("Player updated via rebuildRecordi.");
     }
 };
 
@@ -352,6 +347,68 @@ window.applyOndaRitmoFromUI = function () {
 
     let changedCount = 0;
 
+    // PRE-CALCULATE STRUCTURE PATTERNS (If mode is structure)
+    // We generate a unique correlated pattern set for each measure index
+    const structurePatterns = [];
+    if (mode === 'structure') {
+        const splitNote = (tipi) => {
+            // Split a duration into two shorter ones
+            // 1(redonda) -> 2,2
+            // 2(blanca) -> 3,3
+            // 3(negra) -> 4,4
+            // 4(corchea) -> 5,5
+            const abs = Math.abs(tipi);
+            if (abs === 1) return [2, 2];
+            if (abs === 2) return [3, 3];
+            if (abs === 3) return [4, 4];
+            if (abs === 4) return [5, 5];
+            return [abs, abs]; // Fallback
+        };
+
+        const doublePattern = (pattern) => {
+            const newPat = [];
+            pattern.forEach(p => {
+                newPat.push(...splitNote(p));
+            });
+            return newPat;
+        };
+
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        for (let m = 0; m < workingMeasures.length; m++) {
+            // 1. Generate Bass Pattern (1, 2, or 3 notes totaling 4 beats)
+            let bPat = [1];
+            const dice = Math.random();
+
+            if (dice < 0.33) {
+                // 1 Note: Whole (4 beats)
+                bPat = [1];
+            } else if (dice < 0.66) {
+                // 2 Notes: Half + Half (2+2 beats)
+                bPat = [2, 2];
+            } else {
+                // 3 Notes: Half (2) + Quarter (1) + Quarter (1) = 4 beats
+                // Shuffled order to create variety (e.g. 2,3,3 or 3,2,3 or 3,3,2)
+                bPat = shuffle([2, 3, 3]);
+            }
+
+            // 2. Tenor: Double density of Bass
+            const tPat = doublePattern(bPat);
+            // 3. Alto: Double density of Tenor
+            const aPat = doublePattern(tPat);
+            // 4. Soprano: Double density of Alto
+            const sPat = doublePattern(aPat);
+
+            structurePatterns.push({ b: bPat, t: tPat, a: aPat, s: sPat });
+        }
+    }
+
     // Apply Logic to workingMeasures
     targetVoiceKeys.forEach((vKey, vIdx) => {
         // Individual patterns for each voice
@@ -363,13 +420,12 @@ window.applyOndaRitmoFromUI = function () {
             const effectiveIndex = localIndex;
 
             if (mode === 'structure') {
-                // FIXED STRUCTURE: Multiplicandose por dos desde la pista bajo (Bajo=Lento, Soprano=Rápido)
-                // Disminuyendo a la mitad desde la capa superior (Soprano=8, Contralto=4, Tenor=2, Bajo=1)
-                if (vKey === 's') currentPattern = [4, 4, 4, 4, 4, 4, 4, 4]; // 8 corcheas
-                else if (vKey === 'a') currentPattern = [3, 3, 3, 3];        // 4 negras
-                else if (vKey === 't') currentPattern = [2, 2];              // 2 blancas
-                else if (vKey === 'b') currentPattern = [1];                 // 1 redonda
-                else currentPattern = [3, 3, 3, 3]; // Fallback
+                // Use pre-calculated layered structure
+                if (structurePatterns[localIndex] && structurePatterns[localIndex][vKey]) {
+                    currentPattern = structurePatterns[localIndex][vKey];
+                } else {
+                    currentPattern = [3, 3, 3, 3]; // Fallback
+                }
             } else if (blockValue !== 'all') {
                 const blockIndex = Math.floor(effectiveIndex / blockSize);
                 if (mode === 'cyclic') {
@@ -409,8 +465,9 @@ window.applyOndaRitmoFromUI = function () {
                     targetVoice.dinami = new Array(newMidis.length).fill(64);
                 }
 
-                // Sync S
-                if (vKey === 's') {
+                // Sync active voice
+                const metaVoice = (window.bdi && window.bdi.metadata && window.bdi.metadata.voici) ? window.bdi.metadata.voici : 's';
+                if (vKey === metaVoice) {
                     measure.tipis = [...targetVoice.tipis];
                     measure.nimidi = [...targetVoice.nimidi];
                     measure.timis = new Array(newTipis.length).fill(1e-9);
@@ -437,11 +494,8 @@ window.applyOndaRitmoFromUI = function () {
 
     // Refresh Logic
     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
-    if (typeof window.updatePlayer === 'function') {
-        window.updatePlayer();
-    } else {
-        const player = document.querySelector('midi-player');
-        if (player && typeof player.reload === 'function') player.reload();
+    if (typeof window.rebuildRecordi === 'function') {
+        window.rebuildRecordi();
     }
 };
 
@@ -486,6 +540,22 @@ window.applyDynamicShapeFromUI = function () {
 
     console.log(`🌊 Applying Dynamic Shape Modeling to range [${startIdx}, ${endIdx}]`);
 
+    // Helper: Get duration in beats (Quarter = 1) from Tipi code
+    const getDurationInBeats = (tipi) => {
+        const val = Math.abs(tipi);
+        switch (val) {
+            case 1: return 4;    // Redonda
+            case 2: return 2;    // Blanca
+            case 25: return 3;   // Blanca dotted
+            case 3: return 1;    // Negra
+            case 35: return 1.5; // Negra dotted
+            case 4: return 0.5;  // Corchea
+            case 45: return 0.75;// Corchea dotted
+            case 5: return 0.25; // Semicorchea
+            default: return 1;   // Default 1 beat
+        }
+    };
+
     // Process only selected range
     // Apply to each selected voice
     voiceKeys.forEach((voiceKey, vIdx) => {
@@ -522,8 +592,14 @@ window.applyDynamicShapeFromUI = function () {
             }
 
             const numNotesInMeasure = targetVoice.nimidi.length;
+            let measureTime = 0; // Track beat position within measure (0.0 = start)
 
             for (let n = 0; n < numNotesInMeasure; n++) {
+
+                // Determine duration for time-based logic
+                const currentTipi = (targetVoice.tipis && targetVoice.tipis[n]) ? targetVoice.tipis[n] : 3;
+                const noteDur = getDurationInBeats(currentTipi);
+
                 let dyn = 64;
                 const progress = totalNotes > 1 ? globalNoteIdx / (totalNotes - 1) : 0;
 
@@ -550,11 +626,43 @@ window.applyDynamicShapeFromUI = function () {
                             dyn = minVal + (maxVal - minVal) * p2;
                         }
                         break;
-                    case 'uniforme':
-                        const noteNum = globalNoteIdx + 1;
-                        const nStep = Math.round(extraVal) || 4;
-                        dyn = (noteNum % nStep === 0) ? maxVal : minVal;
+                    case 'uniforme': {
+                        // Time-based accent (Beat-based) with specific checkboxes
+
+                        // 1. "Every N" Logic (Using Note Index n, resetting per measure)
+                        const nStep = Math.max(1, Math.round(Math.abs(parseFloat(extraVal))));
+                        let isAccent = (n % nStep === 0);
+
+                        // 2. Specific Beat Logic (1-based index)
+                        // beats are 1.0, 2.0, 3.0, 4.0... so measureTime 0.0 is Beat 1
+                        const currentBeatIndex = Math.floor(measureTime + 0.05) + 1;
+
+                        // Check checkbox for this specific beat
+                        // Try Composition Mode ID first, then Dynamic Mode ID
+                        // Or better: check which panel is active? For now checking both is safe if IDs are unique.
+                        // Actually, since we are in a generic function, we should check which element exists/is visible? 
+                        // Simplification: Check both, OR them.
+                        let beatCheckbox = document.getElementById('beat-' + currentBeatIndex);
+                        const beatCheckboxDynamic = document.getElementById('dynamic-beat-' + currentBeatIndex);
+
+                        // If one is null, maybe the other is present.
+                        if (!beatCheckbox && beatCheckboxDynamic) beatCheckbox = beatCheckboxDynamic;
+                        // If both present (unlikely to be visible at same time), prefer the one from active mode?
+                        // Let's assume user interacts with the visible one.
+                        if (beatCheckboxDynamic && beatCheckboxDynamic.offsetParent !== null) beatCheckbox = beatCheckboxDynamic; // If dynamic is visible
+
+                        if (beatCheckbox) {
+                            // If checkbox exists, accent is determined primarily by it for ON-BEAT notes
+                            // We check if we are close to an integer beat
+                            const distToBeat = Math.abs(measureTime - Math.round(measureTime));
+                            if (distToBeat < 0.05) {
+                                isAccent = beatCheckbox.checked;
+                            }
+                        }
+
+                        dyn = isAccent ? maxVal : minVal;
                         break;
+                    }
                     case 'ondas':
                         const wavelength = extraVal || 8;
                         const tWave = (globalNoteIdx / wavelength) + voicePhaseShift;
@@ -564,10 +672,14 @@ window.applyDynamicShapeFromUI = function () {
                 }
 
                 targetVoice.dinami[n] = Math.max(0, Math.min(127, Math.round(dyn)));
+
+                // Advance counters
                 globalNoteIdx++;
+                measureTime += noteDur;
             }
 
-            if (voiceKey === 's') {
+            const metaVoice = (window.bdi && window.bdi.metadata && window.bdi.metadata.voici) ? window.bdi.metadata.voici : 's';
+            if (voiceKey === metaVoice) {
                 measure.dinami = [...targetVoice.dinami];
             }
         }
@@ -575,11 +687,8 @@ window.applyDynamicShapeFromUI = function () {
 
     // Finalize Changes
     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
-    if (typeof window.updatePlayer === 'function') {
-        window.updatePlayer();
-    } else {
-        const player = document.querySelector('midi-player');
-        if (player && typeof player.reload === 'function') player.reload();
+    if (typeof window.rebuildRecordi === 'function') {
+        window.rebuildRecordi();
     }
 
     // Save state for undo
@@ -639,7 +748,7 @@ window.applyOndaCompletaFromUI = function () {
 
     // FINAL SYNC for UI
     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
-    if (typeof window.updatePlayer === 'function') window.updatePlayer();
+    if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
 
     console.log("✅ Combined Onda finalized.");
 };
@@ -650,22 +759,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const extraParams = document.getElementById('dynamic-params-extra');
     const extraLabel = document.getElementById('dynamic-extra-label');
     const extraInput = document.getElementById('dynamic-extra-val');
+    const dynamicBeatSelector = document.getElementById('dynamic-mode-beats-selector');
 
     if (shapeTypeSelect) {
         shapeTypeSelect.addEventListener('change', () => {
             const val = shapeTypeSelect.value;
+            // Reset visibility
+            if (extraParams) extraParams.style.display = 'none';
+            if (dynamicBeatSelector) dynamicBeatSelector.style.display = 'none';
+
             if (val === 'uniforme') {
-                extraParams.style.display = 'flex';
-                extraLabel.textContent = 'Cada N:';
-                extraInput.value = 4;
-                extraInput.step = 1;
+                if (extraParams) {
+                    extraParams.style.display = 'flex';
+                    extraLabel.textContent = 'Cada N:';
+                    extraInput.value = 1;
+                    extraInput.step = 1;
+                }
+                if (dynamicBeatSelector) dynamicBeatSelector.style.display = 'flex';
+
             } else if (val === 'ondas') {
-                extraParams.style.display = 'flex';
-                extraLabel.textContent = 'Ciclo (N):';
-                extraInput.value = 8;
-                extraInput.step = 0.5;
-            } else {
-                extraParams.style.display = 'none';
+                if (extraParams) {
+                    extraParams.style.display = 'flex';
+                    extraLabel.textContent = 'Ciclo (N):';
+                    extraInput.value = 8;
+                    extraInput.step = 0.5;
+                }
+            }
+        });
+    }
+
+    // LISTENER FOR COMPOSITION MODE DYNAMIC SHAPE
+    const compShapeTypeSelect = document.getElementById('comp-dynamic-shape-type');
+    const compExtraParams = document.getElementById('comp-dynamic-params-extra');
+    const compExtraLabel = document.getElementById('comp-dynamic-extra-label');
+    const compExtraInput = document.getElementById('comp-dynamic-extra-val');
+
+    const compBeatSelector = document.getElementById('comp-dynamic-beats-selector');
+
+    if (compShapeTypeSelect && compExtraParams) {
+        compShapeTypeSelect.addEventListener('change', () => {
+            const val = compShapeTypeSelect.value;
+            // Hide all first
+            compExtraParams.style.display = 'none';
+            if (compBeatSelector) compBeatSelector.style.display = 'none';
+
+            if (val === 'uniforme') {
+                compExtraParams.style.display = 'flex';
+                compExtraLabel.textContent = 'Cada N:';
+                if (compExtraInput) {
+                    compExtraInput.value = 1; // Default to 1 (every beat checked)
+                    compExtraInput.step = 1;
+                }
+                // Show Beat Selector
+                if (compBeatSelector) compBeatSelector.style.display = 'flex';
+
+            } else if (val === 'ondas') {
+                compExtraParams.style.display = 'flex';
+                compExtraLabel.textContent = 'Ciclo (N):';
+                if (compExtraInput) {
+                    compExtraInput.value = 8;
+                    compExtraInput.step = 0.5;
+                }
             }
         });
     }

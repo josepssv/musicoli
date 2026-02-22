@@ -1,7 +1,7 @@
 ////////////////////
-let trilini = [];
-let trili = [];
-let trilipi = [];
+var trilini = [];
+var trili = [];
+var trilipi = [];
 
 // Generate silence variations for a rhythm pattern
 // Groups variations by number of silences

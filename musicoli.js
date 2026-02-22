@@ -1,18 +1,35 @@
-const alfabeto = "abcdefghijklmnopqrstuvwxyz1234567890".split("");
-const keyin = "C C# D D# E F F# G G# A A# B".split(" ");
-const tonicain = "Do Do# Re Re# Mi Fa Fa# Sol Sol# La La# Si Si#".split(" ");
-let keyinselecti = 0;
-const escalas = ['mayor', 'menor', 'cromatica'];
-let scali = 0;//menor, cromatica
+var alfabeto = "a".split("");
+var keyin = "C C# D D# E F F# G G# A A# B".split(" ");
+var tonicain = "Do Do# Re Re# Mi Fa Fa# Sol Sol# La La# Si Si#".split(" ");
+var keyinselecti = 0;
+var escalas = ['mayor', 'menor', 'cromatica'];
+var scali = 0;//menor, cromatica
 
-let newInsti;
-let ac = new AudioContext();
-window.masterGain = ac.createGain();
-window.masterGain.gain.value = 0.5; // Default 50%
-window.masterGain.connect(ac.destination);
+var newInsti;
+var ac = window.ac || new AudioContext();
+window.ac = ac; // Expose globally for reuse/debug
 
-Soundfont.instrument(ac, "acoustic_grand_piano", { destination: window.masterGain })
-    .then((nI) => (newInsti = nI));
+if (!window.masterGain) {
+    window.masterGain = ac.createGain();
+    window.masterGain.gain.value = 0.5; // Default 50%
+    window.masterGain.connect(ac.destination);
+}
+
+// Safe initialization of Soundfont
+if (typeof Soundfont !== 'undefined') {
+    Soundfont.instrument(ac, "acoustic_grand_piano", { destination: window.masterGain })
+        .then((nI) => (newInsti = nI))
+        .catch(err => console.warn("Failed to load Soundfont instrument:", err));
+} else {
+    console.warn("Soundfont library not loaded. Soundfont functionalities will be disabled.");
+    // Retry later if needed?
+    window.addEventListener('load', () => {
+        if (typeof Soundfont !== 'undefined' && !newInsti) {
+            Soundfont.instrument(ac, "acoustic_grand_piano", { destination: window.masterGain })
+                .then((nI) => (newInsti = nI));
+        }
+    });
+}
 
 window.setMasterVolume = function (val) {
     if (window.masterGain) {
@@ -121,9 +138,10 @@ let divi; // Notepad container
 let currentGroup = 1;
 let paterni = 1
 window.selectedMeasureIndex = -1; // Global measure selection index
-let currentEditMode = 'ritmo'; // 'ritmo', 'tonalidad', or 'lyrics'
+let currentEditMode = 'composicion'; // 'ritmo', 'tonalidad', or 'lyrics'
 let voiceEditMode = 'dependent'; // 'dependent' | 'independent' - Mode for voice editing
-let currentPattern = trilipi[currentGroup] ? trilipi[currentGroup][paterni] : null; // [3, 3, 3, 3] - Four quarter notes
+// Check if trilipi is ready, otherwise default to a safe value
+let currentPattern = (typeof trilipi !== 'undefined' && trilipi[currentGroup]) ? trilipi[currentGroup][paterni] : [4, 4, 4, 4]; // Fallback if not ready
 let lastSelectedGrayMidi = null; // Store last selected gray tone MIDI for saturated buttons synchronization
 
 // Initialize Language
@@ -1412,6 +1430,16 @@ function updateAfterBdiChange() {
     if (typeof window.rebuildRecordi === 'function') {
         window.rebuildRecordi();
         console.log('Rebuilt recordi after bdi change');
+    }
+
+    // Update Visual Tracks (MAIN SCORE VIEW)
+    if (typeof window.renderVisualTracks === 'function') {
+        window.renderVisualTracks();
+    }
+
+    // Update Indicators
+    if (typeof window.updateScoreIndicators === 'function') {
+        window.updateScoreIndicators();
     }
 
     // Update BDI display
@@ -6128,160 +6156,7 @@ function createRitmoEditor(containerId) {
     colorInput.style.padding = '0';
     colorInput.style.background = 'transparent';
 
-    // 🖼️ Image Picker Button (P5.js)
-    const pickerBtn = document.createElement('button');
-    pickerBtn.id = 'rhythm-image-picker-btn';
-    pickerBtn.textContent = '🖼️';
-    pickerBtn.title = 'Extraer 8 colores de imagen';
-    pickerBtn.style.width = '30px';
-    pickerBtn.style.height = '30px';
-    pickerBtn.style.padding = '0';
-    pickerBtn.style.fontSize = '18px';
-    pickerBtn.style.cursor = 'pointer';
-    pickerBtn.style.border = '0px solid #ccc';
-    pickerBtn.style.borderRadius = '4px';
-    pickerBtn.style.background = '#fff';
-    pickerBtn.style.margin = '0';
-    pickerBtn.style.marginLeft = '2px';
-    pickerBtn.style.display = 'inline-block';
-    pickerBtn.style.alignItems = 'center';
-    pickerBtn.style.justifyContent = 'center';
 
-    // Helper for Image Picker Modal (Robust version)
-    const openImagePicker = (onSelect) => {
-        const modal = document.createElement('div');
-        modal.style.position = 'fixed';
-        modal.style.top = '0';
-        modal.style.left = '0';
-        modal.style.width = '100vw';
-        modal.style.height = '100vh';
-        modal.style.backgroundColor = 'rgba(0,0,0,0.92)';
-        modal.style.zIndex = '20000';
-        modal.style.display = 'flex';
-        modal.style.flexDirection = 'column';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-        modal.style.color = '#fff';
-        modal.style.fontFamily = 'monospace';
-
-        const title = document.createElement('div');
-        title.innerHTML = '<b>Selector de Colores de Imagen</b><br>Haz clic en un punto para extraer 8 colores seguidos.';
-        title.style.marginBottom = '10px';
-        title.style.textAlign = 'center';
-        modal.appendChild(title);
-
-        const statusMsg = document.createElement('div');
-        statusMsg.style.margin = '5px';
-        statusMsg.style.color = '#ffeb3b';
-        statusMsg.style.fontSize = '12px';
-        statusMsg.textContent = 'Iniciando...';
-        modal.appendChild(statusMsg);
-
-        const fallbackContainer = document.createElement('div');
-        fallbackContainer.style.margin = '10px';
-        fallbackContainer.innerHTML = '<label style="font-size:12px; cursor:pointer; background:#444; padding:5px; border-radius:3px;">Cargar imagen local: <input type="file" accept="image/*" style="display:none"></label>';
-        const fileInput = fallbackContainer.querySelector('input');
-        modal.appendChild(fallbackContainer);
-
-        const canvasContainer = document.createElement('div');
-        canvasContainer.id = 'p5-picker-container';
-        canvasContainer.style.backgroundColor = '#222';
-        canvasContainer.style.border = '1px solid #555';
-        canvasContainer.style.overflow = 'auto';
-        canvasContainer.style.maxWidth = '90vw';
-        canvasContainer.style.maxHeight = '70vh';
-        modal.appendChild(canvasContainer);
-
-        const controls = document.createElement('div');
-        controls.style.marginTop = '15px';
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Cerrar';
-        closeBtn.style.padding = '8px 25px';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.backgroundColor = '#e91e63';
-        closeBtn.style.color = 'white';
-        closeBtn.style.border = 'none';
-        closeBtn.style.borderRadius = '4px';
-        closeBtn.addEventListener('click', () => {
-            if (p5Instance) p5Instance.remove();
-            modal.remove();
-        });
-        controls.appendChild(closeBtn);
-        modal.appendChild(controls);
-
-        document.body.appendChild(modal);
-
-        let p5Instance = new p5((s) => {
-            let img;
-            let imgUrl = '001.png';
-
-            s.preload = () => {
-                console.log('🖼️ P5: Intentando cargar', imgUrl);
-                statusMsg.textContent = 'Cargando ' + imgUrl + '...';
-                img = s.loadImage(imgUrl,
-                    () => {
-                        console.log('✅ P5: Imagen cargada con éxito');
-                        statusMsg.textContent = 'Imagen cargada. Haz clic en la imagen.';
-                    },
-                    (err) => {
-                        console.error('❌ P5: Error al cargar:', err);
-                        statusMsg.textContent = 'Error al cargar 001.png (CORS o archivo no encontrado). Prueba cargando un archivo local.';
-                    }
-                );
-            };
-
-            s.setup = () => {
-                const canvas = s.createCanvas(img.width, img.height);
-                canvas.parent('p5-picker-container');
-                s.image(img, 0, 0);
-                s.cursor(s.CROSS);
-            };
-
-            s.mousePressed = () => {
-                if (s.mouseX >= 0 && s.mouseX < s.width && s.mouseY >= 0 && s.mouseY < s.height) {
-                    const pixels = [];
-                    const N = 4;
-                    for (let i = 0; i < N; i++) {
-                        const x = Math.min(s.width - 1, Math.floor(s.mouseX + i));
-                        const c = s.get(x, s.mouseY);
-                        pixels.push(`rgb(${c[0]}, ${c[1]}, ${c[2]})`);
-                    }
-                    console.log('🖼️ TRACE: Extracted colors from image:', pixels);
-                    onSelect(pixels);
-                    p5Instance.remove();
-                    modal.remove();
-                }
-            };
-        }, canvasContainer);
-    };
-
-    pickerBtn.addEventListener('click', () => {
-        openImagePicker((colors) => {
-            const char = window.intervalReferenceChar;
-            if (colors.length > 0 && typeof np6 !== 'undefined') {
-                const baseColor = colors[0];
-                //console.log(`🎨 TRACE: Picker selected ${colors.length} colors. Base:`, baseColor);
-
-                // 1. Update character base color
-                //-->np6.setNoteColor(char, baseColor);
-
-                // 2. Update character flavors with extracted sequence
-                np6.noteColorMap[char + '_flavors'] = colors;
-
-                // 3. Update UI consistency
-                const hex = colorToHex(baseColor);
-                colorInput.value = hex;
-                charSelector.style.backgroundColor = baseColor;
-                if (charSelector._getContrastColor) {
-                    charSelector.style.color = charSelector._getContrastColor(baseColor);
-                }
-
-                // 4. Refresh display
-                populateFlavors(char);
-                //-->if (typeof makeladi === 'function') makeladi(baseColor);
-            }
-        });
-    });
 
     // Initialize global reference char if not set
     if (typeof window.intervalReferenceChar === 'undefined') {
@@ -6514,7 +6389,7 @@ function createRitmoEditor(containerId) {
 
     rhythmColorPreview.appendChild(charSelector);
     rhythmColorPreview.appendChild(colorInput);
-    rhythmColorPreview.appendChild(pickerBtn);
+
 
 
 
@@ -8629,954 +8504,695 @@ function updateBdiDisplay() {
     }
 }
 
-function tarareoAritmo() {
+// --- Tarareo Strategy Helpers ---
+const analyzeSyllableWeight = (text, isTonic) => {
+    let weight = 1.0;
+    if (isTonic) weight *= 1.5;
+    if (text.length > 2) weight *= 1.1;
+    if (/[aeiouáéíóúü]{2}/i.test(text)) weight *= 1.2;
+    return weight;
+};
+
+const getDurationVal = (code) => {
+    const map = { 1: 4, 2: 2, 25: 3, 3: 1, 35: 1.5, 4: 0.5, 45: 0.75, 5: 0.25 };
+    return map[Math.abs(code)] || 1;
+};
+
+const selectSmartPattern = (patterns, syllables) => {
+    if (!patterns || patterns.length === 0) return [];
+
+    // Calculate syllable weight profile
+    const sylWeights = syllables.map(s => {
+        // Need to handle missing text property if passed raw string array?
+        // Usually passed objects {text, isTonic}
+        return analyzeSyllableWeight(s.text || "", s.isTonic);
+    });
+    const totalWeight = sylWeights.reduce((a, b) => a + b, 0) || 1;
+    const relativeSylWeights = sylWeights.map(w => w / totalWeight);
+
+    let bestPattern = patterns[0];
+    let minError = Infinity;
+
+    for (const pat of patterns) {
+        // pat is array of codes e.g. [3, 4, 4]
+        const patDurs = pat.map(c => getDurationVal(c));
+        const totalDur = patDurs.reduce((a, b) => a + b, 0) || 1;
+        const relativePatDurs = patDurs.map(d => d / totalDur);
+
+        // Only consider patterns with SAME length as syllables for 'smart' match
+        // trilipi[N] contains patterns of length N.
+        if (pat.length !== syllables.length) continue;
+
+        let error = 0;
+        for (let i = 0; i < relativeSylWeights.length; i++) {
+            error += Math.pow((relativePatDurs[i] || 0) - (relativeSylWeights[i] || 0), 2);
+        }
+
+        if (error < minError) {
+            minError = error;
+            bestPattern = pat;
+        }
+    }
+
+    // Fallback if no same length pattern found (unlikely for trilipi[N])
+    if (minError === Infinity && patterns.length > 0) return patterns[0]; // Or random?
+
+    return bestPattern;
+};
+
+async function tarareoAritmo() {
     const tarareoInput = document.getElementById('tarareo-input');
     if (!tarareoInput) return;
 
     let input = tarareoInput.value.trim();
     if (!input) return;
 
-    // Initialize bdi structure if it doesn't exist
-    if (typeof window.bdi === 'undefined') {
-        window.bdi = {};
-    }
-    if (typeof window.bdi.bar === 'undefined') {
-        window.bdi.bar = [];
-    }
+    // Initialize bdi structure if needed
+    if (typeof window.bdi === 'undefined') window.bdi = {};
+    if (typeof window.bdi.bar === 'undefined') window.bdi.bar = [];
     if (typeof window.bdi.metadata === 'undefined') {
         window.bdi.metadata = {
-            "bpm": 120,
-            "timeSignature": "4/4",
-            "title": "emotion",
-            "voici": "s",
-            "voices": {
-                "s": { "instrument": 1, "percussion": false },
-                "a": { "instrument": 1, "percussion": false },
-                "t": { "instrument": 1, "percussion": false },
-                "b": { "instrument": 1, "percussion": false }
-            }
+            "bpm": 120, "timeSignature": "4/4", "title": "emotion", "voici": "s",
+            "voices": { "s": { "instrument": 1 }, "a": { "instrument": 1 }, "t": { "instrument": 1 }, "b": { "instrument": 1 } }
         };
     }
 
-    console.log("Tarareo input:", input);
+    // Check for silabaJS
+    if (typeof window.silabaJS === 'undefined') {
+        console.error("silabaJS not found! Please ensure silaba.js is loaded.");
+        alert("Error: Librería de sílabas no cargada.");
+        return;
+    }
 
-    // Split by comma to detect explicit measures
-    const measures = input.split(',');
-    let allWordsData = [];
+    console.log("Tarareo Input (Syllabification Mode):", input);
 
-    measures.forEach((measureInput, measureIndex) => {
-        // Split by 2+ spaces to detect rests within measure
-        const segments = measureInput.trim().split(/\s{2,}/);
+    // 1. Process Text into Musical Events
+    // Event: { type: 'note'|'rest', duration: 1, text: string, accent: boolean, lineIndex: number, wordIndex: number }
+    const events = [];
 
-        segments.forEach((segment, segmentIndex) => {
-            const words = segment.split(/\s+/).filter(w => w.length > 0);
+    // Helper function to convert rhythm code to duration
+    const getDurationFromCode = (code) => {
+        const durationMap = {
+            1: 4, 2: 2, 25: 3, 3: 1, 35: 1.5, 4: 0.5, 45: 0.75, 5: 0.25
+        };
+        return durationMap[code] || 1;
+    };
 
-            words.forEach(word => {
-                // Check if word starts with minus sign (rest marker)
-                const isRestMarker = word.startsWith('-');
-                const cleanWord = isRestMarker ? word.substring(1) : word;
+    // Split by newlines first to preserve line structure
+    const lines = input.trim().split(/\n+/);
+    let totalWordCount = 0;
 
-                // If it's a rest marker and has no content after -, skip
-                if (isRestMarker && cleanWord.length === 0) {
-                    console.log('Empty rest marker, skipping');
-                    return;
+    lines.forEach((line, lineIdx) => {
+        const rawWords = line.trim().split(/\s+/);
+        if (rawWords.length === 0 || (rawWords.length === 1 && !rawWords[0])) return;
+
+        // ... Strategy & Grouping Logic must be applied PER LINE to avoid grouping across lines ...
+        // Copying grouping logic here for per-line scope
+
+        const functionWords = new Set([
+            'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+            'de', 'del', 'al', 'a', 'en', 'con', 'por', 'para', 'sin',
+            'mi', 'tu', 'su', 'mis', 'tus', 'sus',
+            'me', 'te', 'se', 'le', 'lo', 'les', 'nos',
+            'y', 'e', 'o', 'u', 'ni',
+            'que', 'si', 'no', 'es'
+        ]);
+
+        const strategyElement = document.getElementById('tarareo-strategy');
+        const generationStrategy = strategyElement ? strategyElement.value : 'syllabic-grouped';
+
+        let groupedWords = [];
+        // Grouping Logic
+        if (generationStrategy === 'syllabic-strict' || generationStrategy === 'syllabic-strict-smart') {
+            groupedWords = [...rawWords];
+        } else {
+            let currentGroup = [];
+            let monosyllableCount = 0;
+            rawWords.forEach((word, idx) => {
+                const cleanWord = word.replace(/[.,;:!?¿¡]+$/, '').toLowerCase();
+                const isFunctionWord = functionWords.has(cleanWord);
+                const nextWord = rawWords[idx + 1];
+                const nextCleanWord = nextWord ? nextWord.replace(/[.,;:!?¿¡]+$/, '').toLowerCase() : '';
+                const nextIsFunctionWord = functionWords.has(nextCleanWord);
+                currentGroup.push(word);
+                if (isFunctionWord) monosyllableCount++;
+                const shouldCloseGroup = idx === rawWords.length - 1 || (!isFunctionWord && !nextIsFunctionWord) || (isFunctionWord && !nextIsFunctionWord && currentGroup.length > 2);
+                if (shouldCloseGroup) {
+                    groupedWords.push(currentGroup.join(' '));
+                    currentGroup = [];
+                    monosyllableCount = 0;
                 }
+            });
+        }
 
-                // Split word into syllables based on vowel groups
-                const vowelPattern = /[aeiouàáâãäåèéêëìíîïòóôõöùúûüýÿAEIOUÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝ]+/gi;
-                const syllables = [];
-                let lastIndex = 0;
-                let match;
+        groupedWords.forEach((rawWord, wIdx) => {
+            // Increment global word count (using actual words or grouped entities?)
+            // User says "número de palabras". Let's use the count of processed items.
+            const currentWordIndex = totalWordCount + wIdx;
 
-                // Find all vowel groups and extract syllables
-                const vowelMatches = [];
-                while ((match = vowelPattern.exec(cleanWord)) !== null) {
-                    vowelMatches.push({
-                        vowels: match[0],
-                        index: match.index,
-                        length: match[0].length
-                    });
-                }
+            // Detect trailing punctuation... (same as before)
+            let word = rawWord;
+            let restDuration = 0;
+            if (word.endsWith('.') || word.endsWith(',') || word.endsWith(';') || word.endsWith(':')) {
+                restDuration = 1; word = word.slice(0, -1);
+            } else if (word.endsWith('!')) {
+                restDuration = 2; word = word.slice(0, -1);
+            }
 
-                // If no vowels found, skip this word
-                if (vowelMatches.length === 0) {
-                    console.log(`Word "${cleanWord}" has no vowels, skipping`);
-                    return;
-                }
+            if (!word) {
+                if (restDuration > 0) events.push({ type: 'rest', duration: restDuration, text: '', accent: false, lineIndex: lineIdx, wordIndex: currentWordIndex });
+                return;
+            }
+            if (word.toLowerCase() === '(silencio)' || word === '.') {
+                events.push({ type: 'rest', duration: 1, text: '', accent: false, lineIndex: lineIdx, wordIndex: currentWordIndex });
+                return;
+            }
 
-                // Extract syllables (consonants before vowel + vowel group)
-                vowelMatches.forEach((vm, i) => {
-                    let syllableStart = lastIndex;
-                    let syllableEnd = vm.index + vm.length;
+            const silData = window.silabaJS.getSilabas(word);
+            if (silData && silData.silabas && silData.silabas.length > 0) {
+                const syllables = silData.silabas.map((syl, idx) => ({ text: syl.silaba, isTonic: (idx + 1) === silData.tonica }));
+                const syllableCount = syllables.length;
 
-                    // Include consonants after this vowel until next vowel (or end)
-                    if (i < vowelMatches.length - 1) {
-                        // Split consonants between vowels
-                        const nextVowelIndex = vowelMatches[i + 1].index;
-                        const consonantsBetween = cleanWord.substring(syllableEnd, nextVowelIndex);
-                        // Simple rule: give half consonants to this syllable
-                        const splitPoint = Math.ceil(consonantsBetween.length / 2);
-                        syllableEnd += splitPoint;
+                // Trilipi logic...
+                if (syllableCount >= 1 && syllableCount <= 8 && typeof trilipi !== 'undefined' && trilipi[syllableCount]) {
+                    const patterns = trilipi[syllableCount];
+                    let selectedPattern;
+                    if (generationStrategy === 'phonetic-smart' || generationStrategy === 'syllabic-strict-smart') {
+                        selectedPattern = selectSmartPattern(patterns, syllables);
                     } else {
-                        // Last syllable gets all remaining characters
-                        syllableEnd = cleanWord.length;
+                        selectedPattern = patterns[Math.floor(Math.random() * patterns.length)];
+                    }
+                    let phoneticPattern;
+                    if (generationStrategy === 'grouped-double-random') {
+                        phoneticPattern = patterns[Math.floor(Math.random() * patterns.length)];
+                    } else {
+                        phoneticPattern = selectSmartPattern(patterns, syllables);
                     }
 
-                    const syllableText = cleanWord.substring(syllableStart, syllableEnd);
-                    const hasAccent = /[àáâãäåèéêëìíîïòóôõöùúûüýÿÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝ]/.test(syllableText);
-
-                    syllables.push({
-                        text: syllableText,
-                        vowelCount: vm.length,
-                        hasAccent: hasAccent
-                    });
-
-                    lastIndex = syllableEnd;
-                });
-
-                console.log(`Word: "${word}", Clean: "${cleanWord}", IsRest: ${isRestMarker}, Syllables:`, syllables);
-
-                // Convert syllables to notes or rests
-                if (syllables.length === 1) {
-                    // Single syllable - use vowel count logic
-                    const vowelCount = syllables[0].vowelCount;
-                    let noteCode, duration;
-
-                    if (vowelCount >= 5) {
-                        noteCode = isRestMarker ? -1 : 1; duration = 4; // Whole note/rest
-                    } else if (vowelCount === 4) {
-                        noteCode = isRestMarker ? -25 : 25; duration = 3; // Dotted half
-                    } else if (vowelCount === 3) {
-                        noteCode = isRestMarker ? -2 : 2; duration = 2; // Half note/rest
-                    } else if (vowelCount === 2) {
-                        noteCode = isRestMarker ? -35 : 35; duration = 1.5; // Dotted quarter
-                    } else {
-
-                        // Single vowel - check for specific patterns
-                        if (cleanWord.length <= 2) {
-                            if (cleanWord.match(/^[td][iíîï]$/i)) {
-                                // ti/di -> eighth note
-                                noteCode = isRestMarker ? -4 : 4; duration = 0.5;
-                            } else if (cleanWord.match(/^[r][aeiouàáâãäåèéêëìíîïòóôõöùúûüýÿ]$/i)) {
-                                // ra/re/ri/ro/ru -> sixteenth note
-                                noteCode = isRestMarker ? -5 : 5; duration = 0.25;
-                            } else {
-                                // default -> quarter note
-                                noteCode = isRestMarker ? -3 : 3; duration = 1;
-                            }
-                        } else {
-                            noteCode = isRestMarker ? -3 : 3; duration = 1; // Quarter note/rest
-                        }
-                    }
-
-                    allWordsData.push({
-                        word: word,
-                        syllable: syllables[0].text,
-                        noteCode: noteCode,
-                        duration: duration,
-                        isRest: isRestMarker,
-                        isAccented: syllables[0].hasAccent
-                    });
-                } else {
-                    // Multi-syllable word
-                    syllables.forEach((syllable, syllableIndex) => {
-                        let noteCode, duration;
-
-                        if (syllableIndex === 0) {
-                            // First syllable: quarter note (negra)
-                            noteCode = isRestMarker ? -3 : 3;
-                            duration = 1;
-                        } else {
-                            // Subsequent syllables: eighth note (corchea)
-                            noteCode = isRestMarker ? -4 : 4;
-                            duration = 0.5;
-                        }
-
-                        allWordsData.push({
-                            word: word,
-                            syllable: syllable.text,
-                            noteCode: noteCode,
-                            duration: duration,
-                            isRest: isRestMarker,
-                            isAccented: syllable.hasAccent
+                    selectedPattern.forEach((rhythmCode, i) => {
+                        const syllable = syllables[i] || syllables[syllables.length - 1];
+                        const absCode = Math.abs(rhythmCode);
+                        const phoneticCodeForTenor = phoneticPattern[i] || rhythmCode;
+                        events.push({
+                            type: rhythmCode < 0 ? 'rest' : 'note',
+                            code: absCode,
+                            duration: getDurationFromCode(absCode),
+                            text: rhythmCode < 0 ? '' : syllable.text,
+                            accent: rhythmCode < 0 ? false : syllable.isTonic,
+                            _phoneticCode: phoneticCodeForTenor,
+                            lineIndex: lineIdx,
+                            wordIndex: currentWordIndex // Attach word index for modulation logic
                         });
                     });
+                } else { // Fallback trilipi
+                    syllables.forEach(syl => {
+                        events.push({ type: 'note', code: 3, duration: 1, text: syl.text, accent: syl.isTonic, lineIndex: lineIdx, wordIndex: currentWordIndex });
+                    });
+                }
+            } else { // Fallback silaba
+                events.push({ type: 'note', duration: 1, code: 3, text: word, accent: false, lineIndex: lineIdx, wordIndex: currentWordIndex });
+            }
+
+            if (restDuration > 0) {
+                events.push({ type: 'rest', duration: restDuration, text: '', accent: false, lineIndex: lineIdx, wordIndex: currentWordIndex });
+            }
+        });
+
+        totalWordCount += groupedWords.length;
+    });
+
+
+    if (events.length === 0) return;
+
+    // Helper: Fill measure with rests
+    const fillMeasureWithRests = (measureEvents, currentDuration, capacity) => {
+        let remaining = capacity - currentDuration;
+        while (remaining > 0) {
+            let restCode, restDuration;
+            if (remaining >= 4) { restCode = -1; restDuration = 4; }
+            else if (remaining >= 2) { restCode = -2; restDuration = 2; }
+            else if (remaining >= 1) { restCode = -3; restDuration = 1; }
+            else if (remaining >= 0.5) { restCode = -4; restDuration = 0.5; }
+            else { restCode = -5; restDuration = 0.25; }
+
+            measureEvents.push({ type: 'rest', code: Math.abs(restCode), duration: restDuration, text: '', accent: false });
+            remaining -= restDuration;
+        }
+    };
+
+    // 2. Pack Events into Measures (patterns already applied above)
+    const measureCapacity = 4;
+    const measures = [];
+    let currentMeasureEvents = [];
+    let currentMeasureDuration = 0;
+
+    events.forEach(evt => {
+        if (currentMeasureDuration + evt.duration > measureCapacity) {
+            fillMeasureWithRests(currentMeasureEvents, currentMeasureDuration, measureCapacity);
+            measures.push(currentMeasureEvents);
+            currentMeasureEvents = [];
+            currentMeasureDuration = 0;
+        }
+        currentMeasureEvents.push(evt);
+        currentMeasureDuration += evt.duration;
+    });
+
+    if (currentMeasureEvents.length > 0) {
+        fillMeasureWithRests(currentMeasureEvents, currentMeasureDuration, measureCapacity);
+        measures.push(currentMeasureEvents);
+    }
+
+    console.log(`Generated ${measures.length} measures with varied rhythms.`);
+
+    // 3. Generate BDI Data and Insert
+    // Get Common Data
+    const refChar = (typeof window.intervalReferenceChar !== 'undefined') ? window.intervalReferenceChar : 'a';
+    const colorA = (typeof np6 !== 'undefined' && np6.noteColorMap && np6.noteColorMap[refChar]) ? np6.noteColorMap[refChar] : 'hsl(0, 100%, 50%)';
+    const voiceSelector = document.getElementById('voice-selector');
+    const selectedVoiceName = voiceSelector ? voiceSelector.value : 'soprano';
+
+    // Parse color helpers
+    const parseColorToRGB = (colorString) => {
+        if (!colorString) return { r: 255, g: 0, b: 0 };
+        // Handle HSL
+        const hslMatch = colorString.match(/hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
+        if (hslMatch) {
+            const h = parseInt(hslMatch[1]) / 360;
+            const s = parseInt(hslMatch[2]) / 100;
+            const l = parseInt(hslMatch[3]) / 100;
+            let r, g, b;
+            if (s === 0) { r = g = b = l; } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1; if (t > 1) t -= 1;
+                    if (t < 1 / 6) return p + (q - p) * 6 * t;
+                    if (t < 1 / 2) return q;
+                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                    return p;
+                };
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3);
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+        // Handle Hex
+        if (colorString.startsWith('#')) {
+            const hex = colorString.slice(1);
+            if (hex.length === 6) {
+                return { r: parseInt(hex.slice(0, 2), 16), g: parseInt(hex.slice(2, 4), 16), b: parseInt(hex.slice(4, 6), 16) };
+            }
+        }
+        return { r: 255, g: 0, b: 0 };
+    };
+    const rgbA = parseColorToRGB(colorA);
+
+    // Determine Insertion Point
+    let baseCursorIndex = (typeof np6 !== 'undefined' && np6.getCursorMeasureIndex) ? np6.getCursorMeasureIndex() : window.selectedMeasureIndex;
+    if (baseCursorIndex === -1 || typeof baseCursorIndex === 'undefined') baseCursorIndex = window.bdi.bar.length;
+
+    // Process Each Generated Measure
+    let tariffModulationLog = [];
+    measures.forEach((measureEvents, measureRelIndex) => {
+
+        // Construct Arrays using actual rhythm codes
+        const pattern = measureEvents.map(e => e.type === 'rest' ? -e.code : e.code);
+        const dynamics = measureEvents.map(e => e.accent ? 80 : 64);
+        const timis = measureEvents.map(e => 2); // 2 = Index for Quarter Note duration in durai array (usually) - check mapping?
+        // Actually, calculatedTimis logic typically maps code to duration index
+        // Code 3 -> Duration 1 (Quarter)
+        // If we check `calculatedTimis` logic in old code: 
+        // if code==3 return 2. Correct.
+
+        const calculatedTimis = measureEvents.map(e => 2);
+
+        // Generate Notes for Voice
+        // Determine Notes based on Key Selector
+        // Determine Notes based on Key Selectors (scale-root, scale-mode)
+        const rootSelect = document.getElementById('scale-root');
+        const modeSelect = document.getElementById('scale-mode');
+        const root = rootSelect ? rootSelect.value : 'C';
+        const mode = modeSelect ? modeSelect.value : 'Major';
+
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const rootOffset = noteNames.indexOf(root) >= 0 ? noteNames.indexOf(root) : 0;
+        const isMinor = (mode === 'Minor');
+
+        // Base C Major (C4=60, E4=64, G4=67, C5=72)
+        // SATB Defaults relative to C4+Offset
+        let s = 72 + rootOffset;
+        let a = 67 + rootOffset;
+        let t = 64 + rootOffset; // Major 3rd
+        if (isMinor) t = 63 + rootOffset; // Minor 3rd
+        let b = 60 + rootOffset;
+
+        // Wrap Logic to keep in reasonable range
+        if (s > 77) s -= 12; // Keep S roughly C5-F5
+        if (a > 72) a -= 12; // Keep A roughly G4-C5
+        if (t > 69) t -= 12; // Keep T roughly E4-A4
+        if (b > 65) b -= 12; // Keep B roughly C4-F4
+
+        const noteMap = { s, a, t, b };
+
+        const voiceConfig = {
+            's': { note: noteMap.s, r: 255, g: 0, b: 0 },
+            'a': { note: noteMap.a, r: 0, g: 255, b: 0 },
+            't': { note: noteMap.t, r: 0, g: 0, b: 255 },
+            'b': { note: noteMap.b, r: 128, g: 0, b: 128 }
+        };
+        let currentVoiceKey = 's';
+        if (selectedVoiceName) {
+            const v = selectedVoiceName.toLowerCase();
+            if (v.startsWith('s')) currentVoiceKey = 's';
+            else if (v.startsWith('a')) currentVoiceKey = 'a';
+            else if (v.startsWith('t')) currentVoiceKey = 't';
+            else if (v.startsWith('b')) currentVoiceKey = 'b';
+        }
+        const voiceSettings = voiceConfig[currentVoiceKey] || voiceConfig['s'];
+
+        // Generate MIDI notes
+        let midiNotes;
+        let midiScaleMaps = []; // Track used scale map for each note
+        const melodicMode = document.getElementById('tarareo-melodic-mode') && document.getElementById('tarareo-melodic-mode').checked;
+
+        if (melodicMode && typeof window.calculateMelodicSteps === 'function') {
+            console.log("🎵 Generating Melody based on consonants...");
+            // Prepare Scale Base
+            const currentScaleName = (typeof escalas !== 'undefined' && typeof scali !== 'undefined') ? escalas[scali] : 'mayor';
+            const globalRoot = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0; // 0=C
+            const scaleIntervals = (typeof escalasNotas !== 'undefined') ? escalasNotas[currentScaleName] : [0, 2, 4, 5, 7, 9, 11];
+
+            // Function to build map for a given root
+            const buildScaleMap = (rootVal) => {
+                let map = [];
+                for (let oct = 2; oct <= 8; oct++) {
+                    scaleIntervals.forEach(int => {
+                        map.push((oct * 12) + rootVal + int);
+                    });
+                }
+                map.sort((a, b) => a - b);
+                return map;
+            };
+
+            // Initial Map
+            let currentLineValues = {
+                lineIndex: -1,
+                root: globalRoot,
+                map: buildScaleMap(globalRoot)
+            };
+
+            // Initial Note: Snap to scale
+            let currentMidi = voiceSettings.note;
+            // We need to snap to the FIRST map.
+            // But we do this inside the map loop? No, state must persist.
+            // Let's snap to global root map first.
+            let closest = currentLineValues.map.reduce((prev, curr) => Math.abs(curr - currentMidi) < Math.abs(prev - currentMidi) ? curr : prev);
+            currentMidi = closest;
+
+            midiNotes = measureEvents.map(e => {
+                // Check Line Change Modulation
+                if (typeof e.lineIndex !== 'undefined' && e.lineIndex !== currentLineValues.lineIndex) {
+                    // Update Root
+                    // Formula: "división con resto del número de palabras según notas de la escala"
+                    // New Root = Scale Note at index (wordCount % scaleLength) relative to Global Root?
+                    // Let's interpret: We pick a new root from the scale notes.
+                    // The notes of the scale are `scaleIntervals` (relative).
+                    // So we pick `scaleIntervals[wordIndex % length]`.
+                    // Then we add globalRoot?
+                    // E.g. C Major. Words=2. Interval=E (4). New Root = E.
+
+                    if (e.wordIndex !== undefined) {
+                        const shiftIndex = e.wordIndex % scaleIntervals.length;
+                        const shiftInterval = scaleIntervals[shiftIndex];
+                        const newRoot = (globalRoot + shiftInterval) % 12;
+
+                        currentLineValues.root = newRoot;
+                        currentLineValues.map = buildScaleMap(newRoot);
+                        currentLineValues.lineIndex = e.lineIndex;
+
+                        console.log(`🔄 Modulation at Line ${e.lineIndex}, Word ${e.wordIndex}: New Root ${noteNames[newRoot]} (Shift +${shiftInterval})`);
+                        tariffModulationLog.push({ line: e.lineIndex + 1, root: noteNames[newRoot] });
+
+                        // Re-snap current pitch to new scale map to avoid jumps?
+                        // Or keep pitch and find nearest in new map?
+                        // "Smart adaptation": find nearest in new map.
+                        let bestFit = currentLineValues.map.reduce((prev, curr) => Math.abs(curr - currentMidi) < Math.abs(prev - currentMidi) ? curr : prev);
+                        currentMidi = bestFit;
+                    }
+                }
+
+                if (e.type === 'note' && e.text) {
+                    const steps = window.calculateMelodicSteps(e.text);
+
+                    // Find current index in CURRENT scale map
+                    let idx = currentLineValues.map.indexOf(currentMidi);
+                    if (idx === -1) {
+                        // Fallback: find closest index
+                        let minDiff = Infinity;
+                        currentLineValues.map.forEach((n, i) => {
+                            const diff = Math.abs(n - currentMidi);
+                            if (diff < minDiff) { minDiff = diff; idx = i; }
+                        });
+                    }
+
+                    // Apply steps
+                    let newIdx = idx + steps;
+                    if (newIdx < 0) newIdx = 0;
+                    if (newIdx >= currentLineValues.map.length) newIdx = currentLineValues.map.length - 1;
+
+                    currentMidi = currentLineValues.map[newIdx];
+                    midiScaleMaps.push(currentLineValues.map);
+                    return currentMidi;
+                } else {
+                    midiScaleMaps.push(currentLineValues.map);
+                    return currentMidi;
+                }
+            });
+        } else {
+            // Default: Monotone
+            midiNotes = measureEvents.map(e => voiceSettings.note);
+        }
+        const colors = measureEvents.map(e => [voiceSettings.r, voiceSettings.g, voiceSettings.b, 255]);
+
+        // Construct BDI Item
+        const newItem = {
+            "idi": Date.now() + measureRelIndex,
+            "numi": window.bdi.bar.length + measureRelIndex, // Temp
+            "nami": "Tarareo " + (baseCursorIndex + measureRelIndex + 1),
+            "tarari": measureEvents.map(e => e.text).join(' '),
+            "liri": "",
+            "coli": [rgbA.r, rgbA.g, rgbA.b, 255],
+            "hexi": colorA,
+            "pinti": { "c": 0, "m": 0, "y": 0, "k": 0.6, "w": 0 },
+            "nimidi": midiNotes,
+            "nimidiColors": colors,
+            "timis": calculatedTimis,
+            "tipis": pattern,
+            "dinami": dynamics,
+            "chordi": false,
+            "voci": (() => {
+                // Harmony Logic
+                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
+                const selectedVoiceCode = nameToCode[selectedVoiceName] || 's';
+
+                // Active Voice Melody
+                const activeVoiceNimidi = [...midiNotes];
+
+                const createVoiceData = (voiceCode) => {
+                    const isSelectedVoice = (voiceCode === selectedVoiceCode);
+
+                    // 1. Determine base pattern for this voice
+                    // Tenor and Bajo use the stored PHONETIC pattern (_phoneticCode)
+                    // Soprano and Alto use the MAIN pattern (code)
+                    let voiceTipis = measureEvents.map(e => {
+                        if (e.type === 'rest') return e.code < 0 ? e.code : -e.code;
+
+                        if (voiceCode === 't' || voiceCode === 'b') {
+                            return (e._phoneticCode !== undefined) ? e._phoneticCode : e.code;
+                        } else {
+                            return e.code; // Soprano/Alto use selected pattern (Random)
+                        }
+                    });
+
+                    // 2. Create Voice Data Structure
+                    const voiceData = {
+                        "nami": voiceCode,
+                        "nimidi": [],
+                        "timis": [], // Will calculate
+                        "tipis": voiceTipis,
+                        "dinami": [...dynamics], // Clone dynamics
+                        "nimidiColors": [...colors], // Clone colors
+                        "tarari": measureEvents.map(e => e.text).join(' ')
+                    };
+
+                    // Adjust arrays to match pattern length (initially match)
+                    if (voiceData.dinami.length > voiceTipis.length) voiceData.dinami = voiceData.dinami.slice(0, voiceTipis.length);
+                    while (voiceData.dinami.length < voiceTipis.length) voiceData.dinami.push(80);
+
+                    if (voiceData.nimidiColors.length > voiceTipis.length) voiceData.nimidiColors = voiceData.nimidiColors.slice(0, voiceTipis.length);
+
+                    // 3. Apply Note Reduction (Descenso) for Alto and Bajo
+                    // Instead of scaling duration codes, we find a valid trilipi pattern with HALF the number of notes.
+                    // This guarantees the measure is filled correctly (4/4) while reducing density.
+                    if ((voiceCode === 'a' || voiceCode === 'b') && typeof trilipi !== 'undefined') {
+                        const noteCount = voiceData.tipis.length;
+                        const targetCount = Math.max(1, Math.floor(noteCount / 2));
+
+                        // Access trilipi global for the target note count
+                        if (trilipi[targetCount]) {
+                            const reducedPatterns = trilipi[targetCount];
+                            const selectedReducedPattern = reducedPatterns[Math.floor(Math.random() * reducedPatterns.length)];
+
+                            console.log(`  📉 Reducción ${voiceCode.toUpperCase()}: ${noteCount} notas -> ${targetCount} notas (${JSON.stringify(selectedReducedPattern)})`);
+                            voiceData.tipis = [...selectedReducedPattern];
+
+                            // Re-sync metadata arrays to new length
+                            voiceData.dinami = new Array(targetCount).fill(80);
+
+                            // Colors: keep first N
+                            if (voiceData.nimidiColors.length >= targetCount) {
+                                voiceData.nimidiColors = voiceData.nimidiColors.slice(0, targetCount);
+                            } else {
+                                // Pad if needed (unlikely if reducing)
+                                while (voiceData.nimidiColors.length < targetCount) voiceData.nimidiColors.push([128, 128, 128, 255]);
+                            }
+                        } else {
+                            console.warn(`  ⚠️ Reducción: No trilipi patterns found for count ${targetCount}. Using default.`);
+                            if (targetCount === 2) voiceData.tipis = [2, 2];
+                            else voiceData.tipis = [1];
+                        }
+                    }
+
+                    // 4. Calculate Timis (Visual spacing)
+                    if (typeof restini === 'function') {
+                        const timisResult = restini([voiceData.tipis]);
+                        if (timisResult && timisResult[0]) {
+                            voiceData.timis = timisResult[0];
+                        }
+                    } else {
+                        voiceData.timis = [...voiceData.tipis]; // Fallback
+                    }
+
+                    // 5. Harmony Logic
+                    const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : 'dependent';
+
+                    if (currentMode === 'independent') {
+                        if (isSelectedVoice) {
+                            voiceData.nimidi = [...activeVoiceNimidi];
+                        } else {
+                            voiceData.nimidi = voiceData.tipis.map(() => 0); // Silence
+                            voiceData.tipis = voiceData.tipis.map(t => -Math.abs(t)); // Force Rests
+                            voiceData.nimidiColors = voiceData.tipis.map(() => [128, 128, 128, 255]);
+                        }
+                    } else {
+                        // Dependent Mode
+                        if (isSelectedVoice) {
+                            voiceData.nimidi = [...activeVoiceNimidi];
+                        } else {
+                            // Harmonize!
+                            // We construct sourceData matching the active voice melody but need to adapt to OUR rhythm
+                            // Truncate activeVoiceNimidi to match our length to avoid errors.
+
+                            const sourceNimidi = activeVoiceNimidi.slice(0, voiceData.tipis.length);
+
+                            if (typeof window.generateHarmonyForVoice === 'function') {
+                                const sourceData = {
+                                    nimidi: sourceNimidi,
+                                    tipis: [...voiceData.tipis],
+                                    timis: [...voiceData.timis],
+                                    dinami: [...voiceData.dinami],
+                                    scaleMaps: midiScaleMaps ? midiScaleMaps.slice(0, voiceData.tipis.length) : [],
+                                    liri: "",
+                                    chordi: false
+                                };
+                                const harmonicResult = window.generateHarmonyForVoice(sourceData, voiceCode, selectedVoiceCode);
+                                voiceData.nimidi = harmonicResult.nimidi;
+                            } else {
+                                // Fallback
+                                // Fallback: Smart Diatonic Harmony
+                                voiceData.nimidi = sourceNimidi.map((n, idx) => {
+                                    if (midiScaleMaps && midiScaleMaps[idx]) {
+                                        const map = midiScaleMaps[idx];
+                                        const currentIdx = map.indexOf(n);
+                                        if (currentIdx !== -1) {
+                                            let offset = -12; // Default Octave down
+                                            if (voiceCode === 'a') offset = -2; // 3rd down
+                                            else if (voiceCode === 't') offset = -4; // 5th down
+                                            else if (voiceCode === 'b') offset = -7; // Octave down (or root)
+
+                                            // Handle range
+                                            let newIdx = currentIdx + offset;
+
+                                            // If out of map range, extrapolate (map usually covers octaves 2-8, so unlikely)
+                                            if (newIdx >= 0 && newIdx < map.length) return map[newIdx];
+                                        }
+                                    }
+                                    return Math.max(0, n - 12);
+                                });
+                            }
+                        }
+                    }
+
+                    return voiceData;
+                };
+
+                // Create voices
+                const sopranoData = createVoiceData('s');
+                const altoData = createVoiceData('a');
+                const tenorData = createVoiceData('t');
+                const bajoData = createVoiceData('b'); // Logic is inside createVoiceData
+
+                return [sopranoData, altoData, tenorData, bajoData];
+            })()
+        };
+
+        // Insert into BDI
+        window.bdi.bar.splice(baseCursorIndex + measureRelIndex, 0, newItem);
+    });
+
+    // Update Systems
+    if (typeof saveBdiState === 'function') saveBdiState();
+
+    // Refresh UI
+    if (typeof rebuildRecordi === 'function') rebuildRecordi();
+    if (typeof updateAfterBdiChange === 'function') updateAfterBdiChange();
+
+    // Advance Cursor
+    if (typeof np6 !== 'undefined') {
+        np6.cursorPos = baseCursorIndex + measures.length;
+        if (typeof np6._render === 'function') np6._render();
+        if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
+    }
+
+    // Update Modulation UI
+    const scaleInfoDiv = document.getElementById('tarareo-scale-info');
+    if (scaleInfoDiv) {
+        if (tariffModulationLog.length > 0) {
+            // De-duplicate log by line
+            const uniqueModulations = [];
+            const seenLines = new Set();
+            tariffModulationLog.forEach(mod => {
+                if (!seenLines.has(mod.line)) {
+                    uniqueModulations.push(mod);
+                    seenLines.add(mod.line);
                 }
             });
 
-            // Add rest if segment had trailing spaces (if not last segment in measure)
-            if (segmentIndex < segments.length - 1) {
-                // Add a rest marker?
-                // For now, let's just add a rest note code directly or handle it in variations
-                // Let's add a rest object
-                allWordsData.push({
-                    isRest: true,
-                    noteCode: -3, // Quarter rest default
-                    duration: 1,
-                    isAccented: false
-                });
-            }
-        });
-
-        // Add explicit bar line if not the last measure
-        if (measureIndex < measures.length - 1) {
-            allWordsData.push({ isBarLine: true });
-        }
-    });
-
-    // Generate variations based on the parsed data
-    const variations = [];
-
-    // VARIATION 1: Literal (respecting explicit bar lines and overflow)
-    let pattern1 = [];
-    let dynamics1 = [];
-    let currentMeasureDur = 0;
-
-    allWordsData.forEach(item => {
-        if (item.isBarLine) {
-            pattern1.push(100); // Bar line code
-            dynamics1.push(64);
-            currentMeasureDur = 0;
-        } else if (item.isRest) {
-            pattern1.push(item.noteCode);
-            dynamics1.push(64);
-            currentMeasureDur += item.duration;
+            const scaleNames = uniqueModulations.map(m => `L${m.line}: ${m.root}`).join(' | ');
+            scaleInfoDiv.innerText = `Escalas Usadas: ${scaleNames}`;
+            scaleInfoDiv.style.display = 'block';
         } else {
-            // Check for overflow
-            if (currentMeasureDur + item.duration > 4) {
-                // Overflow! Insert bar line
-                pattern1.push(100);
-                dynamics1.push(64);
-                currentMeasureDur = 0;
-            }
-            pattern1.push(item.noteCode);
-            dynamics1.push(item.isAccented ? 80 : 64);
-            currentMeasureDur += item.duration;
-        }
-    });
-
-    variations.push({
-        name: "Opción 1: Literal",
-        pattern: pattern1,
-        dynamics: dynamics1,
-        description: "Tal cual se escribió"
-    });
-
-    // VARIATION 2: Auto-fill (fill measures with rests)
-    let pattern2 = [];
-    let dynamics2 = [];
-    currentMeasureDur = 0;
-
-    allWordsData.forEach(item => {
-        if (item.isBarLine) {
-            // Fill previous measure if needed
-            while (currentMeasureDur < 4) {
-                if (4 - currentMeasureDur >= 1) {
-                    pattern2.push(-3);
-                    dynamics2.push(64);
-                    currentMeasureDur += 1;
-                }
-                else {
-                    pattern2.push(-4);
-                    dynamics2.push(64);
-                    currentMeasureDur += 0.5;
-                }
-            }
-            pattern2.push(100);
-            dynamics2.push(64);
-            currentMeasureDur = 0;
-        } else if (item.isRest) {
-            pattern2.push(item.noteCode);
-            dynamics2.push(64);
-            currentMeasureDur += item.duration;
-        } else {
-            if (currentMeasureDur + item.duration > 4) {
-                pattern2.push(100);
-                dynamics2.push(64);
-                currentMeasureDur = 0;
-            }
-            pattern2.push(item.noteCode);
-            dynamics2.push(item.isAccented ? 80 : 64);
-            currentMeasureDur += item.duration;
-        }
-    });
-    // Fill last measure
-    if (currentMeasureDur < 4 && currentMeasureDur > 0) {
-        while (currentMeasureDur < 4) {
-            if (4 - currentMeasureDur >= 1) {
-                pattern2.push(-3);
-                dynamics2.push(64);
-                currentMeasureDur += 1;
-            }
-            else {
-                pattern2.push(-4);
-                dynamics2.push(64);
-                currentMeasureDur += 0.5;
-            }
+            scaleInfoDiv.style.display = 'none';
         }
     }
 
-    variations.push({
-        name: "Opción 2: Relleno",
-        pattern: pattern2,
-        dynamics: dynamics2,
-        description: "Completa compases"
-    });
-
-    // VARIATION 3: Double Time (Repeated to fill measure)
-    let pattern3 = [];
-    let dynamics3 = [];
-
-    // 1. Generate base sequence with doubled speed
-    let baseSequence = [];
-    let baseDuration = 0;
-
-    allWordsData.forEach(item => {
-        if (item.isBarLine) return; // Ignore input bar lines
-
-        let newCode = item.noteCode;
-        let newDur = item.duration;
-
-        // Halve durations
-        if (item.isRest) {
-            if (item.noteCode === -1) { newCode = -2; newDur = 2; }
-            else if (item.noteCode === -2) { newCode = -3; newDur = 1; }
-            else if (item.noteCode === -3) { newCode = -4; newDur = 0.5; }
-            else if (item.noteCode === -25) { newCode = -35; newDur = 1.5; }
-            else { newCode = -4; newDur = 0.5; }
-        } else {
-            if (item.noteCode === 1) { newCode = 2; newDur = 2; }
-            else if (item.noteCode === 2) { newCode = 3; newDur = 1; }
-            else if (item.noteCode === 25) { newCode = 35; newDur = 1.5; }
-            else if (item.noteCode === 3) { newCode = 4; newDur = 0.5; }
-            else if (item.noteCode === 35) { newCode = 45; newDur = 0.75; }
-            else { newCode = 5; newDur = 0.25; }
-        }
-
-        baseSequence.push({
-            code: newCode,
-            duration: newDur,
-            dynamic: item.isAccented ? 80 : 64
-        });
-        baseDuration += newDur;
-    });
-
-    // 2. Repeat sequence if total duration < 4
-    if (baseSequence.length > 0) {
-        let fullSequence = [...baseSequence];
-        let totalDuration = baseDuration;
-
-        // Repeat until we have at least 4 beats
-        let loopGuard = 0;
-        while (totalDuration < 4 && loopGuard < 10) {
-            fullSequence = fullSequence.concat(baseSequence);
-            totalDuration += baseDuration;
-            loopGuard++;
-        }
-
-        // 3. Construct pattern with bar lines
-        let currentMeasureDur = 0;
-
-        fullSequence.forEach((note, i) => {
-            // If adding this note exceeds 4 beats, add bar line first
-            // (Simple logic: if we are at 0, don't add bar line. If we cross 4, add bar line)
-            // Actually, if we are at 4, we should have added bar line previously.
-            // But if this note makes it > 4?
-            // We'll just let it flow for now, or split? Splitting is hard.
-            // Let's assume we just wrap.
-
-            if (currentMeasureDur >= 4) {
-                pattern3.push(100);
-                dynamics3.push(64);
-                currentMeasureDur = 0;
-            }
-
-            pattern3.push(note.code);
-            dynamics3.push(note.dynamic);
-            currentMeasureDur += note.duration;
-        });
-
-        // 4. Fill remaining space in last measure
-        if (currentMeasureDur > 0 && currentMeasureDur < 4) {
-            while (currentMeasureDur < 4) {
-                if (4 - currentMeasureDur >= 1) {
-                    pattern3.push(-3); // Quarter rest
-                    dynamics3.push(64);
-                    currentMeasureDur += 1;
-                } else {
-                    pattern3.push(-4); // Eighth rest
-                    dynamics3.push(64);
-                    currentMeasureDur += 0.5;
-                }
-            }
-        }
-    }
-
-    variations.push({
-        name: "Opción 3: Doble velocidad",
-        pattern: pattern3,
-        dynamics: dynamics3,
-        description: "Más rápido (bucle)"
-    });
-
-    // Switch to Ritmo mode
-    if (typeof setMode === 'function') {
-        setMode('text');
-    }
-
-    // Update notepad to show the new measures
-    if (typeof updateAfterBdiChange === 'function') {
-        updateAfterBdiChange();
-    } else if (typeof window.applyTextLayer === 'function') {
-        window.applyTextLayer();
-    }
-
-    // Display all 3 options
-    const notationDisplay = document.getElementById('rhythm-notation-display');
-
-    // Hide the single rhythm accept button since we're showing tarareo options
-    const singleAcceptBtn = notationDisplay?.parentElement?.querySelector('button');
-    if (singleAcceptBtn && singleAcceptBtn.textContent.includes('Aceptar')) {
-        singleAcceptBtn.style.display = 'none';
-    }
-
-    if (notationDisplay) {
-        notationDisplay.innerHTML = '';
-        notationDisplay.style.background = '#777';
-        notationDisplay.style.flexDirection = 'row'; // Horizontal layout
-        notationDisplay.style.gap = '4px';
-        notationDisplay.style.padding = '4px';
-        notationDisplay.style.flexWrap = 'wrap';
-
-        const noteMap = {
-            1: '&#xE1D2;', 2: '&#xE1D3;', 25: '&#xE1D3; &#xE1E7;',
-            3: '&#xE1D5;', 35: '&#xE1D5; &#xE1E7;',
-            4: '&#xE1D7;', 45: '&#xE1D7; &#xE1E7;', 5: '&#xE1D9;',
-            '-1': '&#xE4E3;', '-2': '&#xE4E4;', '-3': '&#xE4E5;', '-4': '&#xE4E6;', '-5': '&#xE4E7;',
-            100: '&nbsp;&#xE030;&nbsp;' // Bar line with spacing
-        };
-
-        variations.forEach((variation, index) => {
-            const optionDiv = document.createElement('div');
-            optionDiv.style.display = 'flex';
-            optionDiv.style.flexDirection = 'column'; // Vertical inside each option
-            optionDiv.style.alignItems = 'center';
-            optionDiv.style.gap = '3px';
-            optionDiv.style.padding = '4px';
-            optionDiv.style.background = '#fff';
-            optionDiv.style.borderRadius = '4px';
-            optionDiv.style.border = '1px solid #ddd';
-            optionDiv.style.flex = '1';
-            optionDiv.style.minWidth = '150px';
-
-            // Label
-            const label = document.createElement('div');
-            label.textContent = variation.name;
-            label.style.fontFamily = 'monospace';
-            label.style.fontSize = '10px';
-            label.style.fontWeight = 'bold';
-            label.style.color = '#666';
-            label.style.textAlign = 'center';
-            label.style.marginBottom = '4px';
-
-            // Notation
-            const notation = document.createElement('div');
-            notation.style.fontFamily = 'Bravura';
-            notation.style.fontSize = '18px';
-            notation.style.cursor = 'pointer';
-            notation.style.padding = '8px 4px 2px 4px';
-            notation.style.background = '#fff3e0';
-            notation.style.borderRadius = '3px';
-            notation.style.textAlign = 'center';
-            notation.style.lineHeight = '1';
-
-            // Build notation with accents
-            const notationHTML = variation.pattern.map((num, idx) => {
-                const noteSymbol = noteMap[num] || '';
-                if (!noteSymbol) return '';
-
-                // Check if this note is accented (skip bar lines)
-                const isAccented = variation.dynamics && variation.dynamics[idx] > 64;
-
-                if (isAccented && num !== 100) {
-                    // Wrap note with accent symbol above the stem
-                    return `<span style="position: relative; display: inline-block; padding-top: 12px;">
-                                <span style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); font-size: 14px;">&#xE4A0;</span>
-                                <span style="display: inline-block;">${noteSymbol}</span>
-                            </span>`;
-                }
-                // Non-accented notes also need padding to align with accented ones
-                return `<span style="display: inline-block; padding-top: 12px;">${noteSymbol}</span>`;
-            }).join(' ');
-
-            notation.innerHTML = notationHTML;
-
-            // Play on click
-            notation.onclick = () => {
-                // Play the sound
-                if (typeof tuci === 'function') {
-                    const basi = [{
-                        nimidi: variation.pattern.filter(n => n !== 100).map(() => 60),
-                        tipis: variation.pattern.filter(n => n !== 100),
-                        dinami: variation.dynamics.filter((_, i) => variation.pattern[i] !== 100),
-                        chordi: false
-                    }];
-                    if (typeof window.playMeasureFast === 'function') window.playMeasureFast(window.selectedMeasureIndex);
-                }
-
-                // Update tarareo input with the generated tarareo
-                const tarareoInputEl = document.getElementById('tarareo-input');
-                if (tarareoInputEl && typeof patternToTarareo === 'function') {
-                    // Split pattern by bar lines to get measures
-                    const measures = [];
-                    const dynamicsMeasures = [];
-                    let currentMeasure = [];
-                    let currentDynamics = [];
-
-                    variation.pattern.forEach((code, idx) => {
-                        if (code === 100) {
-                            if (currentMeasure.length > 0) {
-                                measures.push(currentMeasure);
-                                dynamicsMeasures.push(currentDynamics);
-                                currentMeasure = [];
-                                currentDynamics = [];
-                            }
-                        } else {
-                            currentMeasure.push(code);
-                            currentDynamics.push(variation.dynamics[idx]);
-                        }
-                    });
-
-                    // Don't forget the last measure
-                    if (currentMeasure.length > 0) {
-                        measures.push(currentMeasure);
-                        dynamicsMeasures.push(currentDynamics);
-                    }
-
-                    // If no bar lines, treat as single measure
-                    if (measures.length === 0 && variation.pattern.length > 0) {
-                        measures.push(variation.pattern.filter(n => n !== 100));
-                        dynamicsMeasures.push(variation.dynamics.filter((_, i) => variation.pattern[i] !== 100));
-                    }
-
-                    // Generate tarareo for each measure
-                    const tarareos = measures.map((measure, idx) => {
-                        return patternToTarareo(measure, dynamicsMeasures[idx]);
-                    });
-
-                    // Update input with comma-separated tarareos
-                    tarareoInputEl.value = tarareos.join(', ');
-                }
-            };
-
-            notation.onmouseenter = () => {
-                notation.style.background = '#ffe0b2';
-            };
-
-            notation.onmouseleave = () => {
-                notation.style.background = '#fff3e0';
-            };
-
-            // Accept button
-            const acceptBtn = document.createElement('button');
-            acceptBtn.textContent = 'Aceptar';
-            acceptBtn.style.padding = '4px 12px';
-            acceptBtn.style.fontSize = '11px';
-            acceptBtn.style.fontFamily = 'sans-serif';
-            acceptBtn.style.background = '#4CAF50';
-            acceptBtn.style.color = 'white';
-            acceptBtn.style.border = 'none';
-            acceptBtn.style.borderRadius = '3px';
-            acceptBtn.style.cursor = 'pointer';
-            acceptBtn.style.position = 'relative';
-            acceptBtn.style.zIndex = '10';
-
-            acceptBtn.onclick = async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                if (typeof window.bdi.bar !== 'undefined' && typeof window.recordi === 'function') {
-                    // Get the original tarareo input text
-                    const tarareoInputEl = document.getElementById('tarareo-input');
-                    const tarareoText = tarareoInputEl ? tarareoInputEl.value.trim() : '';
-
-                    // Split tarareo text by commas to get individual measure texts
-                    const tarareoSegments = tarareoText.split(',').map(s => s.trim());
-
-                    // Split pattern by bar lines (code 100) to get individual measures
-                    const measures = [];
-                    const dynamicsMeasures = [];
-                    let currentMeasure = [];
-                    let currentDynamics = [];
-
-                    variation.pattern.forEach((code, index) => {
-                        if (code === 100) {
-                            if (currentMeasure.length > 0) {
-                                measures.push(currentMeasure);
-                                dynamicsMeasures.push(currentDynamics);
-                                currentMeasure = [];
-                                currentDynamics = [];
-                            }
-                        } else {
-                            currentMeasure.push(code);
-                            currentDynamics.push(variation.dynamics[index]);
-                        }
-                    });
-
-                    // Don't forget the last measure
-                    if (currentMeasure.length > 0) {
-                        measures.push(currentMeasure);
-                        dynamicsMeasures.push(currentDynamics);
-                    }
-
-                    // If no bar lines were found, treat entire pattern as one measure
-                    if (measures.length === 0) {
-                        measures.push(variation.pattern.filter(n => n !== 100));
-                        dynamicsMeasures.push(variation.dynamics.filter((_, i) => variation.pattern[i] !== 100));
-                    }
-
-                    // Create a separate BDI entry for each measure
-                    const generatedTarareos = [];
-
-                    // Parse color to RGB helper function (defined once, used in loop)
-                    const parseColorToRGB = (colorString) => {
-                        if (!colorString) return { r: 255, g: 0, b: 0 };
-                        // Handle HSL
-                        const hslMatch = colorString.match(/hsl\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
-                        if (hslMatch) {
-                            const h = parseInt(hslMatch[1]) / 360;
-                            const s = parseInt(hslMatch[2]) / 100;
-                            const l = parseInt(hslMatch[3]) / 100;
-                            let r, g, b;
-                            if (s === 0) { r = g = b = l; } else {
-                                const hue2rgb = (p, q, t) => {
-                                    if (t < 0) t += 1; if (t > 1) t -= 1;
-                                    if (t < 1 / 6) return p + (q - p) * 6 * t;
-                                    if (t < 1 / 2) return q;
-                                    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-                                    return p;
-                                };
-                                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                                const p = 2 * l - q;
-                                r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3);
-                            }
-                            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
-                        }
-                        // Handle RGB
-                        const rgbMatch = colorString.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
-                        if (rgbMatch) { return { r: parseInt(rgbMatch[1]), g: parseInt(rgbMatch[2]), b: parseInt(rgbMatch[3]) }; }
-                        // Handle Hex
-                        if (colorString.startsWith('#')) {
-                            const hex = colorString.slice(1);
-                            if (hex.length === 6) {
-                                return { r: parseInt(hex.slice(0, 2), 16), g: parseInt(hex.slice(2, 4), 16), b: parseInt(hex.slice(4, 6), 16) };
-                            }
-                        }
-                        return { r: 255, g: 0, b: 0 };
-                    };
-
-                    // Get color ONCE from intervalReferenceChar for ALL measures
-                    const refChar = (typeof window.intervalReferenceChar !== 'undefined') ? window.intervalReferenceChar : 'a';
-                    const colorA = (typeof np6 !== 'undefined' && np6.noteColorMap && np6.noteColorMap[refChar])
-                        ? np6.noteColorMap[refChar]
-                        : 'hsl(0, 100%, 50%)'; // Default red if not found
-
-                    const rgbA = parseColorToRGB(colorA);
-
-
-                    // Get color name in Spanish ONCE for all measures
-                    let colorName = "Tarareo";
-                    try {
-                        const colorInfo = await consulti(rgbA.r, rgbA.g, rgbA.b);
-                        if (colorInfo && colorInfo.nombre) {
-                            const translated = await traducirOnline(colorInfo.nombre);
-                            colorName = translated;
-                        }
-                    } catch (err) {
-                        console.log("Error fetching color name:", err);
-                    }
-                    // Get current voice selection
-                    const voiceSelector = document.getElementById('voice-selector');
-                    const selectedVoiceName = voiceSelector ? voiceSelector.value : 'soprano';
-
-                    // CAMBIO: Usar la posición del cursor del Notepad para insertar en la posición correcta
-                    const baseCursorIndex = (typeof np6 !== 'undefined' && np6.getCursorMeasureIndex)
-                        ? np6.getCursorMeasureIndex()
-                        : window.selectedMeasureIndex;
-
-                    // Loop measures
-                    for (let measureIndex = 0; measureIndex < measures.length; measureIndex++) {
-                        const measurePattern = measures[measureIndex];
-                        // Get dynamics for this measure
-                        const measureDynamics = dynamicsMeasures[measureIndex] || [];
-
-                        // Generate tarareo from pattern with dynamics
-                        const generatedTarareo = patternToTarareo(measurePattern, measureDynamics);
-                        generatedTarareos.push(generatedTarareo);
-
-                        let calculatedTimis = [];
-                        if (typeof restini === 'function') {
-                            calculatedTimis = restini([measurePattern])[0];
-                        } else {
-                            calculatedTimis = measurePattern.map(elemento => {
-                                if (elemento >= 10) {
-                                    let decenas = Math.floor(elemento / 10);
-                                    let unidades = elemento % 10;
-                                    return (decenas - 1) * 10 + unidades;
-                                } else if (elemento < 0) {
-                                    return elemento - 1;
-                                } else {
-                                    return elemento - 1;
-                                }
-                            });
-                        }
-
-                        // Generate nimidi using selected tones or color 'A'
-                        let nimidiArray = [];
-                        let nimidiColorsArray = []; // Array to store colors for each note
-
-
-                        // Check if user has selected tones from the palette
-                        let midiNotes;
-                        let sourceColors = []; // Array of [r,g,b,a] arrays corresponding to midiNotes 1-to-1
-
-                        if (window.selectedTones && window.selectedTones.length > 0) {
-                            // Use selected tones
-                            midiNotes = window.getSelectedTonesMidi();
-                            console.log('🎵 CRITICAL DEBUG: midiNotes from getSelectedTonesMidi =', midiNotes, 'length =', midiNotes ? midiNotes.length : 0);
-
-                            // We need to reconstruct the colors that correspond to these notes
-                            // getSelectedTonesMidi iterates the container and calls rgbToMidiInterval for each tone
-                            // rgbToMidiInterval returns 3 notes [R, G, B] for each tone.
-                            // So we need to do the same iteration to get the colors.
-                            const container = document.getElementById('selected-tones-container');
-                            if (container && container.children.length > 0) {
-                                const toneSpans = Array.from(container.children);
-                                toneSpans.forEach(span => {
-                                    const bgColor = span.style.backgroundColor; // "rgb(r, g, b)"
-                                    const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-                                    if (rgbMatch) {
-                                        const r = parseInt(rgbMatch[1]);
-                                        const g = parseInt(rgbMatch[2]);
-                                        const b = parseInt(rgbMatch[3]);
-                                        const colorArr = [r, g, b, 255];
-                                        // Store the source color once per tone
-                                        sourceColors.push(colorArr);
-                                    }
-                                });
-                            }
-                        } else {
-                            // Fallback to color A
-                            midiNotes = typeof rgbToMidiInterval === 'function'
-                                ? rgbToMidiInterval(rgbA.r, rgbA.g, rgbA.b, 60)
-                                : [60];
-
-                            // Store the single source color
-                            const colorArr = [rgbA.r, rgbA.g, rgbA.b, 255];
-                            sourceColors.push(colorArr);
-                        }
-
-                        // Generate MIDI notes for the pattern
-                        // If we have more notes than MIDI notes, cycle through them
-                        console.log('🔍 DEBUG: midiNotes =', midiNotes, 'length =', midiNotes.length);
-                        console.log('🔍 DEBUG: measurePattern.length =', measurePattern.length);
-                        for (let i = 0; i < measurePattern.length; i++) {
-                            const midiValue = midiNotes[i % midiNotes.length];
-                            console.log(`🔍 DEBUG: i=${i}, i%${midiNotes.length}=${i % midiNotes.length}, midiValue=${midiValue}`);
-                            nimidiArray.push(midiValue);
-                            // We do NOT fill nimidiColorsArray here anymore, 
-                            // as we want to store the palette, not the per-note mapping.
-                        }
-
-                        // Assign source colors directly
-                        nimidiColorsArray = sourceColors;
-
-                        // Prepare color for storage
-                        let hexColor = "#646464";
-                        if (typeof colorToHex === 'function') {
-                            hexColor = colorToHex(colorA);
-                        } else {
-                            // Fallback hex conversion
-                            hexColor = "#" + ((1 << 24) + (rgbA.r << 16) + (rgbA.g << 8) + rgbA.b).toString(16).slice(1);
-                        }
-
-                        const newItem = {
-                            "idi": Date.now() + measureIndex, // Unique ID for each measure
-                            "numi": window.bdi.bar.length,
-                            "nami": colorName + " " + (window.bdi.bar.length + 1),
-                            "tarari": generatedTarareo,
-                            "liri": "", // Add lyrics field (empty by default)
-                            "coli": [rgbA.r, rgbA.g, rgbA.b, 255],
-                            "hexi": hexColor,
-                            "pinti": { "c": 0, "m": 0, "y": 0, "k": 0.6, "w": 0 },
-                            "nimidi": nimidiArray,
-                            "nimidiColors": nimidiColorsArray,
-                            "timis": calculatedTimis,
-                            "tipis": measurePattern,
-                            "dinami": measureDynamics,
-                            "chordi": false,
-                            "voci": (() => {
-                                // 1. Identify Selected Voice Code
-                                const nameToCode = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
-                                const selectedVoiceCode = nameToCode[selectedVoiceName] || 's';
-
-                                // 2. Calculate Active Voice Melody (Master Melody)
-                                let activeVoiceNimidi = [];
-                                if (window.selectedTones && window.selectedTones.length > 0) {
-                                    // Use the generic selected tones (usually soprano/middle range)
-                                    // Or should we shift them? Usually selected tones are absolute pitches.
-                                    activeVoiceNimidi = [...nimidiArray];
-                                } else {
-                                    // Standard Color Mode: Generate specifically for the SELECTED voice range
-                                    const notes = rgbToMidiInterval(rgbA.r, rgbA.g, rgbA.b, 60, selectedVoiceName);
-                                    activeVoiceNimidi = measurePattern.map((_, idx) => notes[idx % notes.length]);
-                                }
-
-                                // 3. Helper to create voice
-                                const createVoiceData = (voiceName, voiceCode) => {
-                                    // Determine if this is the active voice
-                                    const isSelectedVoice = (voiceCode === selectedVoiceCode);
-
-                                    // Voice Data Object Structure
-                                    const voiceData = {
-                                        "nami": voiceCode,
-                                        "nimidi": [],
-                                        "timis": [...calculatedTimis],
-                                        "tipis": [...measurePattern],
-                                        "dinami": [...measureDynamics],
-                                        "nimidiColors": [...nimidiColorsArray],
-                                        "tarari": generatedTarareo
-                                    };
-
-                                    // CHECK MODE
-                                    const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : 'dependent';
-
-                                    if (currentMode === 'independent') {
-                                        if (isSelectedVoice) {
-                                            // Active Voice: Sounding
-                                            voiceData.nimidi = [...activeVoiceNimidi];
-                                        } else {
-                                            // Others: Silence
-                                            voiceData.nimidi = measurePattern.map(() => 0); // 0 or keep notes?
-                                            // Usually independent mode implies silence for others OR preserving existing?
-                                            // Since this is NEW measure creation, silence is appropriate.
-                                            voiceData.tipis = measurePattern.map(t => -Math.abs(t)); // Force Rests
-                                            voiceData.nimidiColors = measurePattern.map(() => [128, 128, 128, 255]);
-                                            voiceData.tarari = "";
-                                        }
-                                    } else {
-                                        // DEPENDENT MODE (Default)
-                                        console.log(`🔗 Creating Measure: Dependent Mode. Voice ${voiceCode} (Active: ${selectedVoiceCode})`);
-                                        if (isSelectedVoice) {
-                                            // Active Voice: Master Melody
-                                            voiceData.nimidi = [...activeVoiceNimidi];
-                                        } else {
-                                            // Other Voices: Harmonize from Active Voice
-                                            // Use generateHarmonyForVoice logic
-                                            if (typeof window.generateHarmonyForVoice === 'function') {
-                                                const sourceData = { nimidi: activeVoiceNimidi };
-                                                const harmonicResult = window.generateHarmonyForVoice(sourceData, voiceCode, selectedVoiceCode);
-                                                voiceData.nimidi = harmonicResult.nimidi;
-                                            } else {
-                                                // Fallback if function missing
-                                                const offsets = { 's': 0, 'a': -5, 't': -12, 'b': -19 };
-                                                const sOffset = offsets[selectedVoiceCode] || 0;
-                                                const tOffset = offsets[voiceCode] || 0;
-                                                const diff = tOffset - sOffset;
-                                                voiceData.nimidi = activeVoiceNimidi.map(n => {
-                                                    if (n <= 0) return n;
-                                                    return Math.max(0, Math.min(127, n + diff));
-                                                });
-                                            }
-                                        }
-                                    }
-                                    return voiceData;
-                                };
-
-                                // Create all 4 voices
-                                return [
-                                    createVoiceData('soprano', 's'),
-                                    createVoiceData('contralto', 'a'),
-                                    createVoiceData('tenor', 't'),
-                                    createVoiceData('bajo', 'b')
-                                ];
-                            })()
-                        };
-                        console.log("🎵 Created newItem:");
-                        console.log("   -> nimidi:", JSON.stringify(newItem.nimidi));
-                        console.log("   -> nimidiColors:", JSON.stringify(newItem.nimidiColors));
-
-                        // Save state before adding new measure
-                        saveBdiState();
-
-                        const cursorMeasureIndex = baseCursorIndex + measureIndex;
-
-                        console.log(`📍 Inserting measure at cursor position: ${cursorMeasureIndex}`);
-
-                        //-->window.bdi.push(newItem);
-                        window.bdi.bar.splice(cursorMeasureIndex, 0, newItem);
-
-                        // Visual update is handled by applyTextLayer() below, so we don't need manual insertion here
-                        // if (typeof np6 !== 'undefined' && np6.insertMeasureAtCursor) {
-                        //     np6.insertMeasureAtCursor(generatedTarareo, hexColor);
-                        // }
-
-                        // Rebuild all MIDI tracks to ensure correct order
-                        rebuildRecordi();
-                    }
-
-                    // Update BDI display textarea
-                    updateBdiDisplay();
-
-                    // Update Ritmo Textarea (text-layer-6)
-                    const ritmoTextarea = document.getElementById('text-layer-6');
-                    if (ritmoTextarea) {
-                        // Add separator if not empty and not ending with separator
-                        let currentVal = ritmoTextarea.value.trim();
-                        if (currentVal.length > 0 && !currentVal.endsWith('|')) {
-                            ritmoTextarea.value += ' | ';
-                        }
-                        // Join all generated measure patterns
-                        const allTipis = measures.map(m => m.join(' ')).join(' | ');
-                        ritmoTextarea.value += allTipis;
-
-                        // Trigger input event to sync if needed
-                        ritmoTextarea.dispatchEvent(new Event('input'));
-                    }
-
-                    // Update Notepad and Player to show the new tarareos from bdi
-                    if (typeof updateAfterBdiChange === 'function') {
-                        updateAfterBdiChange();
-
-                        // Restore and advance cursor
-                        if (typeof np6 !== 'undefined') {
-                            // Final update to notepad instance
-                            const savedCursorPos = baseCursorIndex + measures.length;
-                            np6.cursorPos = savedCursorPos;
-                            if (typeof np6._render === 'function') {
-                                np6._render();
-                            }
-                            if (typeof np6.focus === 'function') np6.focus();
-                            if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
-                        }
-                    }
-
-                    acceptBtn.textContent = '✓';
-                    acceptBtn.style.background = '#45a049';
-                    setTimeout(() => {
-                        acceptBtn.textContent = 'Aceptar';
-                        acceptBtn.style.background = '#4CAF50';
-                    }, 1000);
-                }
-            };
-
-            optionDiv.appendChild(label);
-            optionDiv.appendChild(notation);
-            optionDiv.appendChild(acceptBtn);
-            notationDisplay.appendChild(optionDiv);
-        });
-    }
+    console.log("✅ Tarareo measures inserted successfully.");
 }
+
+
+
+
+
+
 
 // Event listeners for tarareo input
 const tarareoInput = document.getElementById('tarareo-input');
@@ -9967,9 +9583,89 @@ window.np6 = null; // Explicitly ensure it's on window
 // MUSICOLI: Initialize applyTextLayer stub early so it's available before DOMContentLoaded
 // This will be replaced with the actual function inside DOMContentLoaded
 window.applyTextLayer = function () {
-    console.warn('⚠️ applyTextLayer called before DOMContentLoaded - function not ready yet');
+    // Check dependencies
+    if (!window.np6 || !window.np6.container) {
+        console.warn('⚠️ applyTextLayer: np6 or container not ready');
+        return;
+    }
+    if (typeof window.convernai !== 'function') {
+        console.error('❌ applyTextLayer: convernai function not found');
+        return;
+    }
+
+    const container = window.np6.container;
+    container.innerHTML = ''; // Clear previous content
+
+    const measures = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+    if (measures.length === 0) return;
+
+    // Get active voice to display
+    const activeVoiceKey = (window.bdi.metadata && window.bdi.metadata.voici) ? window.bdi.metadata.voici : 's';
+
+    measures.forEach((measure, index) => {
+        // Determine rhythm data to render
+        let tipis = measure.tipis || [];
+
+        // If dependent/independent logic applies, we might want the specific voice's rhythm
+        if (measure.voci) {
+            const voiceData = (Array.isArray(measure.voci))
+                ? measure.voci.find(v => v.nami === activeVoiceKey)
+                : measure.voci[activeVoiceKey];
+
+            if (voiceData && voiceData.tipis && voiceData.tipis.length > 0) {
+                tipis = voiceData.tipis;
+            }
+        }
+
+        if (!tipis || tipis.length === 0) {
+            // Visual placeholder for empty measure if needed
+            const span = document.createElement('span');
+            span.textContent = " | ";
+            container.appendChild(span);
+            return;
+        }
+
+        // Prepare data for convernai
+        // sonis: 1 for note, 0 for rest
+        const sonis = tipis.map(t => t > 0 ? 1 : 0);
+        // cadena: absolute values of rhythm codes
+        const cadena = tipis.map(t => Math.abs(t));
+
+        // Generate HTML glyphs
+        // convernai(cadena, sonis, duribi, numero=4)
+        const htmlContent = window.convernai(cadena, sonis, null, 4);
+
+        // Wrap in a span representing the measure
+        const span = document.createElement('span');
+        span.innerHTML = htmlContent; // convernai returns raw HTML strings
+        span.className = 'measure-span';
+        span.dataset.measureIndex = index;
+
+        // Basic interaction styles (can be enhanced via CSS)
+        span.style.cursor = 'pointer';
+        span.style.padding = '0 5px';
+        if (index === window.selectedMeasureIndex) {
+            span.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            span.style.borderRadius = '4px';
+        }
+
+        span.onclick = (e) => {
+            e.stopPropagation();
+            window.selectedMeasureIndex = index;
+            if (window.np6) window.np6.cursorPos = index;
+            window.applyTextLayer(); // Re-render to update selection highlight
+            // Also notify other components
+            if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
+        };
+
+        container.appendChild(span);
+    });
+
+    // Update cursor position in mock object
+    if (window.np6) window.np6.cursorPos = (window.selectedMeasureIndex !== undefined) ? window.selectedMeasureIndex : 0;
+
+    console.log(`✅ Applied text layer: Rendered ${measures.length} measures.`);
 };
-console.log('🔧 [EARLY INIT] window.applyTextLayer stub created');
 
 document.addEventListener('DOMContentLoaded', () => {
     const rainbowColorMap = assignRainbowColors(alfabeto);
@@ -10482,7 +10178,97 @@ document.addEventListener('DOMContentLoaded', () => {
     divi = document.getElementById("notepi6");
 
     var playi = document.getElementById("player15");
-    playi.src = ''
+    // MUSICOLI: Display playback measure
+    let playbackInterval = null;
+    let lastPlayedMeasureIndex = -1;
+
+    const updateMeasureDisplay = () => {
+        const currentTime = playi.currentTime;
+        const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
+        const bpm = metadata.bpm || 120;
+        const timeSig = metadata.timeSignature || [4, 4];
+        const beatsPerMeasure = timeSig[0];
+        // 60 / bpm = seconds per beat. * beats per measure = seconds per measure.
+        const secondsPerMeasure = (beatsPerMeasure * 60) / bpm;
+
+        if (typeof currentTime === 'number' && !isNaN(currentTime) && secondsPerMeasure > 0) {
+            // Add small offset to handle boundary conditions smoothly
+            let measureIndex = Math.floor((currentTime + 0.05) / secondsPerMeasure);
+
+            // Constrain to total measures
+            const totalMeasures = (window.bdi && window.bdi.bar) ? window.bdi.bar.length : 0;
+            if (measureIndex >= totalMeasures && totalMeasures > 0) measureIndex = totalMeasures - 1;
+            if (measureIndex < 0) measureIndex = 0;
+
+            // Sync Cursor only if changed
+            if (measureIndex !== lastPlayedMeasureIndex) {
+                lastPlayedMeasureIndex = measureIndex;
+
+                // Update logical state
+                window.selectedMeasureIndex = measureIndex;
+                if (window.np6) window.np6.cursorPos = measureIndex;
+
+                // EFFICIENT VISUAL UPDATE to avoid full re-render
+                const container = document.getElementById('notepi6');
+                if (container) {
+                    // 1. Remove highlight from all (or previous)
+                    const spans = container.children;
+                    for (let i = 0; i < spans.length; i++) {
+                        spans[i].style.backgroundColor = '';
+                        spans[i].style.borderRadius = '';
+                    }
+
+                    // 2. Highlight new
+                    let newSpan = null;
+                    if (container.children && container.children.length > measureIndex) {
+                        newSpan = container.children[measureIndex];
+                    }
+
+                    // Fallback query
+                    if (!newSpan || newSpan.dataset.measureIndex != measureIndex) {
+                        newSpan = container.querySelector(`.measure-span[data-measure-index="${measureIndex}"]`);
+                    }
+
+                    if (newSpan) {
+                        newSpan.style.backgroundColor = 'rgba(0,0,0,0.1)';
+                        newSpan.style.borderRadius = '4px';
+
+                        // Optional: Scroll to keep in view (horizontal)
+                        // Simple centering logic
+                        if (newSpan.parentElement) {
+                            const containerWidth = newSpan.parentElement.clientWidth;
+                            const spanLeft = newSpan.offsetLeft;
+                            const spanWidth = newSpan.offsetWidth;
+                            // Basic scroll
+                            if (newSpan.scrollIntoView) {
+                                newSpan.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
+                            }
+                        }
+                    }
+                }
+
+                // Update status bar text (POS: X)
+                if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
+            }
+        }
+    };
+
+    playi.addEventListener('start', () => {
+        if (playbackInterval) clearInterval(playbackInterval);
+        playbackInterval = setInterval(updateMeasureDisplay, 100);
+        updateMeasureDisplay(); // Immediate update
+    });
+
+    playi.addEventListener('stop', () => {
+        if (playbackInterval) clearInterval(playbackInterval);
+        playbackInterval = null;
+        lastPlayedMeasureIndex = -1;
+    });
+
+    // Also update on note events for tighter sync if available
+    playi.addEventListener('note', () => {
+        updateMeasureDisplay();
+    });
     for (let s = 0; s < bdi.bar.length; s++) {
         recordi(bdi.bar, s)
     }
@@ -10579,6 +10365,11 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function updatePlayerMIDI(player, tracks = traki) {
         if (!player) return;
+
+        if (typeof MidiWriter === 'undefined') {
+            console.warn("⚠️ MidiWriter is not defined. Cannot update player.");
+            return;
+        }
 
         const escribi = new MidiWriter.Writer(tracks);
         const dataUri = escribi.dataUri();
@@ -11140,6 +10931,11 @@ ${codigos.join('\n  ')}
 
         // ProgramChangeEvent is now handled at track/measure level in recordi 
         // to avoid redundant events for every note which can confuse some synthesizers.
+        if (!targetTracks || !targetTracks[ntraki]) {
+            // console.warn(`⚠️ Target track ${ntraki} not found. Skipping note event.`);
+            return;
+        }
+
         targetTracks[ntraki].addEvent(
             new MidiWriter.NoteEvent({
                 pitch: dati[1],
@@ -11159,6 +10955,11 @@ ${codigos.join('\n  ')}
         traki = new Array(5);
         const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
         const voicesMeta = metadata.voices || {};
+
+        if (typeof MidiWriter === 'undefined') {
+            console.error("❌ MidiWriter is not defined. MIDI export features will not work.");
+            return;
+        }
 
         // Track 0: Conductor & Pre-declaration
         traki[0] = new MidiWriter.Track();
@@ -11309,7 +11110,7 @@ ${codigos.join('\n  ')}
     // Create palette editors
     createTonalidadEditor(np6, 'editor-tonalidad');
     createRitmoEditor('editor-ritmo');
-    createLyricsEditor('editor-lyrics');
+    // createLyricsEditor('editor-lyrics'); // Removed to avoid overwriting static HTML
 
     // Dual-layer system
     window.editMode = 'text'; // Start in 'lyrics' mode as default (global for modal detection)
@@ -12966,16 +12767,135 @@ ${codigos.join('\n  ')}
 
     // Function to open MIDI editor for a measure
     window.openMidiEditor = function (measureIndex, noteIndex = -1) {
+        // MUSICOLI: Block MIDI editor in composition mode
+        const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode : (typeof currentEditMode !== 'undefined' ? currentEditMode : '');
+        if (mode === 'composicion') {
+            console.log('🚫 MIDI editor opening blocked in composition mode');
+            return;
+        }
+
+        // MUSICOLI: Intercept for lyrics mode to use standalone editor
+        if (mode === 'lyrics') {
+            console.log('📖 Mode is lyrics, utilizing standalone lyrics editor.');
+
+            window.currentEditingMeasureIndex = measureIndex;
+            window.selectedMeasureIndex = measureIndex;
+            selectedMeasureIndex = measureIndex;
+
+            const measure = window.bdi.bar[measureIndex];
+            const voiceSelector = document.getElementById('voice-selector');
+            const voiceCode = voiceSelector ? voiceSelector.value : 's';
+            let activeVoice = null;
+            if (measure && measure.voci && Array.isArray(measure.voci)) {
+                activeVoice = measure.voci.find(v => v.nami === voiceCode);
+            }
+
+            let rawLiri = [];
+            if (activeVoice && activeVoice.liri && activeVoice.liri.length) {
+                rawLiri = Array.isArray(activeVoice.liri) ? activeVoice.liri : activeVoice.liri.split(/\s+/);
+            } else if (measure && measure.liri && measure.liri.length) {
+                rawLiri = Array.isArray(measure.liri) ? measure.liri : measure.liri.split(/\s+/);
+            }
+
+            // Fallback to tarareo (tarari) if lyrics are empty
+            if (rawLiri.length === 0 || rawLiri.join('').trim() === '') {
+                // Try to get stored tarari string
+                let fallbackTarari = (activeVoice && activeVoice.tarari) ? activeVoice.tarari : (measure && measure.tarari ? measure.tarari : '');
+
+                // If stored tarari is empty, generate it from rhythm (tipis)
+                if (!fallbackTarari || fallbackTarari.trim() === '') {
+                    const tipisSource = (activeVoice && activeVoice.tipis) ? activeVoice.tipis : (measure && measure.tipis ? measure.tipis : []);
+                    const dinamiSource = (activeVoice && activeVoice.dinami) ? activeVoice.dinami : (measure && measure.dinami ? measure.dinami : null);
+
+                    if (tipisSource.length > 0 && typeof patternToTarareo === 'function') {
+                        fallbackTarari = patternToTarareo(tipisSource, dinamiSource);
+                    }
+                }
+
+                // Split fallback into syllables array
+                if (fallbackTarari && fallbackTarari.trim() !== '') {
+                    rawLiri = fallbackTarari.split(/\s+/);
+                } else {
+                    // Ultimate fallback: generate 'la' for each note
+                    const noteCount = (activeVoice && activeVoice.nimidi) ? activeVoice.nimidi.length : (measure && measure.nimidi ? measure.nimidi.length : 0);
+                    if (noteCount > 0) {
+                        rawLiri = new Array(noteCount).fill('la');
+                    }
+                }
+            }
+
+            const lyricsInput = document.getElementById('lyrics-input-static');
+            const lyricsNum = document.getElementById('lyrics-measure-num');
+            if (lyricsInput) lyricsInput.value = rawLiri.join(' ');
+            if (lyricsNum) lyricsNum.textContent = (measureIndex + 1);
+
+            if (typeof window.highlightMeasure === 'function') window.highlightMeasure(measureIndex);
+
+            const modalContainer = document.getElementById('modal-display-container');
+            const lowerRow = document.getElementById('lower-content-flex-row');
+            const rightColumn = document.getElementById('right-column-wrapper');
+            if (modalContainer) modalContainer.style.display = 'none';
+            if (lowerRow) lowerRow.style.display = 'flex';
+            if (rightColumn) rightColumn.style.display = 'flex';
+
+            const btnAccept = document.getElementById('lyrics-editor-accept');
+            if (btnAccept) {
+                btnAccept.onclick = () => {
+                    const currInput = document.getElementById('lyrics-input-static');
+                    const val = currInput ? currInput.value.trim() : '';
+                    const liriArr = val ? val.split(/\s+/) : [];
+                    const currMeasure = window.bdi.bar[window.currentEditingMeasureIndex];
+                    if (currMeasure) {
+                        const vSelect = document.getElementById('voice-selector');
+                        const vCode = vSelect ? vSelect.value : 's';
+                        let actV = null;
+                        if (currMeasure.voci && Array.isArray(currMeasure.voci)) {
+                            actV = currMeasure.voci.find(v => v.nami === vCode);
+                        }
+                        if (actV) actV.liri = liriArr;
+                        currMeasure.liri = liriArr;
+
+                        if (typeof saveBdiState === 'function') saveBdiState();
+                        if (typeof applyTextLayer === 'function') applyTextLayer();
+
+                        if (currInput) {
+                            currInput.style.backgroundColor = '#c8e6c9';
+                            setTimeout(() => {
+                                currInput.style.backgroundColor = '';
+
+                                // Auto-advance to next measure
+                                const nextIndex = window.currentEditingMeasureIndex + 1;
+                                if (window.bdi && window.bdi.bar && nextIndex < window.bdi.bar.length) {
+                                    if (typeof window.openMidiEditor === 'function') {
+                                        window.openMidiEditor(nextIndex);
+                                    }
+                                } else {
+                                    console.log('✅ Reached the end of the composition');
+                                }
+                            }, 300);
+                        }
+                    }
+                };
+            }
+
+            return;
+        }
+
         // console.log('🎹 openMidiEditor called with index:', measureIndex, 'note:', noteIndex);
         if (measureIndex < 0 || measureIndex >= window.bdi.bar.length) {
             console.error('Invalid measure index:', measureIndex);
             return;
         }
 
-        // Ensure the editor sidebar is visible
+        // Ensure the editor sidebar and its containers are visible
         const modalContainer = document.getElementById('modal-display-container');
+        const lowerRow = document.getElementById('lower-content-flex-row');
+        const rightColumn = document.getElementById('right-column-wrapper');
+
         if (modalContainer) {
             modalContainer.style.display = 'flex';
+            if (lowerRow) lowerRow.style.display = 'flex';
+            if (rightColumn) rightColumn.style.display = 'flex';
         }
 
         window.currentEditingMeasureIndex = measureIndex;
@@ -14331,6 +14251,143 @@ ${codigos.join('\n  ')}
         };
         unifiedControls.appendChild(x2Btn);
 
+        // /2 Button
+        const div2Btn = document.createElement('button');
+        div2Btn.textContent = '/2';
+        div2Btn.title = "Combinar notas seleccionadas (reducir cantidad)";
+        div2Btn.style.cssText = 'background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 11px; font-weight: bold; height: 24px; margin-right: 4px;';
+
+        div2Btn.onclick = () => {
+            const singleInput = document.getElementById('midi-single-input');
+            if (!singleInput) return;
+            const val = singleInput.value.trim();
+            if (!val) return;
+
+            // Get current FULL state
+            let currentMidi = window.currentFullMidiValues ? [...window.currentFullMidiValues] : [];
+            let currentRhythm = window.currentEditingRhythmValues ? [...window.currentEditingRhythmValues] : [];
+            let currentDynamics = window.currentEditingDynamicsValues ? [...window.currentEditingDynamicsValues] : [];
+
+            // Fallback sync usage
+            if (currentMidi.length === 0) {
+                const raw = val.split(/\s+/).map(v => parseInt(v)).filter(n => !isNaN(n));
+                currentMidi = raw.map(Math.abs);
+                while (currentRhythm.length < currentMidi.length) currentRhythm.push(4);
+            }
+            while (currentDynamics.length < currentMidi.length) currentDynamics.push(80);
+
+            // Determine Target Indices
+            let indices = [];
+            if (window.midiEditingLevel === 'note' && window.currentEditingNoteIndex >= 0) {
+                // If single note selected, maybe expand to next? But let's stick to explicit selection or All.
+                if (window.currentEditingNoteIndex < currentMidi.length - 1) {
+                    indices = [window.currentEditingNoteIndex];
+                }
+            } else if (window.selectedNoteIndices && window.selectedNoteIndices.length > 0) {
+                indices = [...window.selectedNoteIndices].sort((a, b) => a - b);
+            } else {
+                indices = currentMidi.map((_, i) => i);
+            }
+
+            if (indices.length < 2) return;
+
+            // Group sorted indices into contiguous blocks
+            const blocks = [];
+            let currentBlock = [indices[0]];
+            for (let i = 1; i < indices.length; i++) {
+                if (indices[i] === indices[i - 1] + 1) {
+                    currentBlock.push(indices[i]);
+                } else {
+                    blocks.push(currentBlock);
+                    currentBlock = [indices[i]];
+                }
+            }
+            blocks.push(currentBlock);
+
+            let changed = false;
+
+            // --- LOCAL HELPERS FOR REDUCTION ---
+            // Mapping: Rhythm Code -> Half-Units
+            // 1=128, 15=192, 2=64, 25=96, 3=32, 35=48, 4=16, 45=24, 5=8, 55=12, 6=4
+            const codeToUnits = {
+                '0': 256, '05': 384,
+                '1': 128, '15': 192,
+                '2': 64, '25': 96,
+                '3': 32, '35': 48,
+                '4': 16, '45': 24,
+                '5': 8, '55': 12,
+                '6': 4, '65': 6
+            };
+            const unitsToCode = {};
+            Object.entries(codeToUnits).forEach(([k, v]) => unitsToCode[v] = k);
+
+            const getUnits = (r) => {
+                const absR = Math.abs(r);
+                const code = String(absR);
+                if (codeToUnits[code]) return codeToUnits[code];
+                // Fallback for codes not in map (e.g. if extended)
+                return 0;
+            };
+
+            // Process blocks in reverse order to keep indices valid during splicing
+            blocks.reverse().forEach(block => {
+                if (block.length < 2) return;
+
+                // Calculate Total Units
+                let totalUnits = 0;
+                block.forEach(idx => {
+                    const r = currentRhythm[idx];
+                    totalUnits += getUnits(r);
+                });
+
+                // Find matching code
+                const reducedCode = unitsToCode[totalUnits];
+
+                if (reducedCode) {
+                    console.log(`Combining block of ${block.length} notes (Total Units: ${totalUnits}) into Code: ${reducedCode}`);
+
+                    const newRhythmVal = parseInt(reducedCode); // e.g. "3" -> 3
+                    const sign = currentRhythm[block[0]] < 0 ? -1 : 1;
+
+                    // Use pitch and dynamics of the first note
+                    const newPitch = currentMidi[block[0]];
+                    const newDynamic = currentDynamics[block[0]];
+
+                    // Perform replacement
+                    currentMidi.splice(block[0], block.length, newPitch);
+                    currentRhythm.splice(block[0], block.length, newRhythmVal * sign);
+                    currentDynamics.splice(block[0], block.length, newDynamic);
+                    changed = true;
+                } else {
+                    console.warn(`Could not find reduced note for total units: ${totalUnits}`);
+                }
+            });
+
+            if (changed) {
+                // Update Globals
+                window.currentFullMidiValues = currentMidi;
+                window.currentEditingRhythmValues = currentRhythm;
+                window.currentEditingDynamicsValues = currentDynamics;
+
+                // Clear selection
+                window.selectedNoteIndices = [];
+
+                // Update UI
+                const newSignedNotes = currentMidi.map((m, i) => {
+                    const r = currentRhythm[i];
+                    return (r < 0) ? -Math.abs(m) : Math.abs(m);
+                });
+
+                if (typeof updateInputAndRecalc === 'function') {
+                    updateInputAndRecalc(newSignedNotes);
+                } else {
+                    singleInput.value = newSignedNotes.join(' ');
+                    renderMidiScorePreview(window.currentFullMidiValues, window.currentEditingRhythmValues, rhythmContainer);
+                }
+            }
+        };
+        unifiedControls.appendChild(div2Btn);
+
         // Rotate Button (Rotar notas seleccionadas)
         const rotateBtn = document.createElement('button');
         rotateBtn.textContent = '↻';
@@ -14651,6 +14708,16 @@ ${codigos.join('\n  ')}
                     activeVoice.tipis = [...newTipis];
                     activeVoice.timis = [...newTimis];
                     activeVoice.dinami = window.currentEditingDynamicsValues ? [...window.currentEditingDynamicsValues] : new Array(newMidiValues.length).fill(80);
+                    const lyricsInp = document.getElementById('lyrics-input');
+                    if (lyricsInp) {
+                        const newLiriVals = lyricsInp.value.trim().split(/\s+/).filter(s => s !== "");
+                        if (window.currentEditingNoteIndex >= 0) {
+                            if (!Array.isArray(activeVoice.liri)) activeVoice.liri = [];
+                            activeVoice.liri[window.currentEditingNoteIndex] = newLiriVals[0] || "";
+                        } else {
+                            activeVoice.liri = newLiriVals;
+                        }
+                    }
                 }
 
                 // 5. Handle Harmonies (Dependent Mode)
@@ -14687,6 +14754,7 @@ ${codigos.join('\n  ')}
                                 v.nimidi = new Array(activeVoice.tipis.length).fill(0);
                                 v.dinami = new Array(activeVoice.tipis.length).fill(0);
                                 v.tarari = "";
+                                v.liri = [];
                             }
                         });
                     }
@@ -14698,6 +14766,7 @@ ${codigos.join('\n  ')}
                     newMeasure.nimidi = [...activeVoice.nimidi];
                     newMeasure.tipis = [...activeVoice.tipis];
                     newMeasure.timis = [...activeVoice.timis];
+                    newMeasure.liri = activeVoice.liri ? [...activeVoice.liri] : [];
 
                     // Recalculate color for the measure
                     // Recalculate color for the measure
@@ -14838,6 +14907,16 @@ ${codigos.join('\n  ')}
                     activeVoice.tipis = [...newMeasure.tipis];
                     activeVoice.timis = [...newMeasure.timis];
                     activeVoice.dinami = [...newMeasure.dinami];
+                    const lyricsInp = document.getElementById('lyrics-input');
+                    if (lyricsInp) {
+                        const newLiriVals = lyricsInp.value.trim().split(/\s+/).filter(s => s !== "");
+                        if (window.currentEditingNoteIndex >= 0) {
+                            if (!Array.isArray(activeVoice.liri)) activeVoice.liri = [];
+                            activeVoice.liri[window.currentEditingNoteIndex] = newLiriVals[0] || "";
+                        } else {
+                            activeVoice.liri = newLiriVals;
+                        }
+                    }
                 }
 
                 // Handle other voices based on mode
@@ -14896,6 +14975,7 @@ ${codigos.join('\n  ')}
                                             v.timis = existingVoice.timis ? [...existingVoice.timis] : [];
                                             v.dinami = existingVoice.dinami ? [...existingVoice.dinami] : [];
                                             v.tarari = existingVoice.tarari || "";
+                                            v.liri = existingVoice.liri ? [...existingVoice.liri] : [];
                                         }
                                     }
                                 });
@@ -14909,6 +14989,7 @@ ${codigos.join('\n  ')}
                     newMeasure.nimidi = [...activeVoice.nimidi];
                     newMeasure.tipis = [...activeVoice.tipis];
                     newMeasure.timis = [...activeVoice.timis];
+                    newMeasure.liri = activeVoice.liri ? [...activeVoice.liri] : [];
 
                     // Recalculate color for the measure
                     // Recalculate color for the measure
@@ -15061,6 +15142,36 @@ ${codigos.join('\n  ')}
             }
         });
         midiInputsContainer.appendChild(singleInput);
+
+        // === LYRICS INPUT FIELD (Exclusive to lyrics mode) ===
+        const lyricsInput = document.createElement('input');
+        lyricsInput.type = 'text';
+        lyricsInput.id = 'lyrics-input';
+        lyricsInput.placeholder = 'Syllables (one per note, space separated)...';
+
+        // Populate from current voice
+        const voiceSelector = document.getElementById('voice-selector');
+        const voiceCode = voiceSelector ? voiceSelector.value : 's';
+        const activeVoice = (measure.voci && Array.isArray(measure.voci)) ? measure.voci.find(v => v.nami === voiceCode) : null;
+
+        let rawLiri = (activeVoice && activeVoice.liri) ? activeVoice.liri : (measure.liri || []);
+        if (!Array.isArray(rawLiri)) rawLiri = (typeof rawLiri === 'string' && rawLiri.length > 0) ? rawLiri.split(/\s+/) : [];
+
+        // Filter for Note Mode
+        if (window.currentEditingNoteIndex >= 0) {
+            rawLiri = [rawLiri[window.currentEditingNoteIndex] || ''];
+        }
+
+        lyricsInput.value = rawLiri.join(' ');
+        lyricsInput.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #e91e63; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 5px; box-sizing: border-box; display: ' + (window.currentEditMode === 'lyrics' ? 'block' : 'none') + ';';
+
+        // Highlight in lyrics mode
+        if (window.currentEditMode === 'lyrics') {
+            lyricsInput.style.backgroundColor = '#fff5f8';
+            lyricsInput.style.borderColor = '#e91e63';
+        }
+
+        midiInputsContainer.appendChild(lyricsInput);
 
         // === RHYTHM VALUES INPUT FIELD ===
         const rhythmInputLabel = document.createElement('label');
@@ -16227,15 +16338,54 @@ ${codigos.join('\n  ')}
         setActiveScale(0);
     }, 100);
 
-    // Key selector event listener
+    // Key selector event listener (escoci - header 2, hidden)
     const keyinSelector = document.getElementById('keyin');
     if (keyinSelector) {
         keyinSelector.addEventListener('change', (e) => {
             keyinselecti = e.target.selectedIndex;
-            //console.log('Key changed to:', keyin[keyinselecti], '(index:', keyinselecti, ')');
             makeladi();
         });
     }
+
+    // ── Header-1 selects: scale-root (C, C#, D...) and scale-mode (Major/Minor) ──
+    // These are the VISIBLE controls the user sees at the top of the page.
+    // They must update the same globals (keyinselecti, scali) so that all algorithms
+    // (image-melody, tarareo, harmony generators) use the correct key and scale.
+    const noteNames12 = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    const scaleRootSelect = document.getElementById('scale-root');
+    if (scaleRootSelect) {
+        scaleRootSelect.addEventListener('change', (e) => {
+            const idx = noteNames12.indexOf(e.target.value);
+            if (idx >= 0) {
+                keyinselecti = idx;
+                // Also sync the hidden keyin selector
+                if (keyinSelector) keyinSelector.selectedIndex = idx;
+                makeladi();
+            }
+        });
+    }
+
+    const scaleModeSelect = document.getElementById('scale-mode');
+    if (scaleModeSelect) {
+        scaleModeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'Minor') {
+                setActiveScale(1); // menor
+            } else {
+                setActiveScale(0); // mayor
+            }
+        });
+    }
+
+    // Sync header-1 selects on init (read current scali/keyinselecti → update header-1 UI)
+    setTimeout(() => {
+        if (scaleRootSelect && noteNames12[keyinselecti]) {
+            scaleRootSelect.value = noteNames12[keyinselecti];
+        }
+        if (scaleModeSelect) {
+            scaleModeSelect.value = (scali === 1) ? 'Minor' : 'Major';
+        }
+    }, 150);
     //////////INSTRUMENT SELECTOR
     // Expose init function globally
     window.initInstrumentSelector = () => {
@@ -17738,14 +17888,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // MUSICOLI: Manage Modal Display (MIDI Editor) visibility
-        // Showing in RITMO and TONALIDAD as requested
         const modalDisplay = document.getElementById('modal-display-container');
+        const rightColumn = document.getElementById('right-column-wrapper');
+        const lowerRow = document.getElementById('lower-content-flex-row');
+
         if (modalDisplay) {
+            // Keep visible if in appropriate modes, or if it was manually opened (if we want that behavior)
             if (mode === 'ritmo' || mode === 'tonalidad') {
                 modalDisplay.style.display = 'flex';
+                if (lowerRow) lowerRow.style.display = 'flex';
+                if (rightColumn) rightColumn.style.display = 'flex';
+            } else if (mode === 'composicion') {
+                // In composition mode, we usually show the Img2Melody panel, 
+                // but if the MIDI editor was specifically open, we might want to keep it?
+                // The user said "in all modes... in the right block".
+                // We'll let openMidiEditor handle forcing it visible.
+                // But for switchMode, we follow the mode defaults.
+                modalDisplay.style.display = 'none';
             } else {
                 modalDisplay.style.display = 'none';
             }
+        }
+
+        // Manage Image Melody Panel (Composition Mode)
+        if (mode === 'composicion') {
+            if (lowerRow) lowerRow.style.display = 'flex';
+            if (rightColumn) rightColumn.style.display = 'flex';
+
+            if (typeof window.initImageToMelody === 'function') {
+                window.initImageToMelody();
+                const panel = document.getElementById('image-melody-container');
+                if (panel) panel.style.display = 'flex';
+            }
+        } else {
+            const panel = document.getElementById('image-melody-container');
+            if (panel) panel.style.display = 'none';
         }
 
         // MUSICOLI: Update status indicators color based on mode
@@ -17821,9 +17998,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'composicion') {
             // SHOW tracks in composition mode as well (User Request)
             if (tracksContainer) tracksContainer.style.display = 'flex';
+
+            // Show Left Composition Panel
+            const leftComp = document.getElementById('editor-composicion-left');
+            if (leftComp) leftComp.style.display = 'flex';
         } else {
             // Restore visibility for ALL other modes
             if (tracksContainer) tracksContainer.style.display = 'flex';
+
+            // Hide Left Composition Panel
+            const leftComp = document.getElementById('editor-composicion-left');
+            if (leftComp) leftComp.style.display = 'none';
+        }
+
+        // MUSICOLI: Manage Shared Tarareo Section Visibility
+        // Show in both Ritmo and Composicion modes
+        const tarareoSection = document.getElementById('comp-tarareo-section');
+        if (tarareoSection) {
+            if (mode === 'ritmo' || mode === 'composicion') {
+                tarareoSection.style.display = 'block';
+            } else {
+                tarareoSection.style.display = 'none';
+            }
         }
 
         // Mode-specific logic
@@ -18096,9 +18292,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize with ritmo mode active (default)
+    // Initialize with composicion mode active (default)
     console.log('🎵 Initializing mode system...');
-    switchMode('ritmo');
+    setTimeout(() => {
+        switchMode('composicion');
+    }, 200);
 });
 
 
@@ -18534,7 +18732,25 @@ function updateTrackLabels() {
     });
 
     console.log('🏷️ Track labels updated');
+
+    // Sync ruler spacer width with labels column to align red bar
+    setTimeout(() => {
+        const labelsColumn = document.getElementById('timeline-labels-column');
+        const rulerSpacer = document.getElementById('ruler-label-spacer');
+        if (labelsColumn && rulerSpacer) {
+            const width = labelsColumn.getBoundingClientRect().width;
+            rulerSpacer.style.width = width + 'px';
+            rulerSpacer.style.minWidth = width + 'px';
+        }
+    }, 50);
 }
+
+// Keep ruler aligned on window resize
+window.addEventListener('resize', () => {
+    if (document.getElementById('ruler-label-spacer') && typeof updateTrackLabels === 'function') {
+        updateTrackLabels();
+    }
+});
 
 /**
  * Gets the track config for a specific voice key
@@ -18993,6 +19209,66 @@ window.updateColorDebugInfo = function () {
     output.innerHTML = `<pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">${report}</pre>`;
 };
 
+// ==========================================
+// GLOBAL HARMONY GENERATION FUNCTION
+// ==========================================
+window.generateHarmonyForVoice = function (sourceData, voiceCode, selectedVoiceCode) {
+    const sourceNimidi = sourceData.nimidi || [];
+    const scaleMaps = sourceData.scaleMaps || [];
+
+    // Result object
+    // Initialize nimidi array
+    let nimidi = [];
+
+    // Calculate Harmony based on Diatonic Scale Maps if available
+    nimidi = sourceNimidi.map((n, idx) => {
+        // Try Smart Diatonic Harmony
+        if (scaleMaps && scaleMaps[idx]) {
+            const map = scaleMaps[idx];
+            // Ensure n is in map (find closest if modulation happened mid-note?)
+            let currentIdx = map.indexOf(n);
+            if (currentIdx === -1) {
+                // Find closest just in case
+                let minDiff = Infinity;
+                map.forEach((val, i) => {
+                    const d = Math.abs(val - n);
+                    if (d < minDiff) { minDiff = d; currentIdx = i; }
+                });
+            }
+
+            if (currentIdx !== -1) {
+                let offset = -7; // Default Octave down (7 diatonic steps)
+                // Intervals based on voice type relative to melody
+                if (voiceCode === 'a') offset = -2; // Alto: 3rd down
+                else if (voiceCode === 't') offset = -4; // Tenor: 5th down
+                else if (voiceCode === 'b') offset = -7; // Bass: Octave down (or root fundamental)
+
+                let newIdx = currentIdx + offset;
+
+                // If index is valid within map
+                if (newIdx >= 0 && newIdx < map.length) {
+                    return map[newIdx];
+                } else {
+                    // Extrapolate if outside map range (keeping scale consistency)
+                    // Map covers octaves 2-8. Unlikely to go below.
+                    // Fallback to chromatic shift if out of bounds?
+                    return Math.max(0, n - 12);
+                }
+            }
+        }
+
+        // Fallback: Parallel Octaves/Intervals (Chromatic)
+        let semitoneOffset = -12;
+        if (voiceCode === 'a') semitoneOffset = -4; // Major 3rd approx
+        else if (voiceCode === 't') semitoneOffset = -7; // Perfect 5th
+        else if (voiceCode === 'b') semitoneOffset = -12; // Octave
+
+        return Math.max(0, n + semitoneOffset);
+    });
+
+    return { nimidi: nimidi };
+};
+
 // AUTO-INITIALIZATION
 document.addEventListener('DOMContentLoaded', function () {
     console.log('🚀 [Init] Auto-initializing player via rebuildRecordi...');
@@ -19006,3 +19282,8 @@ document.addEventListener('DOMContentLoaded', function () {
         console.warn('⚠️ [Init] rebuildRecordi not found - player initialization skipped.');
     }
 });
+
+
+
+
+
