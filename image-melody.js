@@ -114,7 +114,8 @@
             panel.style.overflowY = 'auto';
             container.prepend(panel);
         } else {
-            panel.innerHTML = '';
+            // MUSICOLI: Si ya existe, no recargamos para no perder la imagen cargada por el usuario
+            return;
         }
 
         // Compact UI Layout
@@ -151,6 +152,7 @@
                     <select id="img-melody-rhythm" style="font-family: monospace; font-size: 10px; padding: 1px;">
                         <option value="sensible">Sensible (Dinámico + Silencios Trilipi)</option>
                         <option value="relativa">Relativa (Sensible + Tono Relativo)</option>
+                        <option value="literal">Literal (Color a Compás RGB)</option>
                         <option value="uniforme">Uniforme (Percusión B/C)</option>
                         <option value="dinamico">Basado en Brillo (Trilipi)</option>
                         <option value="silencio_relleno">Completo (Dinámico + Silencios/Rel.)</option>
@@ -334,6 +336,11 @@
                 if (desc) desc.textContent = 'Intervalo S→A / T→B (pasos de escala) y volumen base.';
                 if (silSlider) { silSlider.min = 1; silSlider.max = 8; silSlider.step = 1; silSlider.value = 3; }
                 if (silVal) silVal.textContent = '3';
+            } else if (mode === 'literal') {
+                if (silLabel) silLabel.textContent = 'Det:';
+                if (desc) desc.textContent = 'Controla la sensibilidad de detalle para agrupar colores (- detalle = acordes, + detalle = arpegios rápidos).';
+                if (silSlider) { silSlider.min = 0; silSlider.max = 100; silSlider.step = 5; silSlider.value = 20; }
+                if (silVal) silVal.textContent = '20';
             } else {
                 if (silLabel) silLabel.textContent = 'Sil:';
                 if (desc) desc.textContent = 'Define umbral de oscuridad (silencio) y base de volumen.';
@@ -677,6 +684,55 @@
             });
         }
 
+        // --- PHASE 0.5: Global Analysis for Literal Mode ---
+        let literalDensityMap = { s: [], a: [], t: [], b: [] };
+        if (rhythmMode === 'literal') {
+            const thresholdSlider = document.getElementById('img-silence-threshold');
+            // Usamos el slider de umbral (Det) como tolerancia estructural
+            const varianceTolerance = thresholdSlider ? parseInt(thresholdSlider.value) : 20;
+
+            activeVoices.forEach(vk => {
+                const fullVoiceData = notesByVoice[vk];
+                if (!fullVoiceData || fullVoiceData.length === 0) return;
+
+                // 1. Obtener luminosidad promedio para cada compás en la línea entera
+                let measureLums = [];
+                for (let m = 0; m < totalMeasures; m++) {
+                    const start = m * PIXELS_PER_MEASURE;
+                    const chunk = fullVoiceData.slice(start, start + PIXELS_PER_MEASURE);
+                    let totalLum = 0;
+                    chunk.forEach(p => { totalLum += (0.299 * p.r + 0.587 * p.g + 0.114 * p.b); });
+                    measureLums.push(chunk.length ? totalLum / chunk.length : 0);
+                }
+
+                // 2. Mapear cambios de densidad basados en saltos lumínicos ("por proporción de compás")
+                const densityLevels = [1, 2, 4, 8]; // Opciones de extraer N colores
+                let currentDensityIdx = 1; // Base media (2 colores -> 6 notas)
+
+                let densityMap = [];
+                if (measureLums.length > 0) {
+                    densityMap.push(densityLevels[currentDensityIdx]); // Intro del track
+
+                    for (let m = 1; m < measureLums.length; m++) {
+                        const lumDiff = measureLums[m] - measureLums[m - 1];
+
+                        // Si el cambio entre progresiones supera la tolerancia
+                        if (Math.abs(lumDiff) > varianceTolerance) {
+                            if (lumDiff > 0) {
+                                // "si es más luminoso el cambio aumentamos el número de notas"
+                                currentDensityIdx = Math.min(densityLevels.length - 1, currentDensityIdx + 1);
+                            } else {
+                                // "Si la parte intermedia es más oscura que la anterior descendemos en número de notas"
+                                currentDensityIdx = Math.max(0, currentDensityIdx - 1);
+                            }
+                        }
+                        densityMap.push(densityLevels[currentDensityIdx]);
+                    }
+                }
+                literalDensityMap[vk] = densityMap;
+            });
+        }
+
         for (let m = 0; m < totalMeasures; m++) {
             const start = m * PIXELS_PER_MEASURE;
             const end = start + PIXELS_PER_MEASURE;
@@ -737,6 +793,66 @@
                         nimidi.push(finalNote);
                         tipis.push(1); // Whole Note (Redonda)
                         dinami.push(100);
+                        processed = true;
+                    }
+                }
+
+                // --- NEW LOGIC: LITERAL (Color a Compás) ---
+                if (!processed && rhythmMode === 'literal') {
+                    // Determinar cuántos colores extraer en base al mapa denso global
+                    let numColorsToExtract = literalDensityMap[vKey][m] || 1;
+
+                    // Extraer los N colores promediando las rebanadas del chunk
+                    const sliceSize = Math.max(1, Math.floor(chunk.length / numColorsToExtract));
+                    const extractedColors = [];
+                    for (let i = 0; i < numColorsToExtract; i++) {
+                        const startIdx = i * sliceSize;
+                        const slice = chunk.slice(startIdx, startIdx + sliceSize) || [chunk[0]];
+                        let sr = 0, sg = 0, sb = 0;
+                        slice.forEach(p => { sr += p.r; sg += p.g; sb += p.b; });
+                        sr = Math.round(sr / slice.length);
+                        sg = Math.round(sg / slice.length);
+                        sb = Math.round(sb / slice.length);
+                        extractedColors.push(`rgb(${sr},${sg},${sb})`);
+                    }
+
+                    // Pasar por la función inversa
+                    const range = TESSITURA[vKey];
+                    // Recuperar las notas (se obtendrán N * 3 notas)
+                    const literalMidiNotes = window.scaleColorsToMidiNotes(extractedColors, range.min, range.max, 32);
+
+                    if (literalMidiNotes && literalMidiNotes.length > 0) {
+                        // Mapeo Rítmico Estricto para llenar el 4/4 matemáticamente perfecto
+                        // Cada color produce exactamente 3 notas (R, G, B).
+                        // Para que cuadre en sistema binario (sin tresillos puros), 
+                        // aplicamos un groove "Corto-Corto-Largo" por cada trío:
+
+                        const baseVolSlider = document.getElementById('img-min-volume');
+                        const baseVol = baseVolSlider ? parseInt(baseVolSlider.value) : 40;
+
+                        // 1 color = 3 notas -> [Negra, Negra, Blanca] (tipis: 3, 3, 2)
+                        // 2 colores = 6 notas -> [Corchea, Corchea, Negra] x 2 (tipis: 4, 4, 3)
+                        // 4 colores = 12 notas -> [Semicorchea, Semi, Corchea] x 4 (tipis: 5, 5, 4)
+                        // 8 colores = 24 notas -> [Fusa, Fusa, Semicorchea] x 8 (tipis: 6, 6, 5)
+
+                        let rhythmPattern = [];
+                        if (literalMidiNotes.length <= 3) rhythmPattern = [3, 3, 2];
+                        else if (literalMidiNotes.length <= 6) rhythmPattern = [4, 4, 3];
+                        else if (literalMidiNotes.length <= 12) rhythmPattern = [5, 5, 4];
+                        else rhythmPattern = [6, 6, 5]; // 24 notas
+
+                        // Aplicar al arreglo
+                        literalMidiNotes.forEach((midi, idx) => {
+                            const snappedPitch = snapToScale(midi, scaleIntervals, globalKeyIndex);
+                            nimidi.push(snappedPitch);
+                            // Asignar el tipi correspondiente del ciclo Corto-Corto-Largo
+                            tipis.push(rhythmPattern[idx % 3]);
+                            // Simular dinámica: la tercera nota del trío reposa más suave, la primera acentúa
+                            let dynamics = baseVol;
+                            if (idx % 3 === 0) dynamics = Math.min(127, baseVol + 20); // Acento en la primera
+                            else if (idx % 3 === 2) dynamics = Math.max(0, baseVol - 10); // Reposo en la larga
+                            dinami.push(dynamics);
+                        });
                         processed = true;
                     }
                 }

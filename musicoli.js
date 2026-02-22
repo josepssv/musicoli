@@ -19,9 +19,8 @@ if (!window.masterGain) {
 if (typeof Soundfont !== 'undefined') {
     Soundfont.instrument(ac, "acoustic_grand_piano", { destination: window.masterGain })
         .then((nI) => (newInsti = nI))
-        .catch(err => console.warn("Failed to load Soundfont instrument:", err));
+        .catch(err => console.error(err));
 } else {
-    console.warn("Soundfont library not loaded. Soundfont functionalities will be disabled.");
     // Retry later if needed?
     window.addEventListener('load', () => {
         if (typeof Soundfont !== 'undefined' && !newInsti) {
@@ -34,7 +33,6 @@ if (typeof Soundfont !== 'undefined') {
 window.setMasterVolume = function (val) {
     if (window.masterGain) {
         window.masterGain.gain.value = val / 100;
-        console.log('🔊 Volume set to:', val);
     }
 };
 
@@ -43,7 +41,6 @@ const durai = [1, 2, 4, 8, 16, 32, 64];
 const durai5 = [[1, 2], [2, 4], [4, 8], [8, 16], [16, 32], [32, 64]];
 
 const durations = [1, 2, 4, 8, 16, 32, 64];
-
 
 const duris4 = [4, 4 / 2, 4 / 4, 4 / 8, 4 / 16, 4 / 32, 4 / 64];
 const duris45 = [4 + 4 / 2, 4 / 2 + 4 / 4, 4 / 4 + 4 / 8, 4 / 8 + 4 / 16, 4 / 16 + 4 / 32, 4 / 32, 4 / 64 + 4 / 128];
@@ -57,6 +54,9 @@ const noteMap = {
     4: '&#xE1D7;',  // note8thUp
     45: '&#xE1D7; &#xE1E7;', // note8thUp dot
     5: '&#xE1D9;',   // note16thUp
+    55: '&#xE1D9; &#xE1E7;', // note16thUp dot
+    6: '&#xE1DB;',   // note32ndUp
+    65: '&#xE1DB; &#xE1E7;', // note32ndUp dot
     '-1': '&#xE4E3;', // restWhole
     '-2': '&#xE4E4;', // restHalf
     '-25': '&#xE4E4; &#xE1E7;', // restHalf dot
@@ -65,7 +65,9 @@ const noteMap = {
     '-4': '&#xE4E6;',  // rest8th
     '-45': '&#xE4E6; &#xE1E7;',   // rest8th dot
     '-5': '&#xE4E7;',   // rest16th
-    '-55': '&#xE4E7; &#xE1E7;'   // rest16th dot
+    '-55': '&#xE4E7; &#xE1E7;',  // rest16th dot
+    '-6': '&#xE4E8;',   // rest32nd
+    '-65': '&#xE4E8; &#xE1E7;'   // rest32nd dot
 };
 
 window.bdi = {
@@ -147,12 +149,10 @@ let lastSelectedGrayMidi = null; // Store last selected gray tone MIDI for satur
 // Initialize Language
 if (typeof setLanguage === 'function') {
     setLanguage('es');
-    console.log('🌍 Language initialized: ES');
 }
 
 // MIDI Editor Mode: 'measure' (default) or 'note'
 window.midiEditingLevel = 'measure';
-
 
 // History system for undo/redo
 let bdiHistory = [];
@@ -174,7 +174,6 @@ window.updateMidiEditingLevelVisibility = function () {
     if (notisi) notisi.style.display = 'flex';
     if (notidi) notidi.style.display = 'flex';
 };
-
 
 // Function to validate measure index
 function isValidMeasureIndex(index) {
@@ -198,7 +197,6 @@ function saveBdiState() {
     try {
         // Check if bdi exists
         if (!window.bdi || !window.bdi.bar) {
-            console.warn('⚠️ BDI not initialized yet, skipping state save');
             return false;
         }
 
@@ -220,10 +218,8 @@ function saveBdiState() {
             bdiHistoryIndex--;
         }
 
-        console.log('💾 BDI state saved. History size:', bdiHistory.length, 'Current index:', bdiHistoryIndex);
         return true;
     } catch (error) {
-        console.error('❌ Error saving BDI state:', error);
         return false;
     }
 }
@@ -232,10 +228,8 @@ function undoBdi() {
     if (bdiHistoryIndex > 0) {
         bdiHistoryIndex--;
         window.bdi.bar = JSON.parse(JSON.stringify(bdiHistory[bdiHistoryIndex]));
-        console.log('↶ Undo performed. Restored to history index:', bdiHistoryIndex);
         return true;
     }
-    console.log('↶ Undo not possible - at beginning of history');
     return false;
 }
 
@@ -243,14 +237,10 @@ function redoBdi() {
     if (bdiHistoryIndex < bdiHistory.length - 1) {
         bdiHistoryIndex++;
         window.bdi.bar = JSON.parse(JSON.stringify(bdiHistory[bdiHistoryIndex]));
-        console.log('↷ Redo performed. Restored to history index:', bdiHistoryIndex);
         return true;
     }
-    console.log('↷ Redo not possible - at end of history');
     return false;
 }
-
-
 
 // ========================================
 // MIDI TO COLOR FUNCTION
@@ -433,7 +423,6 @@ function midiNotesToColorRGB(notes, arg2, arg3, arg4, arg5, arg6) {
 
     // Validation
     if (typeof n1 !== 'number' || typeof n2 !== 'number' || typeof n3 !== 'number') {
-        console.warn('midiNotesToColorRGB: Invalid inputs', n1, n2, n3);
         return { background: '#808080', color: '#000000', rgb: 'rgb(128,128,128)' };
     }
 
@@ -497,7 +486,6 @@ function midiNotesToColorRGB(notes, arg2, arg3, arg4, arg5, arg6) {
 
     return { background: hexColor, color: textColor, rgb: `rgb(${r}, ${g}, ${b})` };
 }
-
 
 /**
  * FUNCION PRINCIPAL: midiNotesToScaleColorNnotes
@@ -624,6 +612,96 @@ function midiNotesToScaleColorNnotes(notes, minTesitura = 36, maxTesitura = 84, 
     };
 }
 
+// ========================================
+// REVERSE FUNCTION: COLOR(S) TO MIDI
+// ========================================
+
+/**
+ * Función Inversa: Convierte un array de colores (extraídos de un degradado o array)
+ * de vuelta a las notas MIDI correspondientes, deshaciendo la lógica de tríos RGB.
+ * "Para cualquier número de colores desde 0 a 32, obtendremos las notas de un compás completo".
+ * 
+ * @param {string[]} colors - Array de colores (ej. ['#ff0000', '#00ff00'])
+ * @param {number} minTesitura - Rango inferior de la voz (ej. 36)
+ * @param {number} maxTesitura - Rango superior de la voz (ej. 84)
+ * @param {number} maxNotes - Máximo de notas permitidas en el compás (por defecto 32 fusas)
+ * @returns {number[]} - Array de números MIDI reconstruidos
+ */
+function scaleColorsToMidiNotes(colors, minTesitura = 36, maxTesitura = 84, maxNotes = 32) {
+    if (!colors || colors.length === 0) return [];
+
+    // Validación de tesitura
+    if (typeof minTesitura !== 'number' || typeof maxTesitura !== 'number' || minTesitura >= maxTesitura) {
+        minTesitura = 36;
+        maxTesitura = 84;
+    }
+
+    const range = maxTesitura - minTesitura;
+    const remainingColor = 255 - minTesitura;
+    const factor = range > 0 ? (remainingColor / range) : 0;
+
+    // Velocidad asumida genéricamente en la codificación original es mf (64)
+    const velocityFactor = 0.3 + (64 / 127) * 1.2; // ~0.904
+
+    const notes = [];
+
+    colors.forEach(colorStr => {
+        let r = 0, g = 0, b = 0;
+
+        // 1. Decodificar el String de color a RGB
+        if (colorStr.startsWith('#')) {
+            const hex = colorStr.replace('#', '');
+            if (hex.length === 3) { // formato corto
+                r = parseInt(hex.charAt(0) + hex.charAt(0), 16);
+                g = parseInt(hex.charAt(1) + hex.charAt(1), 16);
+                b = parseInt(hex.charAt(2) + hex.charAt(2), 16);
+            } else if (hex.length === 6) { // formato completo
+                r = parseInt(hex.substring(0, 2), 16);
+                g = parseInt(hex.substring(2, 4), 16);
+                b = parseInt(hex.substring(4, 6), 16);
+            }
+        } else if (colorStr.startsWith('rgb')) {
+            const match = colorStr.match(/\d+/g);
+            if (match && match.length >= 3) {
+                r = parseInt(match[0], 10);
+                g = parseInt(match[1], 10);
+                b = parseInt(match[2], 10);
+            }
+        }
+
+        // 2. Revertir el ajuste dinámico por velocity (agrandando el valor)
+        let baseR = Math.min(255, r / velocityFactor);
+        let baseG = Math.min(255, g / velocityFactor);
+        let baseB = Math.min(255, b / velocityFactor);
+
+        // 3. Revertir la división del componente mínimo (FACTOR_REDUCCION_MINIMO = 2)
+        // Detectamos el canal más bajo y asumimos que fue partido a la mitad.
+        const currentMin = Math.min(baseR, baseG, baseB);
+        let origR = baseR; let origG = baseG; let origB = baseB;
+
+        // Tolerancia a pequeños errores de redondeo decimal
+        if (Math.abs(baseR - currentMin) < 2) origR = Math.min(255, baseR * 2);
+        if (Math.abs(baseG - currentMin) < 2) origG = Math.min(255, baseG * 2);
+        if (Math.abs(baseB - currentMin) < 2) origB = Math.min(255, baseB * 2);
+
+        // 4. Reconversión de componentes a Nota MIDI (Invirtiendo: val = minTes + factor * (note - minTes))
+        const calculateNote = (component) => {
+            if (factor === 0) return minTesitura;
+            const note = minTesitura + (component - minTesitura) / factor;
+            return Math.max(minTesitura, Math.min(maxTesitura, Math.round(note)));
+        };
+
+        const n1 = calculateNote(origR);
+        const n2 = calculateNote(origG);
+        const n3 = calculateNote(origB);
+
+        // Añadimos las tres notas decodificadas de este color
+        notes.push(n1, n2, n3);
+    });
+
+    // Limitar al número máximo de notas permitidas en el compás
+    return notes.slice(0, maxNotes);
+}
 
 // ========================================
 // MIDI TO COLOR FUNCTION
@@ -748,8 +826,6 @@ function getSingleNoteColor(note, prevNote = null) {
     return `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`;
 }
 
-
-
 /**
  * Applies the MIDI coloring logic to the global Notepad instance (np6/notepi6)
  */
@@ -760,7 +836,7 @@ function applyNotepadColoring() {
     const voiceSelector = document.getElementById('voice-selector');
     const currentVoice = voiceSelector ? voiceSelector.value : (window.currentVoice || 's');
 
-    // console.log(`🎨 applyNotepadColoring for voice: ${currentVoice}`);
+    // 
 
     // Set the color function on the Notepad
     window.np6.setColorFunc((char, index) => {
@@ -958,7 +1034,6 @@ function renderVisualTracks() {
 
     // Sanity check
     if (!containers['s']) {
-        console.warn('⚠️ Visual track containers not found!');
         return;
     }
 
@@ -978,11 +1053,9 @@ function renderVisualTracks() {
 
     const measures = window.bdi && window.bdi.bar ? window.bdi.bar : [];
 
-
     // Get widths from Notepad
     // const spanWidths = window.np6.getSpanWidths(); (Unused)
     // const nodes = window.np6.letterNodes.filter(n => n.tagName !== 'BR'); (Unused)
-
 
     // Helper: Get Color (Calculates from MIDI notes using algorithm)
     // NOW USING GLOBAL FUNCTION getMeasureVoiceColor
@@ -1121,7 +1194,7 @@ function renderVisualTracks() {
             if (tipis.length > 0 && typeof renderPattern === 'function' && typeof window.noteMap !== 'undefined') {
                 try {
                     bravuraNotation = renderPattern(window.noteMap, tipis);
-                } catch (e) { console.error('RenderPattern failed:', e); }
+                } catch (e) { }
             }
 
             // REMOVED FALLBACK: If renderPattern fails, show NOTHING instead of wrong notes.
@@ -1160,6 +1233,7 @@ function renderVisualTracks() {
                             case 3: char = '\uE4E5'; break; // Quarter Rest
                             case 4: char = '\uE4E6'; break; // 8th Rest
                             case 5: char = '\uE4E7'; break; // 16th Rest
+                            case 6: char = '\uE4E8'; break; // 32nd Rest
                             default: char = '\uE4E5';
                         }
                     } else {
@@ -1169,6 +1243,7 @@ function renderVisualTracks() {
                             case 3: char = '\uE1D5'; break; // Quarter Note
                             case 4: char = '\uE1D7'; break; // 8th Note
                             case 5: char = '\uE1D9'; break; // 16th Note
+                            case 6: char = '\uE1DB'; break; // 32nd Note
                             default: char = '\uE1D5';
                         }
                     }
@@ -1251,12 +1326,12 @@ function renderVisualTracks() {
                 <div style="${numberStyle}">${measureNumber}</div>
                 <div style="
                     position: absolute; 
-                    top: 60%; /* Slightly lower baseline to accommodate upward stems */
+                    top: 60%; 
                     left: 0; 
                     width: 100%; 
                     transform: translateY(-50%); 
                     font-family: 'Bravura'; 
-                    font-size: 14px; /* Reduced to Tiny (14px) */
+                    font-size: 14px; 
                     line-height: 1; 
                     text-align: center; 
                     color: ${textColor};
@@ -1316,7 +1391,6 @@ function renderVisualTracks() {
             span.style.pointerEvents = 'auto';
             span.style.cursor = 'pointer';
 
-
             span.onclick = (e) => {
                 // Switch voice logic
                 if (voiceSelector && voiceSelector.value !== key) {
@@ -1348,7 +1422,6 @@ function renderVisualTracks() {
 
                 // Playback Logic (Fast Play) - Added to matrix click
                 if (typeof window.playMeasureFast === 'function') {
-                    console.log('🎼 [MatrixClick] Triggering fast playback for measure:', index);
                     window.playMeasureFast(index);
                 }
 
@@ -1429,7 +1502,6 @@ function updateAfterBdiChange() {
     // Rebuild recordi with all bdi entries
     if (typeof window.rebuildRecordi === 'function') {
         window.rebuildRecordi();
-        console.log('Rebuilt recordi after bdi change');
     }
 
     // Update Visual Tracks (MAIN SCORE VIEW)
@@ -1453,13 +1525,9 @@ function updateAfterBdiChange() {
     }
 
     // Update Notepad Visuals
-    console.log('🔍 [DIAGNOSTIC] Checking if window.applyTextLayer exists:', typeof window.applyTextLayer);
     if (typeof window.applyTextLayer === 'function') {
-        console.log('🎯 [DIAGNOSTIC] Calling window.applyTextLayer...');
         window.applyTextLayer();
-        console.log('✅ Applied text layer to notepad');
     } else {
-        console.error('❌ [DIAGNOSTIC] window.applyTextLayer function not found!');
     }
 
     // Update Notepad Coloring
@@ -1480,15 +1548,9 @@ function updateAfterBdiChange() {
     // Update visual track matrix
     setTimeout(renderVisualTracks, 50);
 
-
     // Reset selection - DISABLED because we want to preserve selection after adding/editing measures
     // selectedMeasureIndex = -1;
 }
-
-
-
-
-
 
 // Función para generar colores tipo arcoíris (desaturados, casi grises)
 function generateRainbowColors(steps) {
@@ -1502,9 +1564,8 @@ function generateRainbowColors(steps) {
     return rainbowColors;
 }
 
-
 function generateSimilarColors(h, s, l, num) {
-    //console.log(`🎨 TRACE: generateSimilarColors(h:${h}, s:${s}, l:${l}, num:${num})`);
+    //
     let colors = [];
     const variation = 7;
     let currentH = h * 0.8;
@@ -1525,7 +1586,7 @@ function generateSimilarColors(h, s, l, num) {
         const f = (n, k = (n + currentH / 30) % 12) => Math.round(255 * (lArr - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)));
         colors.push(`rgb(${f(0)}, ${f(8)}, ${f(4)})`);
     }
-    //console.log(`✅ TRACE: Generated colors:`, colors);
+    //
     return colors;
 }
 
@@ -1543,7 +1604,6 @@ function generateRandomColors(steps) {
 
 // Asignar colores arcoíris a cada letra con 8 sabores aleatorios pregenerados
 function assignRainbowColors(letters) {
-    console.log('🌈 TRACE: assignRainbowColors called for letters:', letters.slice(0, 5).join(', ') + '...');
     const rainbowColors = generateRainbowColors(letters.length);
     let colorMap = {};
     letters.forEach((letter, index) => {
@@ -1557,7 +1617,6 @@ function assignRainbowColors(letters) {
 
 // Asignar colores aleatorios a cada letra con 8 sabores aleatorios pregenerados
 function assignRandomColors(letters) {
-    console.log('🎲 TRACE: assignRandomColors called for letters:', letters.slice(0, 5).join(', ') + '...');
     const randomColors = generateRandomColors(letters.length);
     let colorMap = {};
     letters.forEach((letter, index) => {
@@ -2333,8 +2392,6 @@ function addMonochromaticIntervalsToLadder() {
     ladder.appendChild(spacer0);
 }
 
-
-
 // MUSICOLI: Open modal with silence variations for 8-note pattern
 function openSilenceVariationsModal() {
     // Check if modal already exists, if so, just show it
@@ -2678,8 +2735,6 @@ function openSilenceVariationsModal() {
     modalContent.appendChild(variationsContainer);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
-
-
 
     // Close modal when clicking outside
     modal.onclick = (e) => {
@@ -3212,7 +3267,6 @@ function addSixIntervalsToLadder(limitNoteCount = null) {
     // Append button to the dedicated container
     container.appendChild(toggleBtn);
 
-
     // Global patterns set for deduplication across all intervals/directions
     const sharedPatterns = new Set();
 
@@ -3317,7 +3371,6 @@ function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, int
             const color2B = midiToRgb(notes[5].midi);
             const color2 = `rgb(${color2R}, ${color2G}, ${color2B})`;
 
-
             // Crear span con gradiente
             const span = document.createElement('span');
             span.dataset.quaternaryElement = 'true'; // Reutilizamos el dataset o creamos uno nuevo
@@ -3419,7 +3472,6 @@ function addScaleWithInterval6_Fixed(allNotesInRange, vocalRange, scaleName, int
             const color2G = midiToRgb(notes[4].midi);
             const color2B = midiToRgb(notes[5].midi);
             const color2 = `rgb(${color2R}, ${color2G}, ${color2B})`;
-
 
             // Crear span con gradiente
             const span = document.createElement('span');
@@ -3535,7 +3587,6 @@ function addClickHandler6(span, rgb1, rgb2, notes, interval) {
             midiValues: midis2
         });
 
-
         // Añadir DESPUÉS el color 1 (para que quede a la izquierda)
         if (container.children.length >= MAX_TONES) removeLastTone(container);
 
@@ -3584,7 +3635,6 @@ function addClickHandler9(span, rgb1, rgb2, rgb3, notes, interval) {
 
         // Similar logic to addClickHandler6, but with 3 colors
         // For now, just log that this is not fully implemented for rhythm mode
-        console.log('🎨 9-note pattern clicked in rhythm mode - not fully implemented');
     });
 }
 
@@ -3598,7 +3648,6 @@ function addClickHandler3(span, rgb1, notes, interval) {
         if (!container) return;
 
         // Similar logic to addClickHandler4/6
-        console.log('🎨 3-note pattern clicked in rhythm mode - not fully implemented');
     });
 }
 
@@ -3611,13 +3660,8 @@ function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midi
         const container = document.getElementById('selected-tones-container');
         if (!container) return;
 
-        console.log('🎨 Monochromatic scale button clicked in rhythm mode - not fully implemented');
     });
 }
-
-
-
-
 
 // Add six-interval scales (6-note patterns with gradient of 2 colors) to the ladder
 // Add nine-interval scales (9-note patterns with gradient of 3 colors) to the ladder
@@ -3694,7 +3738,6 @@ function addNineIntervalsToLadder(limitNoteCount = null) {
 
     // Append button to the dedicated container
     container.appendChild(toggleBtn);
-
 
     // Global patterns set for deduplication across all intervals/directions
     const sharedPatterns = new Set();
@@ -3908,7 +3951,6 @@ function addScaleWithInterval9_Fixed(allNotesInRange, vocalRange, scaleName, int
             const color3B = midiToRgb(notes[8].midi);
             const color3 = `rgb(${color3R}, ${color3G}, ${color3B})`;
 
-
             // Crear span con gradiente
             const span = document.createElement('span');
             span.dataset.quaternaryElement = 'true';
@@ -3993,7 +4035,6 @@ function addClickHandler9(span, rgb1, rgb2, rgb3, notes, interval) {
             rgb3.r.toString(16).padStart(2, '0') +
             rgb3.g.toString(16).padStart(2, '0') +
             rgb3.b.toString(16).padStart(2, '0');
-
 
         const MAX_TONES = 12; // Increased for 9-tuples
 
@@ -4090,7 +4131,6 @@ function addClickHandler9(span, rgb1, rgb2, rgb3, notes, interval) {
         }
     });
 }
-
 
 // Helper: Convert HSL to RGB
 function hslToRgb(h, s, l) {
@@ -4206,7 +4246,6 @@ function makeladi01(hexi = '#999') {
     addAllIntervalsToLadder3();
 }
 
-
 function makeladi02(hexi) {
     document.getElementById('editor-tonalidad-ladder').innerHTML = '';
 
@@ -4217,10 +4256,7 @@ function makeladi02(hexi) {
     // Sección: Intervalos Ternarios (Ternarios)
     addAllIntervalsToLadder3();
 
-
 }
-
-
 
 // Update chromatic semitones in the tonalidad ladder
 function makeladi(hexi = '#ff0000') {
@@ -4373,7 +4409,6 @@ function makeladi(hexi = '#ff0000') {
                 // Usar el número de notas del compás (nimidi)
                 if (voiceData && voiceData.nimidi && voiceData.nimidi.length > 0) {
                     noteCount = voiceData.nimidi.length;
-                    console.log(`🎵 Modo Tonalidad: Generando escalera para ${noteCount} notas del compás #${window.currentEditingMeasureIndex + 1}`);
                 }
             }
         }
@@ -4386,7 +4421,6 @@ function makeladi(hexi = '#ff0000') {
         br.style.lineHeight = '0.5';
         br.style.fontSize = '8px';
         ladderElement.appendChild(br);
-
 
         if (noteCount == 1) {
             // 1 note selected: Only monochromatic scale visible (no additional scales)
@@ -4439,7 +4473,6 @@ function midiToScientific(midiNote) {
     return `${noteName}${octave}`;
 }
 
-
 // Función para mapear MIDI a RGB
 function midiToRgb(midi, midiMin, midiMax) { return Math.round(50 + ((midi - midiMin) / (midiMax - midiMin)) * (255 - 50)) }
 
@@ -4466,11 +4499,7 @@ function monocromati(limitNoteCount = null) {
     // MUSICOLI: Use fixed absolute range for color limits to differentiate voices visually
     const colorMidiMin = 36; // C2 (Low Bass anchor)
     const colorMidiMax = 84; // C6 (High Soprano anchor)
-    /* 
-    Legacy dynamic calculation (removed to allow visual distinction between voices)
-    const midiMin = Math.min(...allNotesInRange.map(n => n.midi));
-    const midiMax = Math.max(...allNotesInRange.map(n => n.midi));
-    */
+
 
     let skewAngle = 0;
     let direction = 'ascending'
@@ -4523,16 +4552,7 @@ function monocromati(limitNoteCount = null) {
         modeToggleBtn.title = 'Modo: Dependiente (armonía automática). Click para cambiar a Independiente';
     }
 
-    /* MUSICOLI: Mode Toggle Button moved to HTML after Lyrics button
-    modeToggleBtn.onclick = () => {
-        // Toggle mode
-        window.voiceEditMode = window.voiceEditMode === 'dependent' ? 'independent' : 'dependent';
-        // Rebuild ladder to update button
-        if (typeof makeladi === 'function') makeladi();
-    };
 
-    ladderElement.appendChild(modeToggleBtn);
-    */
 
     // Button 0 (Negative/Rest)
     // Selector moved to end of function per user request
@@ -4604,7 +4624,6 @@ function monocromati(limitNoteCount = null) {
 
     // MUSICOLI: Saturated color buttons for polyphonic patterns (Length > 1) - REMOVED per user request
     // These basic silence colors are no longer necessary.
-
 
     for (let i = 0; i < scaleNotesInRange.length; i++) {
         //// Check if third note index is within bounds
@@ -4912,7 +4931,6 @@ function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midi
                     window.currentEditingRhythmValues = finalMidiPattern.map(() => 3); // Default to quarter notes
                 }
 
-                console.log('🎹 Loaded MIDI notes into modal:', finalMidiPattern, `(${midiPattern.length} notes, currentGroup: ${currentGroup})`);
             }
 
             // Exit early - don't execute the normal behavior
@@ -5099,8 +5117,6 @@ function addClickHandlerScale(span, redValue, greenValue, blueValue, notes, midi
     });
 }
 
-
-
 // Función para crear spans con intervalo específico y dirección  tono1, tono2, tono1
 function addScaleWithInterval(allNotesInRange, vocalRange, scaleName, interval, direction, targetElement = null, clearExisting = true) {
     // Validar parámetros
@@ -5128,7 +5144,6 @@ function addScaleWithInterval(allNotesInRange, vocalRange, scaleName, interval, 
     // Calcular rango MIDI real
     const midiMin = Math.min(...allNotesInRange.map(n => n.midi));
     const midiMax = Math.max(...allNotesInRange.map(n => n.midi));
-
 
     // Paso para evitar solapamiento: 2 * interval
     let step = 2 * interval;
@@ -5249,27 +5264,20 @@ function addScaleWithInterval(allNotesInRange, vocalRange, scaleName, interval, 
 
 // Helper to handle scale clicks in Tonalidad/Melodía mode
 window.handleTonalidadClick = function (midiPattern) {
-    console.log('🔍 handleTonalidadClick called (línea 4318)');
-    console.log('   midiPattern:', midiPattern);
-    console.log('   window.currentEditMode:', window.currentEditMode);
-    console.log('   window.currentEditingMeasureIndex:', window.currentEditingMeasureIndex);
 
     // Check mode
     const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode :
         (typeof currentEditMode !== 'undefined' ? currentEditMode : 'ritmo');
 
     if (mode === 'tonalidad') {
-        console.log('   ✅ In tonalidad mode');
 
         // Verificar que estamos editando un compás
         if (window.currentEditingMeasureIndex < 0) {
-            console.log('   ❌ No measure being edited');
             return false;
         }
 
         const measure = window.bdi.bar[window.currentEditingMeasureIndex];
         if (!measure) {
-            console.log('   ❌ Measure not found');
             return false;
         }
 
@@ -5286,19 +5294,16 @@ window.handleTonalidadClick = function (midiPattern) {
         }
 
         if (!voiceData || !voiceData.nimidi) {
-            console.log('   ❌ Voice data not found');
             return false;
         }
 
         // Obtener el número de notas del compás actual
         const targetNoteCount = voiceData.nimidi.length;
-        console.log('   ✅ Target note count:', targetNoteCount);
 
         // Filtrar el patrón para tomar solo targetNoteCount notas (excluyendo silencios/0s)
         const validNotes = midiPattern.filter(midi => midi > 0);
 
         if (validNotes.length === 0) {
-            console.warn('   ⚠️ Patrón sin notas válidas');
             return false;
         }
 
@@ -5309,10 +5314,6 @@ window.handleTonalidadClick = function (midiPattern) {
         while (notesToSend.length < targetNoteCount) {
             notesToSend.push(validNotes[validNotes.length - 1]);
         }
-
-        console.log(`   🎵 Enviando ${notesToSend.length} notas (de ${midiPattern.length} en el patrón)`);
-        console.log(`   Patrón original: [${midiPattern.join(', ')}]`);
-        console.log(`   Notas enviadas: [${notesToSend.join(', ')}]`);
 
         const input = document.getElementById('midi-single-input');
         if (input) {
@@ -5328,7 +5329,6 @@ window.handleTonalidadClick = function (midiPattern) {
             input.style.backgroundColor = '#ffe0b2'; // Light orange
             setTimeout(() => input.style.backgroundColor = '', 300);
 
-            console.log('   ✅ Melodía Mode: Updated modal notes to', newValue);
             return true; // Handled
         }
     }
@@ -5520,18 +5520,7 @@ function addToneSpanEventHandlers(toneSpan, container, hexColor) {
     });
 
     // Doble click: eliminar
-    /*
-    toneSpan.addEventListener('dblclick', () => {
-        toneSpan.remove();
-        const idx = window.selectedTones.findIndex(t => t.hex === hexColor);
-        if (idx > -1) {
-            window.selectedTones.splice(idx, 1);
-        }
-        if (typeof window.updateRhythmColorPreview === 'function') {
-            window.updateRhythmColorPreview();
-        }
-    });
-    */
+
 }
 //////////////////
 
@@ -5682,7 +5671,6 @@ function ininoti() {
     }
 }
 
-
 // Add scale tones as graduated grays to the tonalidad ladder
 // Helper to get ABC name (e.g., C4, D#4)
 function midiToABC(midi) {
@@ -5797,7 +5785,6 @@ function addBinaryIntervalsToLadder() {
         wrifuti(allNotesInRange, scaleNotesInRange, scaleIntervals, vocalRange, scaleName);
 
     } catch (e) {
-        console.error("Error in addBinaryIntervalsToLadder:", e);
         alert("Error al actualizar escala binaria: " + e.message);
     }
 }
@@ -5884,7 +5871,6 @@ function addScaleWithInterval2(allNotesInRange, vocalRange, scaleName, interval,
             span.style.fontSize = '10px';
             span.style.transform = `skewY(-${skewAngle}deg)`;
             span.style.color = getContrastColor(span.style.backgroundColor);
-
 
             let labelText = "";
             if (hasSilence) {
@@ -6021,8 +6007,6 @@ function addClickHandler2(span, firstNote, secondNote, direction, interval) {
     });
 }
 
-
-
 // Helper to render pattern to Bravura HTML
 function renderPattern(noteMap, pattern) {
     return pattern.map(num => noteMap[num] || '').join(' ');
@@ -6052,12 +6036,7 @@ function createRitmoEditor(containerId) {
     const header = document.createElement('div');
     header.style.marginBottom = '2px';
 
-    /*  const title = document.createElement('h3');
-     title.textContent = 'Ritmos';
-     title.style.margin = '0 0 8px 0';
-     title.style.fontFamily = 'monospace';
-     title.style.fontSize = '14px';
-     header.appendChild(title); */
+
     const compisi = document.getElementById('compas-select');
     if (compisi) {
         compisi.addEventListener('change', () => {
@@ -6133,7 +6112,6 @@ function createRitmoEditor(containerId) {
         }
     });
 
-
     const charSelector = document.createElement('select');
     charSelector.id = 'rhythm-char-selector'; // ✅ Added ID
     charSelector.style.width = '30px';
@@ -6155,8 +6133,6 @@ function createRitmoEditor(containerId) {
     colorInput.style.border = 'none';
     colorInput.style.padding = '0';
     colorInput.style.background = 'transparent';
-
-
 
     // Initialize global reference char if not set
     if (typeof window.intervalReferenceChar === 'undefined') {
@@ -6217,7 +6193,7 @@ function createRitmoEditor(containerId) {
                 return '#ffffff'; // Fallback
             };
 
-            //console.log('📊 Populating Rhythm Char Selector. noteColorMap keys:', Object.keys(np6.noteColorMap).length);
+            //
             const chars = Object.keys(np6.noteColorMap)
                 .filter(k => k.length === 1 || !k.endsWith('_flavors'))
                 .sort();
@@ -6267,14 +6243,11 @@ function createRitmoEditor(containerId) {
     const populateFlavors = (char) => {
 
         if (typeof np6 === 'undefined' || !np6.noteColorMap) {
-            console.warn(`⚠️ TRACE: np6 or np6.noteColorMap is undefined, cannot populate flavors for "${char}".`);
             return;
         }
         const flavors = np6.noteColorMap[char + '_flavors'];
         if (!flavors) {
-            console.warn(`⚠️ TRACE: No flavors found for character "${char}" in np6.noteColorMap!`);
         } else {
-            console.log(`✨ TRACE: Found ${flavors.length} flavors for "${char}"`);
         }
 
         if (flavors && Array.isArray(flavors)) {
@@ -6376,22 +6349,17 @@ function createRitmoEditor(containerId) {
                 const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
                 const newFlavors = generateSimilarColors(hsl.h, hsl.s, hsl.l, 4);
                 np6.noteColorMap[char + '_flavors'] = newFlavors;
-                console.log(`🎨 Regenerated 8 similar flavors for ${char} based on HSL(${hsl.h.toFixed(1)}, ${hsl.s.toFixed(1)}%, ${hsl.l.toFixed(1)}%)`);
 
                 // Refresh the flavor spans in the UI
                 populateFlavors(char);
             }
 
-            console.log(`Color for ${char} updated from Rhythm Editor:`, newColor);
             makeladi(newColor)
         }
     });
 
     rhythmColorPreview.appendChild(charSelector);
     rhythmColorPreview.appendChild(colorInput);
-
-
-
 
     // Container for selected tones (nimidi)
     const selectedTonesContainer = document.createElement('div');
@@ -6469,7 +6437,6 @@ function createRitmoEditor(containerId) {
     });
     colorMelodi.appendChild(toplayi);
 
-
     const toescori = document.createElement('button');
     toescori.textContent = 'A partitura';
     toescori.id = 'button-to-score';
@@ -6502,53 +6469,7 @@ function createRitmoEditor(containerId) {
                 }
 
                 let hexi = colorToHex(spans[a].style.backgroundColor);
-                /*  
-"idi": 1765781520201,
- "numi": 0,
- "nami": "Rosa rubor",
- "coli": [
-   255,
-   138,
-   255,
-   255
- ],
- "hexi": "#ff8aff",
- "pinti": {
-   "c": 0,
-   "m": 0,
-   "y": 0,
-   "k": 0.6,
-   "w": 0
- },
- "nimidi": [
-   81,
-   69
- ],
- "nimidiColors": [
-   [[
-     255,
-     206,
-     255,
-     255
-   ]
- ],
- "timis": [
-   15,
-   2
- ],
- "tipis": [
-   25,
-   3
- ],
- "dinami": [
-   64,
-   64
- ],
- "tarari": "daaaa da",
- "liri": "",
- "chordi": false
-}
- */
+
                 //bdi.push({
                 bdi.bar.splice((window.selectedMeasureIndex + a), 0, {
                     idi: a,
@@ -6651,7 +6572,6 @@ function createRitmoEditor(containerId) {
             // Create basi structure for tuci
             const currentColor = hexToRgb(colorInput.value)
             const mari = rgbToMidiInterval(currentColor.r, currentColor.g, currentColor.b)
-            console.log('mari: ', mari)
             const basi = [{
                 //nimidi: currentPattern.map(() => 60), // Middle C for all notes
                 nimidi: mari,
@@ -6737,14 +6657,12 @@ function createRitmoEditor(containerId) {
             if (useSelectedTone) {
                 // Use the first selected tone's color
                 colorA = window.selectedTones[0].hex;
-                console.log('🎨 Using first selected tone color:', colorA);
             } else {
                 // Fall back to the color input
                 const refChar = (typeof window.intervalReferenceChar !== 'undefined') ? window.intervalReferenceChar : 'a';
                 colorA = (typeof np6 !== 'undefined' && np6.noteColorMap && np6.noteColorMap[refChar])
                     ? np6.noteColorMap[refChar]
                     : 'hsl(0, 100%, 50%)';
-                console.log('🎨 Using color input:', colorA);
             }
 
             // Get current voice selection
@@ -6787,7 +6705,6 @@ function createRitmoEditor(containerId) {
                     colorName = translated;
                 }
             } catch (err) {
-                console.log("Error fetching color name:", err);
             }
 
             // Calculate MIDI notes, source colors, AND rest status
@@ -6859,8 +6776,6 @@ function createRitmoEditor(containerId) {
                             sourceColors.push(colorArr);
                         });
                     }
-                    console.log('🎵 Mapped MIDI:', midiNotes);
-                    console.log('😴 Rest Status:', restStatus);
 
                 } else if (typeof rgbToMidiInterval === 'function') {
                     // Fallback for single color input (no queue)
@@ -6901,7 +6816,6 @@ function createRitmoEditor(containerId) {
                     midiNotes.forEach(() => restStatus.push(false));
                 }
             } catch (e) {
-                console.log("Error calculating MIDI/Colors:", e);
                 midiNotes = [60];
                 sourceColors = [[r, g, b, 255]];
                 restStatus = [false];
@@ -6940,7 +6854,6 @@ function createRitmoEditor(containerId) {
                 }
                 // Construct linear gradient
                 hexColor = `linear-gradient(to right, ${gradientColors.join(', ')})`;
-                console.log('🌈 Applying multi-color gradient background:', hexColor);
             } else {
                 // Solid color (already set to the first color/input above, but ensuring consistency)
                 if (selectedTones.length > 0) {
@@ -6982,8 +6895,6 @@ function createRitmoEditor(containerId) {
                 ? np6.getCursorMeasureIndex()
                 : bdiRef.length;
 
-            console.log(`📍 Using addMeasureWithMode to insert at: ${cursorMeasureIndex}`);
-
             // Define selectedMatchCode based on selectedVoiceName
             const shortVoiceMap = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
             const selectedMatchCode = shortVoiceMap[selectedVoiceName] || (['s', 'a', 't', 'b'].includes(selectedVoiceName) ? selectedVoiceName : 's');
@@ -6999,9 +6910,7 @@ function createRitmoEditor(containerId) {
                 window.addMeasureWithMode(measureData, voiceCode, cursorMeasureIndex);
 
                 // Note: bdiRef.splice happens inside addMeasureWithMode, so we don't do it here
-                console.log("✅ Measure added via addMeasureWithMode");
             } else {
-                console.warn("⚠️ addMeasureWithMode not found, executing manual insertion");
 
                 // Define voices locally to ensure it exists
                 const voices = ['s', 'a', 't', 'b'];
@@ -7042,7 +6951,6 @@ function createRitmoEditor(containerId) {
 
                 // Ensure synchronization just in case
                 if (typeof syncMeasureCount === 'function') syncMeasureCount();
-                console.log("Inserted in bdi at index:", cursorMeasureIndex, newItem);
 
                 // CRITICAL: Call recordiRef here only for manual path (addMeasureWithMode should handle it otherwise)
                 if (recordiRef) recordiRef(bdiRef, cursorMeasureIndex);
@@ -7051,7 +6959,6 @@ function createRitmoEditor(containerId) {
             // Update Notepad and Player - copied from tarareo options accept button (line 4340)
             if (typeof updateAfterBdiChange === 'function') {
                 updateAfterBdiChange();
-                console.log('🎨 updateAfterBdiChange() called after adding measure');
 
                 // Restore and advance cursor
                 if (typeof window.selectedMeasureIndex !== 'undefined') {
@@ -7068,7 +6975,6 @@ function createRitmoEditor(containerId) {
                     }
                 }
             } else {
-                console.log('⚠️ updateAfterBdiChange not found - performing manual updates');
                 // Fallback: at least update cursor
                 if (typeof np6 !== 'undefined') {
                     np6.cursorPos = cursorMeasureIndex + 1;
@@ -7103,7 +7009,6 @@ function createRitmoEditor(containerId) {
 
     // Create Dinámica editor UI for editing MIDI velocity values
     function createDinamicaEditor() {
-        console.log('🎵 createDinamicaEditor called');
 
         const slidersContainer = document.getElementById('dinamica-sliders-container');
         if (!slidersContainer) return;
@@ -7343,7 +7248,6 @@ function createRitmoEditor(containerId) {
     window.rhythmEditorState = window.rhythmEditorState || {};
     window.rhythmEditorState.currentGroupIndex = 0;
 
-
     // Build group selector buttons
     const buildGroupButtons = () => {
         const activeTrili = typeof getActiveTrili === 'function' ? getActiveTrili() : (typeof trilipi !== 'undefined' ? trilipi : []);
@@ -7388,7 +7292,6 @@ function createRitmoEditor(containerId) {
             if (cells.length > 0) {
                 const randomIndex = Math.floor(Math.random() * cells.length);
                 cells[randomIndex].click();
-                console.log('🎲 newritmi: Random pattern selected:', randomIndex);
             }
         }, 100);
     }
@@ -7496,7 +7399,6 @@ function createRitmoEditor(containerId) {
     const showSilenceVariationsColumn = (initialPattern) => {
         // Ensure resti is available
         if (typeof resti !== 'function') {
-            console.error('resti() function not found');
             return;
         }
 
@@ -7504,14 +7406,11 @@ function createRitmoEditor(containerId) {
         const content = document.getElementById('silence-variations-content');
 
         if (!column || !content) {
-            console.error('Silence variations column not found in DOM');
             return;
         }
 
         // Generate variations - Prepend original pattern
         const variations = [initialPattern, ...resti(initialPattern)];
-        console.log('Generating variations for middle column:', initialPattern, variations);
-
 
         // Clear previous content
         content.innerHTML = '';
@@ -7583,7 +7482,6 @@ function createRitmoEditor(containerId) {
 
             // Click handler
             btn.addEventListener('click', () => {
-                console.log('Silence variation clicked:', variation);
 
                 // Send to MIDI Editor if active
                 if (window.currentEditingMeasureIndex >= 0) {
@@ -7599,7 +7497,6 @@ function createRitmoEditor(containerId) {
                             rhythmInput.value = variation.join(' ');
                             rhythmInput.dispatchEvent(new Event('input'));
                         }
-                        console.log('🎼 Sent variation to global state:', variation);
                     }
 
                     // Logic for populating MIDI input with defaults
@@ -7622,7 +7519,6 @@ function createRitmoEditor(containerId) {
 
                         midiInput.value = defaultNotes.join(' ');
                         midiInput.dispatchEvent(new Event('input'));
-                        console.log('🎼 Sent default MIDI notes via silence col to input:', defaultNotes);
                     }
                 }
 
@@ -7638,7 +7534,6 @@ function createRitmoEditor(containerId) {
             content.appendChild(btn);
         });
     };
-
 
     // Build pattern grid for selected group
     const buildPatternGrid = (groupIndex) => {
@@ -7715,7 +7610,6 @@ function createRitmoEditor(containerId) {
 
             // Click
             cell.addEventListener('click', (e) => {
-                console.log('Click on pattern:', pattern, 'Group:', groupIndex, 'Trusted:', e.isTrusted);
 
                 // MUSICOLI: Update local notation display immediately
                 // This ensures the user sees what they selected above the accept button
@@ -7757,7 +7651,6 @@ function createRitmoEditor(containerId) {
                             rhythmInput.value = pattern.join(' ');
                             rhythmInput.dispatchEvent(new Event('input'));
                         }
-                        console.log('🎼 Sent rhythm pattern to global state:', pattern);
                     }
 
                     // Logic for populating MIDI input with defaults
@@ -7780,7 +7673,6 @@ function createRitmoEditor(containerId) {
 
                         midiInput.value = defaultNotes.join(' ');
                         midiInput.dispatchEvent(new Event('input')); // This triggers preview with NEW global rhythm values
-                        console.log('🎼 Sent default MIDI notes to input:', defaultNotes);
                     }
                 }
 
@@ -7788,10 +7680,8 @@ function createRitmoEditor(containerId) {
                 // Try to show variations, but DONT return - let standard selection proceed
                 if ((Number(groupIndex) >= 3 && Number(groupIndex) <= 7) && e.isTrusted) {
                     try {
-                        console.log('Showing silence variations in middle column for group', groupIndex);
                         showSilenceVariationsColumn(pattern);
                     } catch (err) {
-                        console.error("Failed to show silence variations:", err);
                     }
                     // Fall through to allow standard selection/playback logic below
                 }
@@ -7802,7 +7692,6 @@ function createRitmoEditor(containerId) {
                     // Get current color and convert to MIDI notes
                     const currentColor = hexToRgb(colorInput.value);
                     const mari = rgbToMidiInterval(currentColor.r, currentColor.g, currentColor.b);
-                    console.log('🎵 Playing pattern with RGB MIDI notes:', mari);
 
                     // Create basi structure for tuci with 3 RGB-derived notes
                     const basi = [{
@@ -7851,7 +7740,6 @@ function createRitmoEditor(containerId) {
                     const defaultDynamics = pattern.map(() => 64); // No accents by default
                     const tarareoText = patternToTarareo(pattern, defaultDynamics);
                     tarareoInput.value = tarareoText;
-                    console.log('Pattern to tarareo:', pattern, '→', tarareoText);
                 }
 
                 // Apply to textarea
@@ -7886,7 +7774,6 @@ function createRitmoEditor(containerId) {
         // Check loosely for 8 to catch string/number mismatches
         // MUSICOLI: Auto-generate silence variations for the 2-note group (User request)
         if (groupIndex == 1) {
-            console.log('[DEBUG] Inserting silence variation for group 1');
             const variations = [[-1]];
 
             variations.forEach((variation, idx) => {
@@ -8025,7 +7912,6 @@ function createRitmoEditor(containerId) {
             });
         }
         if (groupIndex == 2) {
-            console.log('[DEBUG] Inserting silence variations for group 2');
             // Use explicit silence variations provided by user that fill 4/4 measure
             let variations = [];
             if (typeof generateSilenceVariations === 'function') {
@@ -8126,7 +8012,6 @@ function createRitmoEditor(containerId) {
                                 rhythmInput.value = variation.join(' ');
                                 rhythmInput.dispatchEvent(new Event('input'));
                             }
-                            console.log('🎼 Sent silence variation to global state:', variation);
                         }
 
                         // Logic for populating MIDI input with defaults
@@ -8149,7 +8034,6 @@ function createRitmoEditor(containerId) {
 
                             midiInput.value = defaultNotes.join(' ');
                             midiInput.dispatchEvent(new Event('input'));
-                            console.log('🎼 Sent default MIDI notes for silence variation to input:', defaultNotes);
                         }
                     }
 
@@ -8194,7 +8078,6 @@ function createRitmoEditor(containerId) {
         }
 
         if (groupIndex == 8) {
-            console.log('[DEBUG] Inserting S button for group 8');
             const sCell = document.createElement('div');
             sCell.style.border = '1px solid #FF9800'; // Orange border
             sCell.style.borderRadius = '3px';
@@ -8222,8 +8105,6 @@ function createRitmoEditor(containerId) {
             symbol.style.color = '#BF360C'; // Very dark orange
             symbol.style.fontWeight = 'bold';
 
-
-
             sCell.appendChild(symbol);
 
             sCell.onmouseenter = () => {
@@ -8238,20 +8119,16 @@ function createRitmoEditor(containerId) {
             };
 
             sCell.onclick = () => {
-                console.log('[DEBUG] S button clicked');
                 if (typeof openSilenceVariationsModal === 'function') {
                     openSilenceVariationsModal();
                 } else {
-                    console.error('[DEBUG] openSilenceVariationsModal function is missing!');
                 }
             };
 
             content.appendChild(sCell);
 
             // Log for verification
-            console.log('[DEBUG] S button appended to content');
         } else {
-            console.log('[DEBUG] Not group 8, skipping S button');
         }
     };
 
@@ -8285,9 +8162,7 @@ function createRitmoEditor(containerId) {
                 if (cells.length > 0) {
                     const randomIndex = Math.floor(Math.random() * cells.length);
                     cells[randomIndex].click();
-                    console.log('🎲 updateSelect: Random pattern selected:', randomIndex);
                 } else {
-                    console.log('⚠️ updateSelect: No cells found for group', index);
                 }
             }, 100);
         }
@@ -8579,12 +8454,9 @@ async function tarareoAritmo() {
 
     // Check for silabaJS
     if (typeof window.silabaJS === 'undefined') {
-        console.error("silabaJS not found! Please ensure silaba.js is loaded.");
         alert("Error: Librería de sílabas no cargada.");
         return;
     }
-
-    console.log("Tarareo Input (Syllabification Mode):", input);
 
     // 1. Process Text into Musical Events
     // Event: { type: 'note'|'rest', duration: 1, text: string, accent: boolean, lineIndex: number, wordIndex: number }
@@ -8721,7 +8593,6 @@ async function tarareoAritmo() {
         totalWordCount += groupedWords.length;
     });
 
-
     if (events.length === 0) return;
 
     // Helper: Fill measure with rests
@@ -8761,8 +8632,6 @@ async function tarareoAritmo() {
         fillMeasureWithRests(currentMeasureEvents, currentMeasureDuration, measureCapacity);
         measures.push(currentMeasureEvents);
     }
-
-    console.log(`Generated ${measures.length} measures with varied rhythms.`);
 
     // 3. Generate BDI Data and Insert
     // Get Common Data
@@ -8875,7 +8744,6 @@ async function tarareoAritmo() {
         const melodicMode = document.getElementById('tarareo-melodic-mode') && document.getElementById('tarareo-melodic-mode').checked;
 
         if (melodicMode && typeof window.calculateMelodicSteps === 'function') {
-            console.log("🎵 Generating Melody based on consonants...");
             // Prepare Scale Base
             const currentScaleName = (typeof escalas !== 'undefined' && typeof scali !== 'undefined') ? escalas[scali] : 'mayor';
             const globalRoot = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0; // 0=C
@@ -8929,7 +8797,6 @@ async function tarareoAritmo() {
                         currentLineValues.map = buildScaleMap(newRoot);
                         currentLineValues.lineIndex = e.lineIndex;
 
-                        console.log(`🔄 Modulation at Line ${e.lineIndex}, Word ${e.wordIndex}: New Root ${noteNames[newRoot]} (Shift +${shiftInterval})`);
                         tariffModulationLog.push({ line: e.lineIndex + 1, root: noteNames[newRoot] });
 
                         // Re-snap current pitch to new scale map to avoid jumps?
@@ -9042,7 +8909,6 @@ async function tarareoAritmo() {
                             const reducedPatterns = trilipi[targetCount];
                             const selectedReducedPattern = reducedPatterns[Math.floor(Math.random() * reducedPatterns.length)];
 
-                            console.log(`  📉 Reducción ${voiceCode.toUpperCase()}: ${noteCount} notas -> ${targetCount} notas (${JSON.stringify(selectedReducedPattern)})`);
                             voiceData.tipis = [...selectedReducedPattern];
 
                             // Re-sync metadata arrays to new length
@@ -9056,7 +8922,6 @@ async function tarareoAritmo() {
                                 while (voiceData.nimidiColors.length < targetCount) voiceData.nimidiColors.push([128, 128, 128, 255]);
                             }
                         } else {
-                            console.warn(`  ⚠️ Reducción: No trilipi patterns found for count ${targetCount}. Using default.`);
                             if (targetCount === 2) voiceData.tipis = [2, 2];
                             else voiceData.tipis = [1];
                         }
@@ -9185,14 +9050,7 @@ async function tarareoAritmo() {
         }
     }
 
-    console.log("✅ Tarareo measures inserted successfully.");
 }
-
-
-
-
-
-
 
 // Event listeners for tarareo input
 const tarareoInput = document.getElementById('tarareo-input');
@@ -9240,7 +9098,6 @@ function hexToRgb(hex) {
 function tomidi(colorValue, minMidi = 48, maxOctavas = 3, inputRange = 255) {
     // Definir las escalas musicales (intervalos en semitonos desde la tónica)
 
-
     // Obtener la escala actual basada en scali
     const escalaActual = escalasNotas[escalas[scali]] || escalasNotas.mayor;
 
@@ -9266,7 +9123,6 @@ function tomidi(colorValue, minMidi = 48, maxOctavas = 3, inputRange = 255) {
     const midiResultado = Math.min(midi, midiMax);
 
     // Log para debugging (opcional, puedes comentarlo después)
-    console.log(`tomidi: color=${colorValue}, escala=${escalas[scali]}, midi=${midiResultado}`);
 
     return midiResultado;
 }
@@ -9290,8 +9146,6 @@ function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
 
     const range = voiceRanges[voice] || voiceRanges.soprano;
 
-
-
     const escalaActual = escalasNotas[escalas[scali]] || escalasNotas.mayor;
     const keyOffset = keyinselecti;
 
@@ -9309,7 +9163,6 @@ function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
 
     // Si no hay notas, usar la base
     if (notasDisponibles.length === 0) {
-        console.warn(`No hay notas de la escala en el rango ${range.min}-${range.max}`);
         return [range.base, range.base, range.base];
     }
 
@@ -9340,12 +9193,10 @@ function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
     ];
 
     if (isMonochromatic) {
-        console.log(`🎨 MONOCHROMATIC: RGB(${r},${g},${b}) → MIDI[${result}] (same note repeated)`);
     }
-    //console.log(`${voice}: RGB(${r},${g},${b}) → [${result}] (${notasDisponibles.length} notas disponibles)`);
+    //
     return result;
 }
-
 
 function rgbToMidiInterval02(r, g, b, notaBase = 36) {
     // Obtener tesitura seleccionada
@@ -9386,7 +9237,6 @@ function rgbToMidiInterval02(r, g, b, notaBase = 36) {
 
     // Devolver array con las 3 notas correspondientes a R, G, B
     const result = [mapComponentToMidi(r), mapComponentToMidi(g), mapComponentToMidi(b)];
-    console.log(`rgbToMidiInterval (${voice}): RGB(${r},${g},${b}) -> MIDI[${result}]`);
     return result;
 }
 // Helper function to get MIDI notes from selected tones
@@ -9416,39 +9266,30 @@ function getSelectedTonesMidi() {
             const g = parseInt(rgbMatch[2]);
             const b = parseInt(rgbMatch[3]);
 
-            console.log(`Processing DOM Tone ${index}: RGB(${r}, ${g}, ${b})`);
-
             let midiArray;
 
             // Check if this is a chromatic color with stored MIDI values
             if (span.dataset.midiValues) {
                 try {
                     midiArray = JSON.parse(span.dataset.midiValues);
-                    console.log(`🎹 Using stored MIDI values for span ${index}: [${midiArray}] (length: ${midiArray.length})`);
                 } catch (e) {
-                    console.warn('Failed to parse stored MIDI values, falling back to rgbToMidiInterval');
                     midiArray = rgbToMidiInterval(r, g, b);
-                    console.log(`🎹 Fallback RGB->MIDI for span ${index}: [${midiArray}] (length: ${midiArray.length})`);
                 }
             } else {
                 // Convert RGB to MIDI interval (returns array of 3 notes: R, G, B)
                 midiArray = rgbToMidiInterval(r, g, b);
-                console.log(`🎹 RGB->MIDI for span ${index}: [${midiArray}] (length: ${midiArray.length})`);
             }
 
             // Add all notes from this color
-            console.log(`🎹 Adding ${midiArray.length} notes to midiNotes array`);
             midiNotes.push(...midiArray);
         }
     });
 
-    console.log('🎵 Selected tones converted to MIDI (from DOM):', midiNotes);
     return midiNotes;
 }
 
 // Make it globally accessible for use when creating bdi entries
 window.getSelectedTonesMidi = getSelectedTonesMidi;
-
 
 // Caches to prevent API flooding
 const translationCache = new Map();
@@ -9478,7 +9319,6 @@ async function traducirOnline(text) {
         }
         return text; // Devolver el original si la traducción falla
     } catch (error) {
-        console.error("Error al intentar traducir online:", error);
         return text; // Devolver el original si hay un error de red o parsing
     }
 }
@@ -9497,14 +9337,12 @@ async function consulti(r, g, b) {
 
         // Check if response is OK
         if (!response.ok) {
-            console.warn(`⚠️ TheColorAPI returned status ${response.status}`);
             return null;
         }
 
         // Check Content-Type (avoid parsing HTML as JSON)
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
-            console.warn(`⚠️ TheColorAPI returned non-JSON content: ${contentType}`);
             // Reset cache for this key so we can try again later? Or cache null to avoid spamming?
             // Let's return null without caching to allow retry
             return null;
@@ -9518,11 +9356,9 @@ async function consulti(r, g, b) {
         colorApiCache.set(key, result);
         return result;
     } catch (error) {
-        console.error("Error al consultar la API de color:", error);
         return null; // Handle error gracefully
     }
 }
-
 
 // Convert RGB to CMYKW
 function rgbToCMYKW(r, g, b, blackIntensity = 1, whiteThreshold = 0.8) {
@@ -9585,11 +9421,9 @@ window.np6 = null; // Explicitly ensure it's on window
 window.applyTextLayer = function () {
     // Check dependencies
     if (!window.np6 || !window.np6.container) {
-        console.warn('⚠️ applyTextLayer: np6 or container not ready');
         return;
     }
     if (typeof window.convernai !== 'function') {
-        console.error('❌ applyTextLayer: convernai function not found');
         return;
     }
 
@@ -9664,20 +9498,15 @@ window.applyTextLayer = function () {
     // Update cursor position in mock object
     if (window.np6) window.np6.cursorPos = (window.selectedMeasureIndex !== undefined) ? window.selectedMeasureIndex : 0;
 
-    console.log(`✅ Applied text layer: Rendered ${measures.length} measures.`);
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     const rainbowColorMap = assignRainbowColors(alfabeto);
-    console.log('✅ TRACE: rainbowColorMap created with', Object.keys(rainbowColorMap).length, 'keys');
     const rainbowSequence = generateRainbowColors(50);
     const randomColorMap = assignRandomColors(alfabeto);
-    console.log('✅ TRACE: randomColorMap created with', Object.keys(randomColorMap).length, 'keys');
     const rainbowCycle10 = generateRainbowColors(10);
     let rainbowIndex = 0;
 
-
-    console.log('🚀 Initializing Mock Notepad (np6)...');
     try {
         window.np6 = {
             cursorPos: 0,
@@ -9729,7 +9558,6 @@ document.addEventListener('DOMContentLoaded', () => {
             insertText: function () { }
         };
         np6 = window.np6;
-        console.log('✅ Mock Notepad initialized.');
 
         // MUSICOLI: Sync Header 2 indicators with global state
         window.updateScoreIndicators = function () {
@@ -9796,13 +9624,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const seekTime = measureIndex * secondsPerMeasure;
 
-            console.log(`⏩ Requesting seek to measure ${measureIndex + 1} (${seekTime.toFixed(2)}s)`);
-
             // METHOD 1: Try setting currentTime directly (Standard HTML Media or some Components)
             // Note: midi-player (html-midi-player) exposes currentTime via property
             try {
                 player.currentTime = seekTime;
-            } catch (e) { console.warn('Seek Method 1 failed:', e); }
+            } catch (e) { }
 
             // METHOD 2: Try accessing standard seek methods or properties often found in MIDI players
             if (typeof player.seek === 'function') {
@@ -9834,7 +9660,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize values
         window.updateScoreIndicators();
     } catch (e) {
-        console.error('❌ Failed to initialize Mock Notepad:', e);
     }
 
     // Safety checks for mock object
@@ -9865,7 +9690,6 @@ document.addEventListener('DOMContentLoaded', () => {
         np6.content.style.whiteSpace = 'nowrap';
     }
 
-
     // Don't insert text here - applyColorLayer will set it with proper colors
     // np6.insertText("ABBCD DDDAAADA");
 
@@ -9878,19 +9702,16 @@ document.addEventListener('DOMContentLoaded', () => {
     np6.on('noteClick', (e) => {
 
         const { index, text, color, node, originalEvent } = e;
-        console.log('🎵 Notepad noteClick:', index, text, color);
 
         // Update selected measure based on clicked span
         // Since applyTextLayer creates one span per measure, index corresponds directly to measure index
         if (isValidMeasureIndex(index)) {
             selectedMeasureIndex = index;
-            console.log('📍 Selected measure for deletion:', selectedMeasureIndex, 'based on notepad span index:', index);
 
             // Synchronize notepad cursor to match selected measure
             if (typeof np6 !== 'undefined' && np6.cursorPos !== index) {
                 np6.cursorPos = index;
                 np6._render();
-                console.log('🔄 Synchronized cursor to position:', index);
             }
 
             // Debug: Check originalEvent
@@ -9910,9 +9731,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Open Editor (Original behavior restored)
             if (true) {
                 if (isRhythmMode) {
-                    console.log('🎹 Rhythm mode - Click opens MIDI editor');
                 } else {
-                    console.log('🎹 Melody mode - Click opens MIDI editor');
                 }
 
                 if (typeof window.openMidiEditor === 'function') {
@@ -9921,21 +9740,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.openMidiEditor(index);
                     }, 10);
                 } else {
-                    console.error('❌ openMidiEditor function not found');
                 }
 
                 // Playback Logic (Fast Play) - DISABLED to prevent player restart/rewrite
-                /*
-                if (typeof window.playMeasureFast === 'function') {
-                    console.log('🎼 [noteClick] Triggering fast playback for measure:', index);
-                    window.playMeasureFast(index);
-                }
-                */
+
             }
         }
         document.getElementById('cursorPos').innerHTML = np6.getCursorPos();
-
-
 
         // 1. Update Rhythm Editor Input (Tarareo)
         const tarareoInput = document.getElementById('tarareo-input');
@@ -9977,7 +9788,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (colorInput) {
-                console.log(`🎨 Updating rhythm color input to ${hexColor}`);
                 colorInput.value = hexColor;
             }
 
@@ -10007,7 +9817,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     b = bigint & 255;
                 }
                 window.selectedTones.unshift({ hex: hexColor, rgb: { r, g, b } });
-
 
                 // Update UI: check if span exists and count repetitions
                 const spans = Array.from(container.children);
@@ -10039,7 +9848,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (existingSpan) {
                         // Move existing span to top
                         container.insertBefore(existingSpan, container.firstChild);
-                        console.log('🔄 Moved existing tone to front:', hexColor);
                     } else {
                         // Limit to 8 spans total - remove the last (oldest) one if limit reached
                         const MAX_TONES = 8;
@@ -10065,7 +9873,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 }
                                 lastSpan.remove();
-                                console.log('🗑️ Removed oldest tone (limit reached):', lastBgColor);
                             }
                         }
 
@@ -10112,8 +9919,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 voices: {}
                             };
 
-                            console.log('➕ Injecting measure at cursor:', targetIndex, newMeasure);
-
                             // Inject into BDI
                             if (!window.bdi.bar) window.bdi.bar = [];
                             window.bdi.bar.splice(targetIndex, 0, newMeasure);
@@ -10138,19 +9943,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             if (typeof window.updateRhythmColorPreview === 'function') window.updateRhythmColorPreview();
                         });
-                        /*
-                        toneSpan.addEventListener('dblclick', () => {
-                            toneSpan.remove();
-                            const idx = window.selectedTones.findIndex(t => t.hex === hexColor);
-                            if (idx > -1) {
-                                window.selectedTones.splice(idx, 1);
-                            }
-                            if (typeof window.updateRhythmColorPreview === 'function') window.updateRhythmColorPreview();
-                        });
-                        */
+
 
                         container.insertBefore(toneSpan, container.firstChild);
-                        console.log('✅ Added tone to selection (at beginning):', hexColor);
                     }
 
                     // Update preview if function exists
@@ -10158,7 +9953,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.updateRhythmColorPreview();
                     }
                 } else {
-                    console.log(`ℹ️ Tone already selected ${colorCount} times (max ${MAX_REPETITIONS}):`, hexColor);
                 }
             }
         }
@@ -10170,7 +9964,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Debounce slightly or just delay to let DOM settle
         setTimeout(renderVisualTracks, 50);
     });
-
 
     initraki(tempi, 4)
 
@@ -10280,8 +10073,6 @@ document.addEventListener('DOMContentLoaded', () => {
     makeladi('#ff0000'); // Default red color
     //updateChromaticSemitones();
 
-
-
     //////////////////////////////////////
     // FOR SOUNDFONT-PLAYER.JS
     //////////////////////////////////////
@@ -10306,7 +10097,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <midi-player id="player-hidden-2" sound-font="${MAGENTA_SOUNDFONT}" style="display:block;"></midi-player>
             `;
             document.body.appendChild(container);
-            console.log('✅ Created off-screen players for fast playback');
 
             // Set explicit volume after creation
             setTimeout(() => {
@@ -10326,10 +10116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.tuciTimeouts.forEach(t => clearTimeout(t));
             window.tuciTimeouts = [];
         }
-        console.log('🛑 tuci stopped');
     };
-
-
 
     function initiwi(bpm) {
         let metrai = [4000, 2000, 1000, 500, 250, 125];
@@ -10367,16 +10154,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!player) return;
 
         if (typeof MidiWriter === 'undefined') {
-            console.warn("⚠️ MidiWriter is not defined. Cannot update player.");
             return;
         }
 
         const escribi = new MidiWriter.Writer(tracks);
         const dataUri = escribi.dataUri();
         if (dataUri.length < 50) {
-            console.warn('⚠️ [updatePlayerMIDI] MIDI data seems too short:', dataUri.length, 'bytes');
         }
-        console.log(`🔗 [updatePlayerMIDI] Player: ${player.id}, Data length: ${dataUri.length} bytes`);
         player.src = dataUri;
         if (player.id.includes('hidden')) {
             player.volume = 1.0;
@@ -10417,10 +10201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const processVoice = (voiceData, trackIndex, voiceKey) => {
             if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
-                console.warn(`🎤 [recordi] Voice ${voiceKey} has no data to process.`);
                 return;
             }
-            console.log(`🎤 [recordi]: Processing voice ${voiceKey} on track ${trackIndex} with ${voiceData.nimidi.length} notes.`);
 
             let dati = [];
             const voiceMeta = metadata.voices ? metadata.voices[voiceKey] : null;
@@ -10521,7 +10303,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const chan = isPerc ? 10 : tIdx;
 
                         if (nc === 0) {
-                            console.log(`🎻 Initializing Track ${tIdx} (${vKey}): Inst ${inst} on Chan ${chan}`);
                             targetTracks[tIdx].addTrackName('Voice ' + vKey.toUpperCase());
                             targetTracks[tIdx].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
                         }
@@ -10533,11 +10314,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (targetTracks !== traki) {
             const activeTracks = targetTracks.filter(t => t && t.events && t.events.length > 0).length;
-            console.log(`🎹 [recordi-fast] Generated ${activeTracks} active tracks for local playback.`);
         }
     }
-
-
 
     window.playMeasureFast = function (nc, measureOverride = null) {
         if (hiddenPlayerState.fastPlayTimeout) {
@@ -10564,10 +10342,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (effectiveVoiceEditMode === 'dependent') {
             voicesToPlay = ['s', 'a', 't', 'b'];
-            console.log('🔗 [FastPlay] Mode: Dependent');
         } else {
             voicesToPlay = [effectiveCurrentVoice];
-            console.log('🔓 [FastPlay] Mode: Independent (' + voicesToPlay[0] + ')');
         }
 
         // 4. Generate MIDI
@@ -10594,7 +10370,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlayerMIDI(player, localTracks);
 
         setTimeout(() => {
-            console.log('🎵 [FastPlay] Attempting playback for measure:', nc);
             player.volume = 1.0;
 
             try {
@@ -10602,17 +10377,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof playFn === 'function') {
                     const result = playFn.call(player);
                     if (result && typeof result.then === 'function') {
-                        result.then(() => console.log('✅ [FastPlay] Started'))
-                            .catch(err => console.warn('⚠️ [FastPlay] Playback error:', err));
-                    } else {
-                        console.log('✅ [FastPlay] Started (no promise)');
+                        result.then(() => { }).catch(e => console.error(e));
                     }
-                } else {
-                    console.error('❌ [FastPlay] No play/start method found');
                 }
             } catch (e) {
-                console.error('❌ [FastPlay] Execution error:', e);
+                console.error(e);
             }
+
         }, 150);
 
         hiddenPlayerState.fastPlayTimeout = null;
@@ -10638,10 +10409,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.addEventListener('end', handler);
             };
 
-            console.log('▶️ [FastPlay] Playing queued player-hidden-' + nextPlayerId);
             nextPlayer.play().then(() => {
-                console.log('✅ [FastPlay] Queued player started');
-            }).catch(err => console.warn('⚠️ [FastPlay] Queued play() error:', err));
+            }).catch(e => console.error(e));
             hiddenPlayerState.isPlaying = true;
             hiddenPlayerState.currentPlayerId = nextPlayerId;
             hiddenPlayerState.queue.shift();
@@ -10679,12 +10448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let item = basi[nc]
         let dati = []
         if (item.chordi) {
-            //console.log('Chordi',item.chordi)
-            dati[1] = []
-            dati[2] = [1]
-            dati[0] = 1
-            dati[3] = false
-            dati[4] = (item.dinami && item.dinami[0] !== undefined) ? item.dinami[0] : 64
+            // ? item.dinami[0] : 64
             dati[5] = 0
             dati[6] = '1';
             for (let u = 0; u < item.nimidi.length; u++) {
@@ -10738,7 +10502,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
 
     /**
     * Devuelve el código HTML completo de un Web Component,
@@ -10832,20 +10595,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Define saveti function BEFORE using it in addEventListener
     // Make saveti global so it can be called from HTML onclick
     window.saveti = function saveti() {
-        console.log('🔍 saveti called');
 
         try {
-            console.log('Step 1: Getting elements...');
             const player15 = document.getElementById('player15');
             const expi = document.getElementById('expi');
-            console.log('Step 2: Got elements:', { player15: !!player15, expi: !!expi });
             let playeti = player15 ? player15.outerHTML : '';
             let expiti = expi ? expi.outerHTML : '';
-            console.log('Step 3: Got HTML');
             const bdiRef = (typeof window.bdi.bar !== 'undefined') ? window.bdi.bar : [];
             const codigo = [JSON.stringify(bdiRef, null, 2)]
             const codigos = [document.getElementById('notepi6').innerHTML, playeti, expiti];
-            console.log('Step 4: Created arrays');
             const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -10864,10 +10622,8 @@ document.addEventListener('DOMContentLoaded', () => {
 <div style="background-color:#aaa;color:#000;height:100px;overflow: scroll;"> ${codigo.join('\n  ')} </div>
 ${codigos.join('\n  ')}
 `.trim();
-            console.log('Step 5: Created HTML template');
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
-            console.log('Step 6: Created blob and URL:', url);
 
             // creamos el enlace al vuelo
             const a = document.createElement('a');
@@ -10882,34 +10638,21 @@ ${codigos.join('\n  ')}
 
             // Direct click is the most reliable method
             a.click();
-            console.log('Step 8: Clicked download link');
 
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 1000);
-            console.log('✅ saveti completed');
 
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 1000);
-            console.log('✅ saveti completed');
         } catch (error) {
-            console.error('Error al generar resumen:', error);
             alert('Error al generar el resumen: ' + error.message);
         }
     }
 
-
-
-
-
-    /* if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', saveti);
-    } else {
-        saveti();
-    } */
 
 
     window.recordi = recordi;
@@ -10932,7 +10675,7 @@ ${codigos.join('\n  ')}
         // ProgramChangeEvent is now handled at track/measure level in recordi 
         // to avoid redundant events for every note which can confuse some synthesizers.
         if (!targetTracks || !targetTracks[ntraki]) {
-            // console.warn(`⚠️ Target track ${ntraki} not found. Skipping note event.`);
+            // 
             return;
         }
 
@@ -10957,7 +10700,6 @@ ${codigos.join('\n  ')}
         const voicesMeta = metadata.voices || {};
 
         if (typeof MidiWriter === 'undefined') {
-            console.error("❌ MidiWriter is not defined. MIDI export features will not work.");
             return;
         }
 
@@ -11101,7 +10843,6 @@ ${codigos.join('\n  ')}
         );
 
         const jsi = JSON.stringify(enrichedJSON, null, 2);
-        console.log(jsi);
         document.getElementById('vari').innerHTML = `<pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;">${jsi}</pre>`;
     }
 
@@ -11124,12 +10865,10 @@ ${codigos.join('\n  ')}
     const colorLayerTextarea = document.getElementById('color-layer-6');
     const lyricsLayerTextarea = document.getElementById('lyrics-layer-6');
 
-
     const btnTonalidad = document.getElementById('mode-tonalidad');
     const btnRitmo = document.getElementById('mode-ritmo');
     const btnTarareo = document.getElementById('mode-tarareo');
     const btnLyrics = document.getElementById('mode-lyrics');
-
 
     // Initialize textareas with current content
     function updateTextareas() {
@@ -11187,9 +10926,6 @@ ${codigos.join('\n  ')}
         };
     }
 
-
-
-
     // Helper to update lyrics metadata (arrili)
     function updateLyricsMetadata() {
         if (!lyricsLayerTextarea) return;
@@ -11211,46 +10947,12 @@ ${codigos.join('\n  ')}
 
         np6.lyricsMetadata = metadata;
         np6.arrili = arriliMatrix; // Expose as global variable on the instance
-        console.log("arrili matrix:", np6.arrili);
     }
 
     // Sync Ritmo tokens with arrili length
     function updateRitmoFromLyrics() {
         // Decoupled: Logic removed
-        /*
-        if (!np6.arrili) return;
-     
-        let currentRitmoMeasures = textLayerTextarea.value.split('|').map(m => m.trim());
-        if (currentRitmoMeasures.length === 1 && currentRitmoMeasures[0] === "") currentRitmoMeasures = [];
-     
-        // Resize Ritmo measures to match arrili length (groups)
-        if (currentRitmoMeasures.length < np6.arrili.length) {
-            const diff = np6.arrili.length - currentRitmoMeasures.length;
-            for (let k = 0; k < diff; k++) {
-                currentRitmoMeasures.push("4n");
-            }
-        } else if (currentRitmoMeasures.length > np6.arrili.length) {
-            currentRitmoMeasures = currentRitmoMeasures.slice(0, np6.arrili.length);
-        }
-     
-        // Update each measure based on arrili length
-        const updatedMeasures = currentRitmoMeasures.map((measure, index) => {
-            const arriliLength = np6.arrili[index] ? np6.arrili[index].length : 0;
-            const clampedLength = Math.min(Math.max(arriliLength, 0), 5); // 0 to 5
-     
-            let token = measure || "4n";
-     
-            // Update the first number of the measure
-            if (/^\d/.test(token)) {
-                return clampedLength + token.substring(1);
-            } else {
-                return clampedLength + token;
-            }
-        });
-     
-        ritmoContent = updatedMeasures.join(" | ");
-        textLayerTextarea.value = ritmoContent;
-        */
+
     }
     function applyTarareoLayer() {
         //tarareoContent = tarareoLayerTextarea.value;
@@ -11258,7 +10960,6 @@ ${codigos.join('\n  ')}
     // Apply color layer to notepad (Tonalidad mode)
     function applyColorLayer() {
         tonalidadContent = colorLayerTextarea.value;
-        console.log('applyColorLayer called');
         // Update metadata based on new lyrics content
         updateLyricsMetadata();
         // Use central applyTextLayer to sync content with correct colors
@@ -11282,7 +10983,6 @@ ${codigos.join('\n  ')}
         updateDetailedJSON();
     }
 
-
     // Button elements are declared earlier (lines 1702-1705)
 
     function updateButtonStyles() {
@@ -11295,13 +10995,9 @@ ${codigos.join('\n  ')}
         btnRitmo.style.borderColor = '#999';
         btnRitmo.style.color = '#666';
 
-
-
         btnLyrics.style.background = '#e0e0e0';
         btnLyrics.style.borderColor = '#999';
         btnLyrics.style.color = '#666';
-
-
 
         // Highlight active mode
         if (window.editMode === 'color') {
@@ -11314,7 +11010,6 @@ ${codigos.join('\n  ')}
             btnRitmo.style.background = '#4caf50';
             btnRitmo.style.borderColor = '#2e7d32';
             btnRitmo.style.color = 'white';
-
 
         } else if (window.editMode === 'lyrics') {
             // Lyrics active
@@ -11360,7 +11055,6 @@ ${codigos.join('\n  ')}
             if (colorLayerTextarea) colorLayerTextarea.style.opacity = '0.6';
             if (textLayerTextarea) textLayerTextarea.style.opacity = '0.6';
             if (lyricsLayerTextarea) lyricsLayerTextarea.style.opacity = '0.6';
-
 
             // Enable notepad interaction
             np6.setResizable(true);
@@ -11425,8 +11119,6 @@ ${codigos.join('\n  ')}
             if (np6.cursor) np6.cursor.style.display = 'inline-block';
             if (np6.textarea) np6.textarea.disabled = false;
 
-
-            console.log('np6 editable set to true (Ritmo mode)');
             document.getElementById('notepi6').style.pointerEvents = 'auto'; // Ensure clicks are received
 
             // Show Ritmo editor
@@ -11484,7 +11176,6 @@ ${codigos.join('\n  ')}
                 lyricsLayerTextarea.style.opacity = '1';
             }
 
-
             // Disable notepad interaction - only allow editing via textarea
             //-->np6.setEditable(false);
             //->document.getElementById('notepi6').style.pointerEvents = 'none';
@@ -11493,10 +11184,7 @@ ${codigos.join('\n  ')}
             // Show Lyrics editor
             hideAllEditors();
             // Lyrics editor remains hidden as per user request
-            /* if (editorLyrics) {
-                editorLyrics.style.display = 'block';
-                editorLyrics.style.opacity = '1';
-            } */
+
 
             // Change notepad background for Lyrics mode
             np6.setContainerBackground('rgba(156, 39, 176, 0.1)'); // Light purple tint
@@ -11515,7 +11203,6 @@ ${codigos.join('\n  ')}
             if (tarareoInput) tarareoInput.style.display = 'none';
             if (tarareoSubmit) tarareoSubmit.style.display = 'none';
 
-
         }
 
         // Update MIDI modal colors if modal is open
@@ -11529,252 +11216,34 @@ ${codigos.join('\n  ')}
     btnRitmo.addEventListener('click', () => setMode('text'));
     btnLyrics.addEventListener('click', () => setMode('lyrics'));
 
-
-
     // Activate mode when clicking on textareas (use mousedown to work even when disabled)
-    /* textLayerTextarea.addEventListener('mousedown', (e) => {
-        if (editMode !== 'text') {
-            e.preventDefault(); // Prevent default to avoid issues with disabled state
-            setMode('text');
-        }
-    }); */
+
 
     // MUSICOLI: Commented out - textareas removed in favor of track matrix
-    /* colorLayerTextarea.addEventListener('mousedown', (e) => {
-        if (editMode !== 'color') {
-            e.preventDefault();
-            setMode('color');
-        }
-    });
-     
-    lyricsLayerTextarea.addEventListener('mousedown', (e) => {
-        if (editMode !== 'lyrics') {
-            e.preventDefault();
-            setMode('lyrics');
-        }
-    }); */
+
 
     // Update notepad when typing in text layer
-    /* textLayerTextarea.addEventListener('input', () => {
-        if (editMode === 'text') {
-            applyTextLayer();
-        }
-    }); */
+
 
     // MUSICOLI: Commented out - textareas removed in favor of track matrix
-    /* Update notepad when typing in color layer
-    colorLayerTextarea.addEventListener('input', () => {
-        if (editMode === 'color') {
-            applyColorLayer();
-        }
-    });
-     
-    // Update notepad when typing in lyrics layer
-    lyricsLayerTextarea.addEventListener('input', () => {
-        if (editMode === 'lyrics') {
-            applyLyricsLayer();
-        }
-        // Update rhythm group buttons when lyrics change
-        if (typeof window.updateRhythmGroupButtons === 'function') {
-            window.updateRhythmGroupButtons();
-        }
-    }); */
+
 
     // --- RITMO MODE CONSTRAINTS ---
 
     // Handle overwrite behavior in Ritmo mode
-    /* textLayerTextarea.addEventListener('keydown', (e) => {
-        if (editMode !== 'text') return;
-     
-        const start = textLayerTextarea.selectionStart;
-        const end = textLayerTextarea.selectionEnd;
-        const val = textLayerTextarea.value;
-        const maxLength = val.length; // Fixed length based on current content
-     
-        // Allow navigation keys
-        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-            return;
-        }
-     
-        // Handle printable characters
-        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-     
-            // If at the end and no selection, do nothing (cannot extend)
-            if (start >= maxLength && start === end) return;
-     
-            // Construct new value: before + char + after
-            // If selection exists, it replaces the selection (but we must ensure length stays same? 
-            // Actually, standard overwrite replaces 1 char. If selection is multiple, it's tricky.
-            // Let's assume simple overwrite: replace 1 char at cursor, or replace selection range with 1 char + spaces?
-            // Simpler: Replace selection with char, but PAD with spaces if selection > 1? 
-            // No, user wants to "substitute text". 
-            // If I select 3 chars and type 'A', usually it replaces 3 chars with 'A'. But that changes length.
-            // Constraint: "only substitute text" and "same number of characters".
-            // So if I select 3 chars and type 'A', I probably should replace first char with 'A' and others with space?
-            // Or just block selection replacement if it changes length?
-            // Let's implement simple overwrite single char for now.
-     
-            let nextVal = val.split('');
-     
-            if (start !== end) {
-                // Selection exists. Replace first char of selection with key, others with space?
-                // Or just replace the range with the key? No, that shortens it.
-                // Let's just replace the character at `start` and clear the rest of selection to spaces?
-                // Or maybe just replace the WHOLE selection with the key padded with spaces?
-                // Example: Select "ABC", type "D" -> "D  "
-                for (let i = start; i < end; i++) {
-                    nextVal[i] = (i === start) ? e.key : ' ';
-                }
-            } else {
-                // No selection, simple overwrite
-                if (start < maxLength) {
-                    nextVal[start] = e.key;
-                }
-            }
-     
-            textLayerTextarea.value = nextVal.join('');
-            textLayerTextarea.setSelectionRange(start + 1, start + 1);
-            applyTextLayer();
-            return;
-        }
-     
-        // Handle Backspace
-        if (e.key === 'Backspace') {
-            e.preventDefault();
-            if (start === 0 && start === end) return; // At start, nothing to do
-     
-            let nextVal = val.split('');
-     
-            if (start !== end) {
-                // Selection: replace with spaces
-                for (let i = start; i < end; i++) {
-                    nextVal[i] = ' ';
-                }
-                textLayerTextarea.value = nextVal.join('');
-                textLayerTextarea.setSelectionRange(start, start); // Cursor at start of selection
-            } else {
-                // No selection: replace previous char with space and move back
-                nextVal[start - 1] = ' ';
-                textLayerTextarea.value = nextVal.join('');
-                textLayerTextarea.setSelectionRange(start - 1, start - 1);
-            }
-            applyTextLayer();
-            return;
-        }
-     
-        // Handle Delete
-        if (e.key === 'Delete') {
-            e.preventDefault();
-            if (start >= maxLength && start === end) return;
-     
-            let nextVal = val.split('');
-     
-            if (start !== end) {
-                // Selection: replace with spaces
-                for (let i = start; i < end; i++) {
-                    nextVal[i] = ' ';
-                }
-                textLayerTextarea.value = nextVal.join('');
-                textLayerTextarea.setSelectionRange(start, start);
-            } else {
-                // No selection: replace current char with space
-                nextVal[start] = ' ';
-                textLayerTextarea.value = nextVal.join('');
-                textLayerTextarea.setSelectionRange(start + 1, start + 1); // Standard delete doesn't move cursor, but overwrite might? 
-                // Actually standard delete keeps cursor pos.
-                textLayerTextarea.setSelectionRange(start, start);
-            }
-            applyTextLayer();
-            return;
-        }
-    }); */
+
 
     // Handle Paste
-    /* textLayerTextarea.addEventListener('paste', (e) => {
-        if (editMode !== 'text') return;
-        e.preventDefault();
-     
-        const text = (e.clipboardData || window.clipboardData).getData('text');
-        const start = textLayerTextarea.selectionStart;
-        const end = textLayerTextarea.selectionEnd;
-        const val = textLayerTextarea.value;
-        const maxLength = val.length;
-     
-        let nextVal = val.split('');
-        let pasteIndex = 0;
-     
-        // Overwrite from start, respecting selection
-        // If selection, we start at `start`.
-        // We overwrite characters until we run out of pasted text OR run out of textarea length.
-     
-        for (let i = start; i < maxLength && pasteIndex < text.length; i++) {
-            nextVal[i] = text[pasteIndex];
-            pasteIndex++;
-        }
-     
-        // If selection was larger than pasted text, fill rest of selection with spaces?
-        // Example: Select 5 chars, paste "Hi". "Hi   ".
-        if (start !== end && (start + pasteIndex) < end) {
-            for (let i = start + pasteIndex; i < end; i++) {
-                nextVal[i] = ' ';
-            }
-        }
-     
-        textLayerTextarea.value = nextVal.join('');
-        textLayerTextarea.setSelectionRange(start + pasteIndex, start + pasteIndex);
-        applyTextLayer();
-    }); */
+
 
     // Handle Cut
-    /* textLayerTextarea.addEventListener('cut', (e) => {
-        if (editMode !== 'text') return;
-        e.preventDefault();
-     
-        // Copy to clipboard manually?
-        // Or just simulate "replace with spaces"
-        const start = textLayerTextarea.selectionStart;
-        const end = textLayerTextarea.selectionEnd;
-        const val = textLayerTextarea.value;
-     
-        // Copy selected text to clipboard
-        const selectedText = val.substring(start, end);
-        if (selectedText) {
-            navigator.clipboard.writeText(selectedText);
-        }
-     
-        let nextVal = val.split('');
-        for (let i = start; i < end; i++) {
-            nextVal[i] = ' ';
-        }
-     
-        textLayerTextarea.value = nextVal.join('');
-        textLayerTextarea.setSelectionRange(start, start);
-        applyTextLayer();
-    }); */
+
 
     // Listen to any input changes in Ritmo textarea to update Notepad in real-time
-    /* textLayerTextarea.addEventListener('input', (e) => {
-        if (editMode !== 'text') return;
-        applyTextLayer();
-    }); */
+
 
     // Enforce token limit on blur (when user leaves the textarea)
-    /* textLayerTextarea.addEventListener('blur', () => {
-        if (editMode !== 'text') return;
-     
-        // Decoupled: Logic removed
-        / *
-        let ritmoMeasures = textLayerTextarea.value.split('|').map(m => m.trim());
-        if (ritmoMeasures.length === 1 && ritmoMeasures[0] === "") ritmoMeasures = [];
-     
-        if (ritmoMeasures.length > tonalidadContent.length) {
-            ritmoMeasures = ritmoMeasures.slice(0, tonalidadContent.length);
-            textLayerTextarea.value = ritmoMeasures.join(" | ");
-            applyTextLayer(); // Re-apply to ensure consistency
-        }
-        * /
-    }); */
+
 
     // Listen to notepad changes to update textareas
     np6.on('change', () => {
@@ -11786,20 +11255,7 @@ ${codigos.join('\n  ')}
             // Resize ritmoContent
             // Resize ritmoContent
             // Decoupled: Logic removed
-            /*
-            let currentRitmoMeasures = ritmoContent.split('|').map(m => m.trim());
-            if (currentRitmoMeasures.length === 1 && currentRitmoMeasures[0] === "") currentRitmoMeasures = [];
-     
-            if (currentRitmoMeasures.length < tonalidadContent.length) {
-                const diff = tonalidadContent.length - currentRitmoMeasures.length;
-                for (let k = 0; k < diff; k++) {
-                    currentRitmoMeasures.push("4n");
-                }
-            } else if (currentRitmoMeasures.length > tonalidadContent.length) {
-                currentRitmoMeasures = currentRitmoMeasures.slice(0, tonalidadContent.length);
-            }
-            ritmoContent = currentRitmoMeasures.join(" | ");
-            */
+
 
             updateTextareas();
         }
@@ -11809,70 +11265,10 @@ ${codigos.join('\n  ')}
     // Initialize mode
     setMode('text');
 
-    /*  // Play button functionality
-      document.getElementById('play-button').addEventListener('click', () => {
-          // Build basi array from current notepad data
-          const detailedJSON = np6.getDetailedJSON();
-          const basi = [];
-     
-          // Group characters by their properties
-          detailedJSON.forEach((item, index) => {
-              if (item.type === 'character') {
-                  // Get MIDI note from character (A=60, B=62, C=64, etc.)
-                  // Simple mapping: use char code offset
-                  const charCode = item.char.toUpperCase().charCodeAt(0);
-                  let midiNote = 60; // Default to middle C
-     
-                  if (charCode >= 65 && charCode <= 90) { // A-Z
-                      midiNote = 60 + ((charCode - 65) % 12) * 2;
-                  } else if (charCode >= 48 && charCode <= 57) { // 0-9
-                      midiNote = 48 + (charCode - 48);
-                  }
-     
-                  // Get rhythm duration from arrili metadata
-                  const meta = np6.lyricsMetadata && np6.lyricsMetadata[index];
-                  const arriliLength = meta && meta.arrili ? meta.arrili.length : 1;
-     
-                  // Parse rhythm from text-layer (ritmo)
-                  const ritmoTokens = textLayerTextarea.value.trim().split(/\s+/).filter(t => t);
-                  let tipis = [3]; // Default to quarter note
-     
-                  if (ritmoTokens[index]) {
-                      // Parse rhythm notation like "3n 3n 3n" or "4n 4n 4n 4n"
-                      const rhythmPattern = ritmoTokens[index].split(/\s+/);
-                      tipis = rhythmPattern.map(r => {
-                          const num = parseInt(r);
-                          return isNaN(num) ? 3 : num;
-                      });
-                  }
-     
-                  // Create note array (repeat midi note for each rhythm element)
-                  const nimidi = tipis.map(() => midiNote);
-     
-                  basi.push({
-                      nimidi: nimidi,
-                      tipis: tipis,
-                      chordi: false
-                  });
-              }
-          });
-     
-          // Play each note group sequentially
-          if (typeof tuci === 'function' && basi.length > 0) {
-              basi.forEach((item, index) => {
-                  setTimeout(() => {
-                      tuci(basi, index);
-                  }, index * 500); // Stagger playback
-              });
-          } else {
-              console.error('tuci function not available or no data to play');
-          }
-      });
-    */
+
     document.getElementById('export-img-6').addEventListener('click', () => {
         np6.exportAsImageWithP5('notepad-snapshot-6.png', { scale: 2, background: 'transparent' })
-            .then(() => console.log('Exportación del Ejemplo 6 completada'))
-            .catch(err => console.error('Error en la exportación del Ejemplo 6:', err));
+            .then(() => { });
     });
 
     // BPM Selector event listener
@@ -11883,7 +11279,6 @@ ${codigos.join('\n  ')}
             window.bdi.metadata.bpm = newBpm;
             if (typeof window.bpmValue !== 'undefined') {
                 window.bpmValue = newBpm;
-                console.log('BPM updated to:', newBpm);
 
                 // Update tempi if it exists
                 if (typeof window.tempi !== 'undefined') {
@@ -11894,10 +11289,8 @@ ${codigos.join('\n  ')}
                 // Reinitialize track with new tempo if initraki exists
                 if (typeof window.initraki === 'function') {
                     window.initraki(newBpm, 4);
-                    console.log('MIDI track reinitialized with new BPM');
                 }
             } else {
-                console.warn('bpmValue not found in window scope');
             }
         });
     }
@@ -11906,7 +11299,6 @@ ${codigos.join('\n  ')}
     const empezarBtn = document.getElementById('empezar-btn');
     if (empezarBtn) {
         empezarBtn.addEventListener('click', () => {
-
 
             // Clear bdi array
             if (typeof window.bdi.bar !== 'undefined') {
@@ -11964,7 +11356,6 @@ ${codigos.join('\n  ')}
                 if (np6.cursor) np6.cursor.style.display = 'inline-block';
                 if (np6.textarea) np6.textarea.disabled = false;
 
-
             }
 
             // Clear BDI display
@@ -12015,13 +11406,11 @@ ${codigos.join('\n  ')}
 
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
-            console.log('Undo button clicked');
 
             if (undoBdi()) {
                 // Update all dependent systems
                 updateAfterBdiChange();
             } else {
-                console.log('No entries to undo');
             }
 
             // Visual feedback
@@ -12036,12 +11425,10 @@ ${codigos.join('\n  ')}
     // Redo button logic
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
-            console.log('Redo button clicked');
             if (redoBdi()) {
                 // Update all dependent systems
                 updateAfterBdiChange();
             } else {
-                console.log('No entries to redo');
             }
 
             // Visual feedback
@@ -12055,14 +11442,10 @@ ${codigos.join('\n  ')}
 
     // Delete selected measure button logic
     // ========== DELETE MEASURES BUTTON ==========
-    console.log('🔧 INIT: Setting up delete measures button event listener');
     const deleteMeasuresBtn = document.getElementById('delete-measures-btn');
-    console.log('🔧 INIT: deleteMeasuresBtn found?', !!deleteMeasuresBtn);
 
     if (deleteMeasuresBtn) {
-        console.log('✅ INIT: Attaching event listener to delete button');
         deleteMeasuresBtn.addEventListener('click', () => {
-            console.log('🗑️ DELETE BUTTON CLICKED!');
 
             if (!window.bdi.bar || window.bdi.bar.length === 0) {
                 alert('No hay compases para borrar');
@@ -12090,7 +11473,6 @@ ${codigos.join('\n  ')}
 
             if (validStart > validEnd) {
                 // Selection is entirely outside (virtual) or invalid
-                console.warn('⚠️ Selection is entirely virtual or invalid. Nothing to delete.');
                 return;
             }
 
@@ -12106,15 +11488,12 @@ ${codigos.join('\n  ')}
             // Save state before modification
             saveBdiState();
 
-            console.log(`🗑️ Deleting range: ${validStart} to ${validEnd} (${count} measures)`);
-
             // Loop backwards to avoid index shifting issues during deletion
             let deletedCount = 0;
             for (let i = validEnd; i >= validStart; i--) {
                 if (typeof window.deleteMeasureWithMode === 'function') {
                     window.deleteMeasureWithMode(i);
                 } else {
-                    console.warn('⚠️ window.deleteMeasureWithMode not found, using fallback splice');
                     window.bdi.bar.splice(i, 1);
                 }
                 deletedCount++;
@@ -12125,7 +11504,6 @@ ${codigos.join('\n  ')}
                 window.bdi.bar.forEach((measure, index) => {
                     measure.numi = index;
                 });
-                console.log('Updated measure numbers for remaining measures');
             }
 
             // Clear selections
@@ -12134,12 +11512,9 @@ ${codigos.join('\n  ')}
                 window.clearRulerSelection();
             }
 
-            console.log('Processed deletion range. Total measures:', window.bdi.bar.length);
-
             // Rebuild recordi with remaining entries
             if (typeof window.rebuildRecordi === 'function') {
                 window.rebuildRecordi();
-                console.log('Rebuilt recordi after measure deletion');
             }
 
             // Update MIDI player with new data
@@ -12152,7 +11527,6 @@ ${codigos.join('\n  ')}
                     setTimeout(() => {
                         const dataUri = window.escribi.dataUri();
                         window.playi.src = dataUri + '?t=' + Date.now();
-                        console.log('MIDI player src updated after measure deletion');
                     }, 100);
 
                     // Update download link
@@ -12164,7 +11538,6 @@ ${codigos.join('\n  ')}
                         anchor.innerHTML = titi + '.mid';
                     }
 
-                    console.log('Updated MIDI player and download link after measure deletion');
                 }
             }
 
@@ -12191,7 +11564,6 @@ ${codigos.join('\n  ')}
             }, 300);
             if (typeof window.rebuildRecordi === 'function') {
                 window.rebuildRecordi();
-                console.log('Rebuilt recordi after measure deletion');
             }
 
             // Update BDI display
@@ -12203,7 +11575,6 @@ ${codigos.join('\n  ')}
                     bdiDisplay.value = '';
                 }
             }
-
 
             // Update Notepad Visuals
             if (typeof applyTextLayer === 'function') {
@@ -12222,23 +11593,18 @@ ${codigos.join('\n  ')}
     // Update BDI Button Logic - Moved to ensure it attaches correctly
     const updateBdiBtn = document.getElementById('update-bdi-btn');
     if (updateBdiBtn) {
-        console.log('✅ Update BDI button found, attaching listener...');
         updateBdiBtn.addEventListener('click', () => {
-            console.log('🖱️ Update BDI button clicked!');
             const bdiDisplay = document.getElementById('bdi-display');
             if (!bdiDisplay) {
-                console.error('❌ BDI display textarea not found!');
                 return;
             }
 
             try {
                 const jsonContent = bdiDisplay.value.trim();
                 if (!jsonContent) {
-                    console.warn('⚠️ JSON content is empty');
                     return;
                 }
 
-                console.log('Parsing JSON content...');
                 const newBdi = JSON.parse(jsonContent);
 
                 if (Array.isArray(newBdi)) {
@@ -12249,16 +11615,13 @@ ${codigos.join('\n  ')}
                     if (typeof window.bdi.bar !== 'undefined') {
                         window.bdi.bar.length = 0; // Clear existing array
                         window.bdi.bar.push(...newBdi); // Copy new items
-                        console.log('✅ BDI updated manually from JSON. Length:', window.bdi.bar.length);
                     } else {
-                        console.error('❌ bdi array not found in global scope');
                         return;
                     }
 
                     // Rebuild MIDI track
                     if (typeof window.initraki === 'function') {
                         window.initraki(window.tempi, 4); // Reinitialize track
-                        console.log('🔄 Track reinitialized');
                     }
 
                     // Rebuild MIDI events by calling recordi for each entry
@@ -12266,15 +11629,12 @@ ${codigos.join('\n  ')}
                         for (let s = 0; s < window.bdi.bar.length; s++) {
                             window.recordi(window.bdi.bar, s);
                         }
-                        console.log('🎹 MIDI events rebuilt for', window.bdi.bar.length, 'entries');
                     } else {
-                        console.error('❌ recordi function not found');
                     }
 
                     // Update visual layers
                     if (typeof applyTextLayer === 'function') {
                         applyTextLayer();
-                        console.log('🎨 applyTextLayer() called');
                     }
 
                     // Update MIDI player with new data
@@ -12296,7 +11656,6 @@ ${codigos.join('\n  ')}
                                 anchor.innerHTML = titi + '.mid';
                             }
 
-                            console.log('🎵 MIDI player updated after manual BDI update');
                         }
                     }
 
@@ -12312,22 +11671,18 @@ ${codigos.join('\n  ')}
 
                 } else {
                     alert('El JSON debe ser un array (lista) de objetos.');
-                    console.error('❌ JSON is not an array');
                 }
             } catch (e) {
-                console.error('❌ Error parsing JSON:', e);
                 alert('Error en el formato JSON. Revisa la consola para más detalles.');
             }
         });
     } else {
-        console.error('❌ Update BDI button NOT found in DOM');
     }
 
     // Voice selector event listener
     const voiceSelector = document.getElementById('voice-selector');
     if (voiceSelector) {
         voiceSelector.addEventListener('change', () => {
-            console.log('Voice changed to:', voiceSelector.value);
             // Update chromatic semitones with new vocal range
             makeladi();
             // Rebuild MIDI player content
@@ -12359,8 +11714,6 @@ ${codigos.join('\n  ')}
                 if (bdi.metadata) {
                     bdi.metadata.bpm = newBpm;
                 }
-
-                console.log('BPM set to:', newBpm);
 
                 // Rebuild player with new tempo
                 if (typeof rebuildRecordi === 'function') {
@@ -12400,11 +11753,8 @@ ${codigos.join('\n  ')}
                 loopBtn.style.background = '#666';
             }
 
-
-            console.log('Loop:', isLooping ? 'ON' : 'OFF');
         });
     }
-
 
     // Notepad click overlay for Tonalidad mode
     function setupTonalidadClickHandler() {
@@ -12437,7 +11787,6 @@ ${codigos.join('\n  ')}
                     if (typeof window.updateScoreIndicators === 'function') {
                         window.updateScoreIndicators();
                     }
-                    console.log('📍 Measure selected via overlay click:', i + 1);
 
                     // Update visual highlight
                     document.querySelectorAll('.measure-number').forEach(el => {
@@ -12460,7 +11809,6 @@ ${codigos.join('\n  ')}
 
         notepadContainer.style.position = 'relative';
         notepadContainer.appendChild(overlay);
-        console.log('✅ Tonalidad click overlay installed');
     }
 
     // Mode buttons - update currentEditMode
@@ -12471,7 +11819,6 @@ ${codigos.join('\n  ')}
     if (modeRitmoBtn) {
         modeRitmoBtn.addEventListener('click', () => {
             currentEditMode = 'ritmo';
-            console.log('🎵 Mode: Ritmo');
 
             // Force immediate refresh to restore rhythm UI elements (1-8 buttons, patterns)
             if (typeof makeladi === 'function') setTimeout(() => makeladi(), 0);
@@ -12532,7 +11879,6 @@ ${codigos.join('\n  ')}
     if (modeTonalidadBtn) {
         modeTonalidadBtn.addEventListener('click', () => {
             currentEditMode = 'tonalidad';
-            console.log('🎹 Mode: Tonalidad');
 
             // Update button styles - Tonalidad active (warm orange)
             modeTonalidadBtn.style.background = '#ff9800';
@@ -12583,7 +11929,6 @@ ${codigos.join('\n  ')}
     if (modeLyricsBtn) {
         modeLyricsBtn.addEventListener('click', () => {
             currentEditMode = 'lyrics';
-            console.log('📝 Mode: Lyrics');
 
             // Update button styles - Lyrics active (soft pink)
             modeLyricsBtn.style.background = '#e91e63';
@@ -12642,7 +11987,6 @@ ${codigos.join('\n  ')}
     if (modeDinamicaBtn) {
         modeDinamicaBtn.addEventListener('click', () => {
             currentEditMode = 'dinamica';
-            console.log('🎚️ Mode: Dinámica');
 
             // Update button styles - Dinámica active (blue)
             modeDinamicaBtn.style.background = '#2196f3';
@@ -12715,7 +12059,6 @@ ${codigos.join('\n  ')}
 
     // Note: Close button removed - editor is now always visible in right column
 
-
     // Helper to highlight a specific measure in the Notepad
     window.highlightMeasure = function (index) {
         // MUSICOLI: Sync Indicators
@@ -12749,18 +12092,11 @@ ${codigos.join('\n  ')}
      * Note: Editor is now always visible, so we check both mode and editing state
      */
     window.isModalOpenInRhythmMode = function () {
-        console.log('🔍 isModalOpenInRhythmMode check:');
-        console.log('  - window.editMode:', window.editMode);
-        console.log('  - window.currentEditingMeasureIndex:', window.currentEditingMeasureIndex);
 
         // Check if editMode is 'text' (rhythm mode) AND a measure is being edited
         const isRhythmMode = (typeof window.editMode !== 'undefined' && window.editMode === 'text');
         const isEditingMeasure = (typeof window.currentEditingMeasureIndex !== 'undefined' && window.currentEditingMeasureIndex >= 0);
         const result = isRhythmMode && isEditingMeasure;
-
-        console.log('  - isRhythmMode:', isRhythmMode);
-        console.log('  - isEditingMeasure:', isEditingMeasure);
-        console.log('  ✅ Result:', result);
 
         return result;
     };
@@ -12770,13 +12106,11 @@ ${codigos.join('\n  ')}
         // MUSICOLI: Block MIDI editor in composition mode
         const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode : (typeof currentEditMode !== 'undefined' ? currentEditMode : '');
         if (mode === 'composicion') {
-            console.log('🚫 MIDI editor opening blocked in composition mode');
             return;
         }
 
         // MUSICOLI: Intercept for lyrics mode to use standalone editor
         if (mode === 'lyrics') {
-            console.log('📖 Mode is lyrics, utilizing standalone lyrics editor.');
 
             window.currentEditingMeasureIndex = measureIndex;
             window.selectedMeasureIndex = measureIndex;
@@ -12870,7 +12204,6 @@ ${codigos.join('\n  ')}
                                         window.openMidiEditor(nextIndex);
                                     }
                                 } else {
-                                    console.log('✅ Reached the end of the composition');
                                 }
                             }, 300);
                         }
@@ -12881,9 +12214,8 @@ ${codigos.join('\n  ')}
             return;
         }
 
-        // console.log('🎹 openMidiEditor called with index:', measureIndex, 'note:', noteIndex);
+        // 
         if (measureIndex < 0 || measureIndex >= window.bdi.bar.length) {
-            console.error('Invalid measure index:', measureIndex);
             return;
         }
 
@@ -13058,7 +12390,6 @@ ${codigos.join('\n  ')}
                 }
             };
             measureNumSpan.appendChild(rightBtn);
-
 
             // Duplicate Button
             const duplicateBtn = document.createElement('button');
@@ -13345,74 +12676,11 @@ ${codigos.join('\n  ')}
                         nami: activeKey
                     };
 
-                    /* REMOVED LOOP BODY:
-                        // If the button is Black (Silent), v.tipis will be all negative.
-                        // If the button is White (Active), v.tipis will have positives.
-                        let isVoiceActive = true;
-                        if (v.tipis && v.tipis.length > 0) {
-                            isVoiceActive = v.tipis.some(t => t > 0);
-                        }
-     
-                        // 2. Map new durations from Active Voice Input
-                        const syncedTipis = newTipis.map((val) => {
-                            const absVal = Math.abs(val);
-     
-                            // 3. Apply Voice-Level State
-                            // If Voice is Active -> Use input value 'val' (allows written rests to remain rests)
-                            // If Voice is Silent -> Force silence '-absVal'
-                            return isVoiceActive ? val : -absVal;
-                        });
-     
-                        console.log(`   Calculated syncedTipis:`, JSON.stringify(syncedTipis));
-     
-                        // Update BDI directly (though editMeasureWithMode will overwrite, we keep object state consistent)
-                        v.tipis = syncedTipis;
-     
-                        // Avoid infinite recursion
-                        // if (typeof window.renderSilenceButtons === 'function') window.renderSilenceButtons();
-     
-                        // Gather Data from Inputs (ONLY ONCE or use cached?) 
-                        // Actually active voice inputs are constant for all iterations, but we need specific tipis/timis for THIS voice.
-     
-                        const singleInput = document.getElementById('midi-single-input');
-                        const lyricsInput = document.getElementById('lyrics-input');
-     
-                        // Parse Active Voice Pitches (used as base for harmonization/sync)
-                        const midiVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
-     
-                        // Construct Data Object SPECIFIC to this background voice
-     
-                        // HARMONIZATION: Calculate pitches for target voice using standard harmonization intervals
-                        let harmonizedNimidi = midiVals.map(Math.abs);
-                        // Check for generateHarmonyForVoice availability
-                        // Note: generateHarmonyForVoice handles pitch offsets for SATB (e.g. -5, -12, -19)
-                        if (typeof generateHarmonyForVoice === 'function') {
-                            const sourceDataForHarm = { nimidi: midiVals.map(Math.abs) };
-                            const harmonicData = generateHarmonyForVoice(sourceDataForHarm, v.nami, activeKey);
-                            harmonizedNimidi = harmonicData.nimidi;
-                        }
-     
-                        const dataToSave = {
-                            nimidi: harmonizedNimidi,
-     
-                            // CRITICAL FIX: Use the SYNCED tipis specific to this voice (with silence filter applied)
-                            tipis: syncedTipis,
-     
-                            // Timis always positive
-                            timis: syncedTipis.map(t => Math.abs(t)),
-     
-                            duri: syncedTipis.map(() => 1),
-                            liri: lyricsInput ? lyricsInput.value : '',
-                        };
-     
-                        // Call edit/add
-                     */
+
                     // Call edit/add ONCE for the Active Voice.
                     if (window.currentEditingMeasureIndex >= 0) {
-                        console.log('Saving measure ' + window.currentEditingMeasureIndex + ' for ACTIVE voice ' + activeKey + ' (Dependent Mode)');
                         editMeasureWithMode(window.currentEditingMeasureIndex, dataToSave, activeKey);
                     } else {
-                        console.log('Adding measure for ACTIVE voice ' + activeKey);
                         addMeasureWithMode(dataToSave, activeKey);
                     }
                 } else {
@@ -13420,7 +12688,6 @@ ${codigos.join('\n  ')}
                     // The main handler already handles updates for the active voice and preserves other voices.
                     // We explicitly DO NOT modify the silence/sounding state of other voices here,
                     // as that would violate the user's manual settings (Cosi properties).
-                    console.log('Independent mode: Preserving existing Cosi/Voice states.');
                 }
             };
 
@@ -13449,39 +12716,30 @@ ${codigos.join('\n  ')}
                 font-size: 1.2em;
                 cursor: pointer;
                 padding: 0 10px;
-                color: #333; /* Changed to black as requested */
+                color: #333; 
                 margin-left: 5px; 
             `;
             deleteBtn.title = "Eliminar compás";
             deleteBtn.onclick = () => {
-                console.log('🗑️ MODAL DELETE BUTTON CLICKED!');
-                console.log('🔍 voiceEditMode =', voiceEditMode);
-                console.log('🔍 measureIndex =', measureIndex);
 
                 // Use mode-aware deletion
                 if (typeof window.deleteMeasureWithMode === 'function') {
-                    console.log('✅ Using deleteMeasureWithMode');
                     window.deleteMeasureWithMode(measureIndex);
 
                     // Log the measure after deletion to verify
-                    console.log('🔍 Measure after delete:', window.bdi.bar[measureIndex]);
                 } else {
-                    console.warn('⚠️ deleteMeasureWithMode not found, using direct deletion');
                     window.bdi.bar.splice(measureIndex, 1);
                 }
 
                 // Update everything
-                console.log('🔄 Rebuilding recordi...');
                 window.rebuildRecordi();
 
-                console.log('🔄 Applying text layer...');
                 if (typeof window.applyTextLayer === 'function') {
                     window.applyTextLayer();
                 }
 
                 // Force notepad refresh if available
                 if (typeof window.np6 !== 'undefined' && typeof window.np6._render === 'function') {
-                    console.log('🔄 Forcing notepad render...');
                     window.np6._render();
                 }
 
@@ -13535,23 +12793,18 @@ ${codigos.join('\n  ')}
 
         // MUSICOLI: Update currentGroup based on note count for Tonalidad patterns
         if (midiValues.length > 0) {
-            console.log('🎼 openMidiEditor: Detected ' + midiValues.length + ' notes in measure ' + measureIndex);
 
             // Cap at 9 to match specific buttons
             const newGroup = Math.min(midiValues.length, 9);
             // Update global variable
             currentGroup = newGroup;
-            console.log('🔄 Updated currentGroup to ' + currentGroup);
 
             // Refresh ladder if function exists
             if (typeof makeladi === 'function') {
-                console.log('🎨 Calling makeladi() to refresh Tonalidad patterns');
                 makeladi();
             } else {
-                console.warn('⚠️ makeladi function not found');
             }
         } else {
-            console.log('⚠️ openMidiEditor: No notes detected in measure ' + measureIndex);
         }
 
         // Store rhythm values in persistent variable for access by accept button and color scale handlers
@@ -13636,7 +12889,7 @@ ${codigos.join('\n  ')}
             trebleClef.style.cssText = `
                 position: absolute;
                 left: 15px;
-                top: -14px; /* Shifted UP 4px from -10 */
+                top: -14px; 
                 font-family: "Bravura";
                 font-size: 24px;
                 color: #000 !important;
@@ -13760,7 +13013,6 @@ ${codigos.join('\n  ')}
 
                 noteWrapper.onclick = (e) => {
                     e.stopPropagation(); // Prevent staff click
-                    console.log('🎵 Note clicked:', index);
 
                     if (!window.selectedNoteIndices) window.selectedNoteIndices = [];
 
@@ -13805,7 +13057,6 @@ ${codigos.join('\n  ')}
                         renderMidiScorePreview(window.currentFullMidiValues, liveRhythm, container);
                     }
                 };
-
 
                 // Calculate and Add Ledger Lines
                 const linesToDraw = [];
@@ -13882,7 +13133,7 @@ ${codigos.join('\n  ')}
                     min-width: 15px;
                     text-align: center;
                     position: relative;
-                    top: ${verticalOffset * 0.5 + 19}px; /* Adjusted: +19px (Shifted DOWN 1px) */
+                    top: ${verticalOffset * 0.5 + 19}px; 
                     display: inline-block;
                     pointer-events: none;
                 `;
@@ -13895,9 +13146,9 @@ ${codigos.join('\n  ')}
                     sharpSign.innerHTML = '&#xE262;'; // Bravura sharp glyph
                     sharpSign.style.cssText = `
                         position: absolute;
-                        top: 0px; /* Adjusted: -6px was one line too high. trying 0px. */
-                        left: 50%; /* Anchor to the center of the note head */
-                        margin-left: -16px; /* Pull left to position correctly next to head */
+                        top: 0px; 
+                        left: 50%; 
+                        margin-left: -16px; 
                         font-family: "Bravura";
                         font-size: 24px;
                         color: #000 !important;
@@ -14042,8 +13293,6 @@ ${codigos.join('\n  ')}
                     }
                 });
 
-                console.log('🔊 Dynamics set to ' + dyn.label + ' (' + dyn.val + ') for indices:', targetIndices);
-
                 // Real-time update
                 renderMidiScorePreview(window.currentFullMidiValues, window.currentEditingRhythmValues, rhythmContainer);
 
@@ -14114,8 +13363,6 @@ ${codigos.join('\n  ')}
 
                     vals[idx] = Math.round(newVal);
                 });
-
-                console.log('🔊 Shape ' + shape.type + ' applied to indices:', targetIndices);
 
                 // Real-time update
                 renderMidiScorePreview(window.currentFullMidiValues, window.currentEditingRhythmValues, rhythmContainer);
@@ -14344,7 +13591,6 @@ ${codigos.join('\n  ')}
                 const reducedCode = unitsToCode[totalUnits];
 
                 if (reducedCode) {
-                    console.log(`Combining block of ${block.length} notes (Total Units: ${totalUnits}) into Code: ${reducedCode}`);
 
                     const newRhythmVal = parseInt(reducedCode); // e.g. "3" -> 3
                     const sign = currentRhythm[block[0]] < 0 ? -1 : 1;
@@ -14359,7 +13605,6 @@ ${codigos.join('\n  ')}
                     currentDynamics.splice(block[0], block.length, newDynamic);
                     changed = true;
                 } else {
-                    console.warn(`Could not find reduced note for total units: ${totalUnits}`);
                 }
             });
 
@@ -14495,7 +13740,6 @@ ${codigos.join('\n  ')}
         revertBtn.style.cssText = 'background: #FF9800; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; height: 24px;';
 
         revertBtn.onclick = () => {
-            console.log('↺ Reverting to original:', originalMidiValues);
             const singleInput = document.getElementById('midi-single-input');
             if (singleInput) {
                 singleInput.value = originalMidiValues.map((val, i) => {
@@ -14547,12 +13791,10 @@ ${codigos.join('\n  ')}
         if (!addBtn) {
             addBtn = document.createElement('button');
             addBtn.id = 'midi-editor-add';
-            console.warn('⚠️ Created new Add button (listeners missing)');
         }
         if (!acceptBtn) {
             acceptBtn = document.createElement('button');
             acceptBtn.id = 'midi-editor-accept';
-            console.warn('⚠️ Created new Accept button (listeners missing)');
         }
 
         // Style and Append
@@ -14635,8 +13877,6 @@ ${codigos.join('\n  ')}
                 if (targetIndex < 0) targetIndex = 0;
                 if (window.bdi.bar && targetIndex > window.bdi.bar.length) targetIndex = window.bdi.bar.length;
 
-                console.log('➕ ADD Button: Injecting measure at cursor:', targetIndex);
-
                 // 3. Construct Base Measure
                 // Clone the currently edited measure to preserve other voices (Independent Mode support)
                 let newMeasure = {
@@ -14698,7 +13938,6 @@ ${codigos.join('\n  ')}
                     ];
                 } else if (!Array.isArray(newMeasure.voci)) {
                     // Fix for legacy/buggy object format
-                    console.warn('⚠️ Converting voci object to array for measure add');
                     newMeasure.voci = Object.values(newMeasure.voci);
                 }
 
@@ -14723,7 +13962,6 @@ ${codigos.join('\n  ')}
                 // 5. Handle Harmonies (Dependent Mode)
                 if (activeVoice) {
                     if (window.voiceEditMode === 'dependent') {
-                        console.log('🔗 ADD: Dependent mode - Generating harmonies');
                         newMeasure.voci.forEach(v => {
                             if (v.nami !== voiceCode) {
                                 // Sync rhythm from active voice
@@ -14745,7 +13983,6 @@ ${codigos.join('\n  ')}
                         });
                     } else {
                         // Independent Mode: Do NOT clone/duplicate other voices.
-                        console.log('🔓 ADD: Independent mode - Silencing other voices');
                         newMeasure.voci.forEach(v => {
                             if (v.nami !== voiceCode) {
                                 // Create rests matching the active voice's rhythm/duration
@@ -14793,7 +14030,6 @@ ${codigos.join('\n  ')}
                 if (typeof window.highlightMeasure === 'function') window.highlightMeasure(targetIndex);
                 window.openMidiEditor(targetIndex);
 
-                console.log('✅ Added new measure at index:', targetIndex);
             };
         }
 
@@ -14842,12 +14078,7 @@ ${codigos.join('\n  ')}
 
                 // Update hidden inputs
                 // Also update the hidden inputs just to be consistent with the "pass to hidden inputs" request
-                /* const hiddenInputs = midiInputsContainer.querySelectorAll('.midi-value-input-hidden');
-                if (hiddenInputs.length === newMidiValues.length) {
-                    hiddenInputs.forEach((input, i) => {
-                        input.value = newMidiValues[i];
-                    });
-                } */
+
                 // Wait, logic above accessed midiInputsContainer which might not be defined in this scope directly unless captured.
                 // midiInputsContainer is defined in parent scope?
                 // Let's protect against it being undefined.
@@ -14865,8 +14096,6 @@ ${codigos.join('\n  ')}
                     targetIndex = window.np6.getCursorPos();
                 }
                 if (targetIndex < 0) targetIndex = 0;
-
-                console.log('➕ Injecting measure from Editor at cursor:', targetIndex);
 
                 // Construct new measure object
                 const newMeasure = {
@@ -15056,8 +14285,6 @@ ${codigos.join('\n  ')}
             if (typeof window.playMeasureFast === 'function') window.playMeasureFast(0, basi[0]);
         });
 
-
-
         // === INPUT FIELD ===
         const singleInput = document.createElement('input');
         singleInput.type = 'text';
@@ -15228,7 +14455,6 @@ ${codigos.join('\n  ')}
                 const absNotes = currentNotes.map(Math.abs);
                 renderMidiScorePreview(absNotes, newRhythmValues, rhythmContainer);
 
-                console.log('🎵 Synchronized - Rhythm:', newRhythmValues.length, 'MIDI:', currentNotes.length);
             }
         });
 
@@ -15237,14 +14463,10 @@ ${codigos.join('\n  ')}
 
         // === RHYTHM MOD CONFIGURATION (Moved below staff) ===
 
-
-
-
         // === BOTTOM ROW (Color Controls) ===
         const bottomRow = document.createElement('div');
         bottomRow.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 10px;';
         midiInputsContainer.appendChild(bottomRow);
-
 
         // === SHARED HELPERS ===
         const updateInputAndRecalc = (newNotes) => {
@@ -15276,35 +14498,7 @@ ${codigos.join('\n  ')}
             renderMidiScorePreview(valuesToRender, liveRhythm, rhythmContainer);
 
             // LIVE PREVIEW ON SCORE (Disabled: changes only in modal until applied)
-            /*
-            if (typeof window.rebuildRecordi === 'function' && typeof measureIndex !== 'undefined') {
-                const currentMeasure = window.bdi.bar[measureIndex];
-                if (currentMeasure) {
-                    // Handle Voice
-                    const voiceSelector = document.getElementById('voice-selector');
-                    const voiceCode = voiceSelector ? voiceSelector.value : 's';
-         
-                    // Helper helper
-                    const applyToVoice = (target) => {
-                        target.nimidi = [...currentAbsNotes];
-                        target.tipis = [...liveRhythm];
-                    };
-         
-                    if (currentMeasure.voci && Array.isArray(currentMeasure.voci)) {
-                        const voice = currentMeasure.voci.find(v => v.nami === voiceCode);
-                        if (voice) applyToVoice(voice);
-                    } else {
-                        applyToVoice(currentMeasure);
-                    }
-         
-                    window.rebuildRecordi();
-                    // Ensure visualizer updates
-                    // MUSICOLI FIX: Removed applyTextLayer to prevent syncing to Notepad immediately.
-                    // Updates should only be reflected on the score editor (pentagram) until saved.
-                    // if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
-                }
-            }
-            */
+
 
             const recalcBtn = bottomRow.querySelector('button[title="Recalcular color basado en notas"]');
             if (recalcBtn) recalcBtn.click();
@@ -15381,7 +14575,6 @@ ${codigos.join('\n  ')}
             updateInputAndRecalc(newNotes);
         }));
 
-
         // Scale -1
         rowE.appendChild(createHeaderBtn('-E', 'Bajar un grado en escala', () => {
             if (typeof ininoti !== 'function') { alert('Error: ininoti not found'); return; }
@@ -15412,7 +14605,6 @@ ${codigos.join('\n  ')}
             updateInputAndRecalc(newNotes);
         }));
 
-
         stackedContainer.appendChild(rowE);
 
         // Row 2: Semitone (+S -S)
@@ -15434,7 +14626,6 @@ ${codigos.join('\n  ')}
             updateInputAndRecalc(newNotes);
         }));
 
-
         // Semitone -1
         rowS.appendChild(createHeaderBtn('-S', 'Bajar un semitono', () => {
             const currentNotes = getCurrentNotes();
@@ -15449,7 +14640,6 @@ ${codigos.join('\n  ')}
             });
             updateInputAndRecalc(newNotes);
         }));
-
 
         stackedContainer.appendChild(rowS);
 
@@ -15476,7 +14666,6 @@ ${codigos.join('\n  ')}
             updateInputAndRecalc(newNotes);
         }));
 
-
         // Octave -1
         notisi.appendChild(createHeaderBtn('-12', 'Bajar octava', () => {
             const currentNotes = getCurrentNotes();
@@ -15491,7 +14680,6 @@ ${codigos.join('\n  ')}
             });
             updateInputAndRecalc(newNotes);
         }));
-
 
         // Silence/Unsilence Button (Bravura)
         // \uD834\uDD3D = Quarter Rest, \uE0A4 = Black Notehead (no stem)
@@ -15520,7 +14708,6 @@ ${codigos.join('\n  ')}
         // Add notisi to controls
         controlsContainer.appendChild(notisi);
 
-
         // === NOTIDI CONTAINER (Right - Complex) ===
         const genControls = document.createElement('div');
         genControls.id = 'notidi';
@@ -15534,7 +14721,6 @@ ${codigos.join('\n  ')}
             // We'll define the function globally, so we can call it here or set initial style.
             // But simpliest is to define the function lower down and call it here if hoisted, or just set initial state.
         }
-
 
         const getScaleInfo = () => {
             if (typeof ininoti !== 'function') return null;
@@ -15584,14 +14770,6 @@ ${codigos.join('\n  ')}
             updateInputAndRecalc(newNotes);
         };
 
-
-
-
-
-
-
-
-
         const applyGaussGen = (origin) => {
             const currentNotes = getCurrentNotes();
             if (currentNotes.length === 0 || !window.selectedNoteIndices || window.selectedNoteIndices.length < 2) return;
@@ -15620,7 +14798,6 @@ ${codigos.join('\n  ')}
             });
             updateInputAndRecalc(newNotes);
         };
-
 
         const applyNormGen = (origin) => {
             const currentNotes = getCurrentNotes();
@@ -15655,7 +14832,6 @@ ${codigos.join('\n  ')}
 
             updateInputAndRecalc(newNotes);
         };
-
 
         const applyReverseGen = () => {
             const currentNotes = getCurrentNotes();
@@ -15696,7 +14872,6 @@ ${codigos.join('\n  ')}
             });
             updateInputAndRecalc(newNotes);
         };
-
 
         const applyRotatePitchGen = () => {
             const currentNotes = getCurrentNotes();
@@ -15761,7 +14936,6 @@ ${codigos.join('\n  ')}
             });
             updateInputAndRecalc(newNotes);
         };
-
 
         // Sawtooth Controls (Diente de Sierra)
         const sawSelect = document.createElement('select');
@@ -15863,7 +15037,6 @@ ${codigos.join('\n  ')}
 
         controlsContainer.appendChild(genControls);
 
-
         // --- COLOR LOGIC (In Bottom Row) ---
         const notepadContainer = document.getElementById('notepi6');
         let bgColor = '#eee';
@@ -15898,7 +15071,6 @@ ${codigos.join('\n  ')}
                 if (typeof window.midiNotesToColor === 'function') {
                     colorResult = window.midiNotesToColor(notes);
                 } else {
-                    console.warn('❌ midiNotesToColor function not found!');
                 }
             }
 
@@ -15939,7 +15111,6 @@ ${codigos.join('\n  ')}
 
         bottomRow.appendChild(recalcBtn);
         bottomRow.appendChild(colorSwatch);
-
 
         // Old logic disabled
         if (false && (measure.hexi || measure.coli)) {
@@ -16096,22 +15267,15 @@ ${codigos.join('\n  ')}
         if (window.currentEditMode === 'tonalidad' && typeof makeladi === 'function') {
             setTimeout(() => {
                 makeladi();
-                console.log('🎵 Escalera actualizada para compás #' + (measureIndex + 1));
             }, 100);
         }
     };
 
-
-
-
-
     // Add click listener to notepad spans for MIDI editing
     const notepadContainer = document.getElementById('notepi6');
-    console.log('📝 Notepad container found:', notepadContainer);
 
     if (notepadContainer) {
         notepadContainer.addEventListener('click', (e) => {
-            console.log('🖱️ Click detected on notepad container');
 
             // Si clicamos directamente en el fondo del notepad, ir al final
             if (e.target === notepadContainer) {
@@ -16124,25 +15288,16 @@ ${codigos.join('\n  ')}
                 return;
             }
 
-            console.log('Click target:', e.target);
-            console.log('Target tagName:', e.target.tagName);
-            console.log('Current edit mode:', window.currentEditMode);
-
             // Find the clicked span (measure)
             let target = e.target;
             while (target && target !== notepadContainer) {
-                console.log('Checking element:', target.tagName, target);
 
                 if (target.tagName === 'SPAN') {
-                    console.log('✅ Found SPAN element');
 
                     // Get all spans in the notepad (excluding child spans like .measure-number)
                     const allSpans = Array.from(notepadContainer.querySelectorAll(':scope > span'));
-                    console.log('Total top-level spans found:', allSpans.length);
-                    console.log('BDI bar length:', window.bdi ? window.bdi.bar.length : 'BDI not defined');
 
                     const measureIndex = allSpans.indexOf(target);
-                    console.log('Measure index:', measureIndex);
 
                     if (measureIndex >= 0 && measureIndex < window.bdi.bar.length) {
                         // Si es el último compás y clicamos en el borde derecho (70%+), ir al final
@@ -16158,8 +15313,6 @@ ${codigos.join('\n  ')}
                             }
                         }
 
-                        console.log('📍 Setting selectedMeasureIndex to:', measureIndex);
-
                         // Update global selected measure index
                         window.selectedMeasureIndex = measureIndex;
                         selectedMeasureIndex = measureIndex;
@@ -16171,8 +15324,6 @@ ${codigos.join('\n  ')}
 
                         // Highlight the selected span
                         target.style.outline = '2px solid #FF9800';
-
-                        console.log('🎹 Opening MIDI editor for measure:', measureIndex + 1);
 
                         // Open the modal editor with the measure data
                         if (typeof window.openMidiEditor === 'function') {
@@ -16186,27 +15337,21 @@ ${codigos.join('\n  ')}
 
                         break;
                     } else {
-                        console.log('❌ Index out of range or invalid');
                     }
                 }
                 target = target.parentElement;
             }
         });
 
-        console.log('✅ Click listener attached to notepad container');
     } else {
-        console.error('❌ Notepad container not found!');
     }
 
     // Edit MIDI button - opens editor for currently selected measure
     const editMidiBtn = document.getElementById('edit-midi-btn');
     if (editMidiBtn) {
         editMidiBtn.addEventListener('click', () => {
-            console.log('🔍 Current selectedMeasureIndex:', window.selectedMeasureIndex);
-            console.log('🔍 Total measures in bdi.bar:', window.bdi.bar.length);
 
             if (window.selectedMeasureIndex >= 0 && window.selectedMeasureIndex < window.bdi.bar.length) {
-                console.log('🎹 Opening MIDI editor for selected measure:', window.selectedMeasureIndex);
                 window.openMidiEditor(window.selectedMeasureIndex);
             } else {
                 alert('Por favor, selecciona un compás primero haciendo click en él.');
@@ -16263,14 +15408,6 @@ ${codigos.join('\n  ')}
         }
     }
 
-
-
-
-
-
-
-
-
     // Scale buttons event listeners
     const mayorBtn = document.getElementById('mayor');
     const menorBtn = document.getElementById('menor');
@@ -16278,11 +15415,8 @@ ${codigos.join('\n  ')}
 
     const scaleButtons = [mayorBtn, menorBtn, cromaticaBtn];
 
-
-
     function setActiveScale(index) {
         scali = index;
-        console.log('Scale changed to:', escalas[scali]);
 
         // Update chromatic semitones in the ladder (now with correct ordering: monochromatic, binary, ternary)
         //updateChromaticSemitones();
@@ -16307,7 +15441,6 @@ ${codigos.join('\n  ')}
                     btn.style.border = '2px solid var(--theme-primary)';
                     btn.style.boxShadow = '0 0 0 3px rgba(255, 255, 255, 0.3)';
                     btn.style.transform = 'scale(1.05)';
-                    console.log(`Set active style for button ${i} (${btn.id})`);
                 } else {
                     btn.style.background = 'var(--theme-secondary)';
                     btn.style.fontWeight = 'normal';
@@ -16317,7 +15450,6 @@ ${codigos.join('\n  ')}
                     btn.style.transform = 'scale(1)';
                 }
             } else {
-                console.warn(`Button at index ${i} not found`);
             }
         });
     }
@@ -16405,7 +15537,6 @@ ${codigos.join('\n  ')}
         voiceSelectorEl.addEventListener('change', function () {
             // Refresh rhythm pattern UI in case the new voice has different percussion setting
             if (typeof buildGroupButtons === 'function' && typeof buildPatternGrid === 'function') {
-                console.log('🔄 Voz cambiada, refrescando patrones rítmicos...');
                 buildGroupButtons();
                 if (typeof currentGroup !== 'undefined') {
                     buildPatternGrid(currentGroup);
@@ -16423,7 +15554,6 @@ ${codigos.join('\n  ')}
     const voiceModeIndicator = document.getElementById('voice-mode-indicator');
 
     if (editModeToggle) {
-        console.log('🔧 INIT: Mode toggle button found, initial voiceEditMode =', voiceEditMode);
 
         // Update initial state
         const updateUI = () => {
@@ -16459,16 +15589,13 @@ ${codigos.join('\n  ')}
         updateUI();
 
         editModeToggle.addEventListener('click', () => {
-            console.log('🔘 Mode button clicked, current voiceEditMode =', voiceEditMode);
 
             if (voiceEditMode === 'dependent') {
                 voiceEditMode = 'independent';
                 window.voiceEditMode = 'independent';
-                console.log('📝 Modo de edición cambiado a: INDEPENDIENTE');
             } else {
                 voiceEditMode = 'dependent';
                 window.voiceEditMode = 'dependent';
-                console.log('📝 Modo de edición cambiado a: DEPENDIENTE');
             }
 
             updateUI();
@@ -16512,7 +15639,6 @@ ${codigos.join('\n  ')}
      */
     function syncMeasureCount() {
         if (!bdi.bar || bdi.bar.length === 0) {
-            console.log('⚠️ syncMeasureCount: No hay compases para sincronizar');
             return;
         }
 
@@ -16542,7 +15668,6 @@ ${codigos.join('\n  ')}
                     const exists = bdi.bar[i].voci.some(v => v.nami === voiceCode);
                     if (!exists) {
                         bdi.bar[i].voci.push({ nami: voiceCode, ...createEmptyMeasure() });
-                        console.log(`📝 Compás ${i + 1}: Añadido compás vacío para voz ${voiceCode}`);
                         changesMade = true;
                     }
                 });
@@ -16550,7 +15675,6 @@ ${codigos.join('\n  ')}
         }
 
         if (changesMade) {
-            console.log(`✅ Sincronización completa: ${totalMeasures} compases en todas las voces`);
         }
     }
 
@@ -16573,7 +15697,6 @@ ${codigos.join('\n  ')}
         );
 
         if (!allEqual) {
-            console.warn('⚠️ Número de compases desincronizado:', measureCounts);
             syncMeasureCount(); // Auto-corregir
             return false;
         }
@@ -16610,7 +15733,6 @@ ${codigos.join('\n  ')}
 
         if (voiceEditMode === 'dependent') {
             // MODO DEPENDIENTE: Generar armonias automaticas
-            console.log('🔗 Modo Dependiente: Generando armonias automaticas');
 
             const newMeasure = {
                 voci: [
@@ -16629,11 +15751,9 @@ ${codigos.join('\n  ')}
 
             // Insert at index
             bdi.bar.splice(measureIndex, 0, newMeasure);
-            console.log(`✅ Compas ${measureIndex + 1} insertado con armonias para todas las voces`);
 
         } else {
             // MODO INDEPENDIENTE: Solo anadir a la voz actual
-            console.log('🔓 Modo Independiente: Anadiendo solo a voz', voiceCode);
 
             // Create new measure with empty voices
             const newMeasure = {
@@ -16651,7 +15771,6 @@ ${codigos.join('\n  ')}
 
             // Insert at index
             bdi.bar.splice(measureIndex, 0, newMeasure);
-            console.log(`✅ Compas ${measureIndex + 1} insertado solo para voz ${voiceCode}`);
 
             // Sincronizar para asegurar que todas las voces tengan el mismo numero de compases
             syncMeasureCount();
@@ -16673,13 +15792,11 @@ ${codigos.join('\n  ')}
         }
 
         if (!bdi.bar[measureIndex]) {
-            console.error(`❌ Compás ${measureIndex + 1} no existe`);
             return;
         }
 
         if (voiceEditMode === 'dependent') {
             // MODO DEPENDIENTE: Actualizar todas las voces con armonías
-            console.log('🔗 Modo Dependiente: Actualizando todas las voces con preservación de silencios');
 
             const voices = ['s', 'a', 't', 'b'];
 
@@ -16728,7 +15845,6 @@ ${codigos.join('\n  ')}
                         // No need to modify - already copied above
                     } else {
                         // Cosi button is BLACK: Force entire voice to silence
-                        console.log(`🔇 Voz ${targetCode} en silencio - Actualizando armonía pero silenciando`);
                         if (newVoiceData.tipis) newVoiceData.tipis = newVoiceData.tipis.map(t => -Math.abs(t));
                     }
                 }
@@ -16749,12 +15865,8 @@ ${codigos.join('\n  ')}
                 }
             });
 
-            console.log(`✅ Compás ${measureIndex + 1} actualizado y armonizado con respeto a silencios`);
-
-
         } else {
             // MODO INDEPENDIENTE: Solo actualizar la voz seleccionada
-            console.log('🔓 Modo Independiente: Actualizando solo voz', voiceCode);
 
             const measure = bdi.bar[measureIndex];
             if (Array.isArray(measure.voci)) {
@@ -16767,7 +15879,6 @@ ${codigos.join('\n  ')}
             } else {
                 measure.voci[voiceCode] = newData;
             }
-            console.log(`✅ Compás ${measureIndex + 1} actualizado solo para voz ${voiceCode}`);
         }
 
         // Siempre sincronizar
@@ -16786,27 +15897,17 @@ ${codigos.join('\n  ')}
         }
 
         if (!bdi.bar[measureIndex]) {
-            console.error(`❌ Compás ${measureIndex + 1} no existe`);
             return;
         }
 
-        console.log('🔍 DEBUG: voiceEditMode =', voiceEditMode);
-        console.log('🔍 DEBUG: voiceCode =', voiceCode);
-        console.log('🔍 DEBUG: Total measures before =', bdi.bar.length);
-
         if (voiceEditMode === 'dependent') {
             // MODO DEPENDIENTE: Borrar compás de todas las voces
-            console.log('🔗 Modo Dependiente: Borrando compás de todas las voces');
             bdi.bar.splice(measureIndex, 1);
-            console.log(`✅ Compás ${measureIndex + 1} borrado de todas las voces`);
 
         } else {
             // MODO INDEPENDIENTE: Vaciar solo la voz actual
-            console.log('🔓 Modo Independiente: Vaciando solo voz', voiceCode);
 
             const measure = bdi.bar[measureIndex];
-            console.log('🔍 DEBUG: measure.voci exists?', !!measure.voci);
-            console.log('🔍 DEBUG: measure.voci is array?', Array.isArray(measure.voci));
 
             // Asegurar que existe la estructura voci
             if (!measure.voci) {
@@ -16832,21 +15933,13 @@ ${codigos.join('\n  ')}
                     measure.dinami = [...voiceObj.dinami];
                     measure.tarari = '';
 
-                    console.log(`✅ Compás ${measureIndex + 1} vaciado para voz ${voiceCode} (array structure)`);
-                    console.log('🔍 DEBUG: Voice after emptying =', voiceObj);
-                    console.log('🔍 DEBUG: Measure tipis =', measure.tipis);
                 } else {
-                    console.error('❌ Voice not found in voci array!');
                 }
             } else {
                 // Estructura de objeto: acceso directo
                 measure.voci[voiceCode] = createEmptyMeasure();
-                console.log(`✅ Compás ${measureIndex + 1} vaciado para voz ${voiceCode} (object structure)`);
-                console.log('🔍 DEBUG: Voice after emptying =', measure.voci[voiceCode]);
             }
 
-            console.log('🔍 DEBUG: Total measures after empty =', bdi.bar.length);
-            console.log('🔍 DEBUG: Measure still exists?', !!bdi.bar[measureIndex]);
         }
 
         syncMeasureCount();
@@ -16940,7 +16033,6 @@ ${codigos.join('\n  ')}
             titleDisplay.setAttribute('download', newTitle + '.mid');
         }
 
-        console.log('✅ Title updated to:', newTitle);
     }
 
     // Initialize title from bdi.metadata
@@ -16956,10 +16048,7 @@ ${codigos.join('\n  ')}
         const DOUBLE_CLICK_SPEED = 300; // ms for double click detection
 
         // Simplified interaction: Link click downloads (native), double click REMOVED
-        /* titleDisplay.addEventListener('dblclick', (e) => {
-             e.preventDefault();
-             enterEditMode();
-         }); */
+
 
         function enterEditMode() {
             titleDisplay.style.display = 'none';
@@ -17067,7 +16156,6 @@ ${codigos.join('\n  ')}
             const saved = localStorage.getItem('musicoli_frases');
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
-            console.error('Error loading frases:', e);
             return [];
         }
     }
@@ -17081,10 +16169,8 @@ ${codigos.join('\n  ')}
             fraseData.timestamp = new Date().toLocaleString();
             frases.push(fraseData);
             localStorage.setItem('musicoli_frases', JSON.stringify(frases));
-            console.log('✅ Frase guardada:', fraseData.id);
             return true;
         } catch (e) {
-            console.error('Error saving frase:', e);
             return false;
         }
     }
@@ -17095,10 +16181,8 @@ ${codigos.join('\n  ')}
             const frases = getSavedFrases();
             const filtered = frases.filter(f => f.id !== fraseId);
             localStorage.setItem('musicoli_frases', JSON.stringify(filtered));
-            console.log('🗑️ Frase eliminada:', fraseId);
             return true;
         } catch (e) {
-            console.error('Error deleting frase:', e);
             return false;
         }
     }
@@ -17107,10 +16191,8 @@ ${codigos.join('\n  ')}
     function deleteAllFrases() {
         try {
             localStorage.removeItem('musicoli_frases');
-            console.log('🗑️ Todas las frases eliminadas');
             return true;
         } catch (e) {
-            console.error('Error deleting all frases:', e);
             return false;
         }
     }
@@ -17222,13 +16304,11 @@ ${codigos.join('\n  ')}
             window.updateMeasureSelectionVisuals();
         }
 
-        console.log('🧹 Composición vaciada');
     }
 
     // Función para restaurar/insertar una frase
     function restoreFrase(fraseData) {
         if (!fraseData || !fraseData.bdi) {
-            console.error('❌ Datos de frase inválidos');
             return false;
         }
 
@@ -17240,7 +16320,6 @@ ${codigos.join('\n  ')}
             } else if (fraseData.bdi && Array.isArray(fraseData.bdi.bar)) {
                 measuresToRestore = fraseData.bdi.bar;
             } else {
-                console.error('❌ Data format not recognized inside fraseData.bdi');
                 return false;
             }
 
@@ -17289,7 +16368,6 @@ ${codigos.join('\n  ')}
                 applyTextLayer();
             }
 
-
             // Update BDI display
             let bdiDisplay = document.getElementById('bdi-display');
             if (bdiDisplay && typeof window.bdi.bar !== 'undefined') {
@@ -17301,10 +16379,8 @@ ${codigos.join('\n  ')}
                 updateDetailedJSON();
             }
 
-            console.log('✅ Frase restaurada:', fraseData.id);
             return true;
         } catch (e) {
-            console.error('❌ Error restaurando frase:', e);
             alert('Error al restaurar la frase: ' + e.message);
             return false;
         }
@@ -17394,12 +16470,10 @@ ${codigos.join('\n  ')}
         });
     }
 
-
     // Apply text layer to notepad (Ritmo mode)
     function applyTextLayer() {
         // Mock np6 validation
         if (typeof np6 === 'undefined' || !np6) {
-            console.error('❌ [applyTextLayer] np6 is not defined or not initialized');
             return;
         }
 
@@ -17641,14 +16715,11 @@ ${codigos.join('\n  ')}
     const playbackSelector = document.getElementById('playback-selector');
     if (playbackSelector) {
         playbackSelector.addEventListener('change', () => {
-            console.log('🎵 Playback selector changed to:', playbackSelector.value);
             // Rebuild MIDI with selected playback voices
             // Do NOT call applyTextLayer() - only update the player
             if (typeof rebuildRecordi === 'function') {
                 rebuildRecordi();
-                console.log('✅ rebuildRecordi called');
             } else {
-                console.error('❌ rebuildRecordi function not found');
             }
 
             // Update instrument selector to reflect current voice's instrument
@@ -17662,7 +16733,6 @@ ${codigos.join('\n  ')}
             }
         });
     } else {
-        console.error('❌ playback-selector element not found');
     }
 
     // Function to attach harmonization button listeners
@@ -17834,13 +16904,11 @@ ${codigos.join('\n  ')}
         }
     };
 
-
     // Process any queued calls
     if (typeof window._processApplyTextLayerQueue === 'function') {
         window._processApplyTextLayerQueue();
     }
 });
-
 
 // ============================================
 // MODE BUTTON EVENT HANDLERS
@@ -17948,7 +17016,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // MUSICOLI: Force re-render of text layer when switching to RITMO to ensure selection is visible
         if (mode === 'ritmo' && typeof applyTextLayer === 'function') {
-            console.log('🔄 Switched to Ritmo - forcing applyTextLayer to show selection');
             setTimeout(() => {
                 applyTextLayer();
             }, 50);
@@ -17982,7 +17049,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Warn only if it's expected to exist (composicion/tarareo might be WIP)
-                // console.warn('Editor not found for mode:', editorMode, editorId); 
+                //  
             }
         });
 
@@ -18031,7 +17098,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const editorTonalidad = document.getElementById('editor-tonalidad');
 
         if (mode === 'tonalidad') {
-            console.log('🔍 Switching to Tonalidad. Verifying Harmonize Container...');
 
             // Allow time for any clearing scripts to run
             setTimeout(() => {
@@ -18039,7 +17105,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentEditor = document.getElementById('editor-tonalidad');
 
                 if (!currentContainer && currentEditor) {
-                    console.warn('⚠️ Harmonize container missing. Re-injecting...');
 
                     const newItem = document.createElement('div');
                     newItem.id = 'harmonize-container';
@@ -18087,12 +17152,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     currentEditor.insertBefore(newItem, currentEditor.firstChild);
                     currentContainer = newItem;
-                    console.log('✅ Harmonize Container restored.');
 
                     // Re-attach event listeners to the new buttons
                     if (typeof attachHarmonizeListeners === 'function') {
                         attachHarmonizeListeners();
-                        console.log('✅ Harmonize listeners re-attached.');
                     }
                 }
 
@@ -18127,14 +17190,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const escociSpan = document.getElementById('escoci');
         if (escociSpan) {
             escociSpan.style.display = (mode === 'tonalidad') ? 'inline' : 'none';
-            console.log('🎵 Scale controls (escoci) visibility:', mode === 'tonalidad' ? 'visible' : 'hidden');
         }
 
         // Instrumentation Panel: Only in Instrumentación mode
         const panelModoInstrumentacion = document.getElementById('panel-modo-instrumentacion');
         if (panelModoInstrumentacion) {
             panelModoInstrumentacion.style.display = (mode === 'instrumentacion') ? 'flex' : 'none';
-            console.log('🎺 Instrumentation panel visibility:', mode === 'instrumentacion' ? 'visible' : 'hidden');
         }
 
         // Rhythm Color Info: Only in Ritmo mode
@@ -18142,7 +17203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const rhythmColorInfoDiv = document.getElementById('rhythm-color-info-div');
         if (rhythmColorInfoDiv) {
             rhythmColorInfoDiv.style.display = (mode === 'ritmo' || mode === 'tonalidad') ? 'flex' : 'none';
-            console.log('🎨 Rhythm color info visibility:', (mode === 'ritmo' || mode === 'tonalidad') ? 'visible' : 'hidden');
         }
 
         // Force refresh of makeladi (Tool Ladder) when switching modes
@@ -18190,7 +17250,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        console.log('✅ Mode switched to:', mode);
     }
 
     // Attach event listeners to mode buttons
@@ -18201,9 +17260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const mode = modeButtons[buttonId];
                 switchMode(mode);
             });
-            console.log('✅ Event listener attached to:', buttonId);
         } else {
-            console.warn('⚠️ Button not found:', buttonId);
         }
     });
 
@@ -18293,21 +17350,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initialize with composicion mode active (default)
-    console.log('🎵 Initializing mode system...');
     setTimeout(() => {
         switchMode('composicion');
     }, 200);
 });
-
-
-
-
-
-
-
-
-
-
 
 // ========== DUPLICATE PHRASE SYSTEM ==========
 
@@ -18418,8 +17464,6 @@ window.duplicatePhrase = function (amount, unit) {
     start = Math.max(0, Math.min(start, total - 1));
     end = Math.max(0, Math.min(end, total - 1));
 
-    console.log(`🔄 Duplicating measures [${start}, ${end}]. Amount: ${amount}, Unit: ${unit}`);
-
     if (typeof saveBdiState === 'function') saveBdiState();
 
     // Get the selection
@@ -18439,7 +17483,6 @@ window.duplicatePhrase = function (amount, unit) {
     if (typeof updateAfterBdiChange === 'function') {
         updateAfterBdiChange();
     }
-    console.log(`✅ Duplicated ${newMeasures.length} measures after index ${end}.`);
 };
 
 // Function to transpose SELECTED measures in place
@@ -18458,8 +17501,6 @@ window.transposePhrase = function (amount, unit) {
     start = Math.max(0, Math.min(start, total - 1));
     end = Math.max(0, Math.min(end, total - 1));
 
-    console.log(`🔄 Transposing measures [${start}, ${end}] in place. Amount: ${amount}, Unit: ${unit}`);
-
     if (typeof saveBdiState === 'function') saveBdiState();
 
     // Directly modify the selection in bdi.bar
@@ -18469,9 +17510,7 @@ window.transposePhrase = function (amount, unit) {
     if (typeof updateAfterBdiChange === 'function') {
         updateAfterBdiChange();
     }
-    console.log(`✅ Transposed ${selectedRange.length} measures.`);
 };
-
 
 // Function to update individual track volume
 window.updateTrackVolume = function (voiceKey, value) {
@@ -18482,7 +17521,6 @@ window.updateTrackVolume = function (voiceKey, value) {
     }
 
     window.bdi.metadata.voices[voiceKey].volume = parseInt(value);
-    console.log('🔊 Track ' + voiceKey + ' volume set to ' + value);
 
     // Rebuild only if we have measures to render
     if (window.bdi.bar && window.bdi.bar.length > 0) {
@@ -18520,7 +17558,6 @@ window.ensureLyricsField = function () {
             });
         }
     });
-    console.log('✅ Lyrics fields ensured.');
 
     // Force update of BDI display to show new fields
     const bdiDisplay = document.getElementById('bdi-display');
@@ -18541,8 +17578,6 @@ if (window.bdi && window.bdi.bar) {
 setTimeout(() => {
     // DO NOT set currentEditingMeasureIndex - keep modal closed for editing
     // window.currentEditingMeasureIndex remains undefined
-
-    console.log('🎹 Modal editor UI initialized with placeholder (not open for editing)');
 
     // Update modal UI to show placeholder measure number
     const measureNumSpan = document.getElementById('midi-editor-measure-num');
@@ -18601,7 +17636,6 @@ function initializeTracksConfigInputs() {
         }
     });
 
-    console.log('🎺 Track configuration inputs initialized');
 }
 
 /**
@@ -18637,8 +17671,6 @@ function saveTracksConfig() {
 
     // Update visual labels
     updateTrackLabels();
-
-    console.log('💾 Tracks configuration saved:', tracksConfig);
 
     // Rebuild MIDI if there are measures
     if (window.bdi.bar && window.bdi.bar.length > 0) {
@@ -18686,8 +17718,6 @@ function saveTracksConfigSilent() {
     // Update visual labels
     updateTrackLabels();
 
-    console.log('💾 Tracks configuration auto-saved:', tracksConfig);
-
     // Rebuild MIDI if there are measures
     if (window.bdi.bar && window.bdi.bar.length > 0) {
         if (typeof rebuildRecordi === 'function') {
@@ -18717,7 +17747,6 @@ function syncTracksConfigToBdi() {
         window.bdi.metadata.voices[track.key].displayName = track.displayName || track.permanentName;
     });
 
-    console.log('🔄 Track config synced to bdi.metadata.voices');
 }
 
 /**
@@ -18730,8 +17759,6 @@ function updateTrackLabels() {
             labelElement.textContent = track.displayName;
         }
     });
-
-    console.log('🏷️ Track labels updated');
 
     // Sync ruler spacer width with labels column to align red bar
     setTimeout(() => {
@@ -18768,7 +17795,6 @@ setTimeout(() => {
         saveBtn.addEventListener('click', () => {
             saveTracksConfig();
         });
-        console.log('🎺 Save tracks config button listener attached');
     }
 
     // Initialize inputs with default values
@@ -18792,8 +17818,6 @@ setTimeout(() => {
             } else if (instrumentName.includes('🥁 ')) {
                 instrumentName = "Percussion";
             }
-
-            console.log('🎺 General instrument selector changed to:', selectedValue, '(', instrumentName, ')');
 
             // Update all individual track selectors, names and tracksConfig
             ['s', 'a', 't', 'b'].forEach(key => {
@@ -18825,8 +17849,6 @@ setTimeout(() => {
                 }
             });
 
-            console.log('✅ All tracks updated to:', instrumentName);
-
             // Sync to BDI and Rebuild
             syncTracksConfigToBdi();
             updateTrackLabels(); // Force update visual labels immediately
@@ -18836,14 +17858,12 @@ setTimeout(() => {
 
             // Refresh rhythm pattern UI if percussion mode might have changed
             if (typeof buildGroupButtons === 'function' && typeof buildPatternGrid === 'function') {
-                console.log('🔄 Refrescando UI de patrones rítmicos...');
                 buildGroupButtons();
                 if (typeof currentGroup !== 'undefined') {
                     buildPatternGrid(currentGroup);
                 }
             }
         });
-        console.log('🎺 General instrument selector listener attached');
     }
 
     // Add auto-save listeners to individual track instrument selectors
@@ -18851,20 +17871,16 @@ setTimeout(() => {
         const trackInstrumentSelect = document.getElementById(`track-instrument-${key}`);
         if (trackInstrumentSelect) {
             trackInstrumentSelect.addEventListener('change', () => {
-                console.log(`🎺 Track ${key} instrument changed`);
                 saveTracksConfigSilent();
             });
-            console.log(`🎺 Auto-save listener attached to track-instrument-${key}`);
         }
 
         // Also add listener to track name inputs
         const trackNameInput = document.getElementById(`track-name-${key}`);
         if (trackNameInput) {
             trackNameInput.addEventListener('blur', () => {
-                console.log(`🏷️ Track ${key} name changed`);
                 saveTracksConfigSilent();
             });
-            console.log(`🏷️ Auto-save listener attached to track-name-${key}`);
         }
     });
 }, 700);
@@ -18879,7 +17895,6 @@ window.saveTracksConfigSilent = saveTracksConfigSilent;
 window.initializeTracksConfigInputs = initializeTracksConfigInputs;
 
 // End of file
-
 
 /**
  * Populates the silence variations column in the modal header
@@ -19046,12 +18061,9 @@ function midiToSolfeo(midi) {
  * Updates the color debug panel with contrast information for all measures
  */
 window.updateColorDebugInfo = function () {
-    console.log('updateColorDebugInfo called');
     const output = document.getElementById('vari');
-    console.log('vari element:', output);
 
     if (!output) {
-        console.error('No se encontró el div vari');
         return;
     }
 
@@ -19059,7 +18071,6 @@ window.updateColorDebugInfo = function () {
     output.innerHTML = '<pre style="background: #333; color: #0f0; padding: 10px; border-radius: 4px;">Analizando contraste de colores...</pre>';
 
     const measures = window.bdi && window.bdi.bar ? window.bdi.bar : [];
-    console.log('Measures found:', measures.length);
 
     if (measures.length === 0) {
         output.innerHTML = '<pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px;">No hay compases para analizar.</pre>';
@@ -19271,7 +18282,6 @@ window.generateHarmonyForVoice = function (sourceData, voiceCode, selectedVoiceC
 
 // AUTO-INITIALIZATION
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('🚀 [Init] Auto-initializing player via rebuildRecordi...');
     if (typeof rebuildRecordi === 'function') {
         rebuildRecordi();
         // Force visual update too
@@ -19279,11 +18289,6 @@ document.addEventListener('DOMContentLoaded', function () {
             applyTextLayer();
         }
     } else {
-        console.warn('⚠️ [Init] rebuildRecordi not found - player initialization skipped.');
     }
 });
-
-
-
-
 
