@@ -733,62 +733,47 @@ function getMeasureVoiceColor(measureIndex, voiceKey) {
     // 1. Find the specific voice data
     let voiceData;
     if (measure.voci && Array.isArray(measure.voci)) {
-        // Standard structure: voci is an array of objects {nami: 's', nimidi: [...], ...}
         voiceData = measure.voci.find(v => v.nami === voiceKey);
     } else if (measure.voci) {
-        // Legacy/Alternative structure: voci is an object { 's': {...}, ... }
         voiceData = measure.voci[voiceKey];
     }
 
-    // 2. If no voice data or no notes, return gray
+    // 2. If no voice data or no notes, return gray/black
     if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
         return '#000000';
     }
 
-    // 2.5 Check for silence based on tipis (Enforce visual silence)
-    // If all durations are negative, the measure is silent -> Gray color
+    // 3. Check for silence based on tipis (Enforce visual silence)
     if (voiceData.tipis && Array.isArray(voiceData.tipis) && voiceData.tipis.length > 0) {
         const isSilent = voiceData.tipis.every(t => t < 0);
         if (isSilent) return '#000000';
     }
 
-    // 3. Calculate color from MIDI notes using N-notes gradient algorithm
-    // Filter out 0 or negative values (rests/placeholders)
     const notes = voiceData.nimidi.filter(n => typeof n === 'number' && n > 0);
 
+    // Si por alguna razón no hay notas, aplicar fallback
     if (notes.length === 0) return '#cccccc';
 
-    // 3.5 Extract velocities (dinami) and filter to match valid notes
-    // This ensures that velocity sliders in Dinámica mode affect the measure colors
     const allVelocities = voiceData.dinami || [];
     const velocities = [];
-
-    // Build velocities array matching the filtered notes
     let noteIndex = 0;
     for (let i = 0; i < voiceData.nimidi.length && noteIndex < notes.length; i++) {
         const midiValue = voiceData.nimidi[i];
         if (typeof midiValue === 'number' && midiValue > 0) {
-            // This is a valid note, include its velocity
-            velocities.push(allVelocities[i] || 64); // Default to 64 (mf) if missing
+            velocities.push(allVelocities[i] || 64);
             noteIndex++;
         }
     }
 
-    // Definir tesituras típicas para cada voz SATB
     const tesituras = {
-        's': { min: 60, max: 81 },  // Soprano: C4 (60) - A5 (81)
-        'a': { min: 55, max: 76 },  // Alto: G3 (55) - E5 (76)
-        't': { min: 48, max: 69 },  // Tenor: C3 (48) - A4 (69)
-        'b': { min: 40, max: 64 }   // Bajo: E2 (40) - E4 (64)
+        's': { min: 60, max: 81 },
+        'a': { min: 55, max: 76 },
+        't': { min: 48, max: 69 },
+        'b': { min: 40, max: 64 }
     };
-
-    // Obtener tesitura para la voz actual (default a rango general si no existe)
     const tesitura = tesituras[voiceKey] || { min: 36, max: 84 };
 
-    // Usar la nueva función con degradados, PASANDO LAS VELOCITIES
     const colorResult = midiNotesToScaleColorNnotes(notes, tesitura.min, tesitura.max, velocities);
-
-    // Retornar el background (puede ser color sólido o degradado)
     return colorResult.background;
 }
 
@@ -1578,28 +1563,27 @@ function generateRainbowColors(steps) {
 }
 
 function generateSimilarColors(h, s, l, num) {
-    //
     let colors = [];
-    const variation = 7;
-    let currentH = h * 0.8;
-    let currentS = s * 0.2; // Bajando saturación inicial
-    let currentL = l * 0.99; // Bajando tono (luminosidad) inicial
+    const hueVariation = 15; // Allow a bit of hue wobble
+
+    let currentH = h;
+    let currentS = s;
+    let currentL = l;
 
     for (let i = 0; i < num; i++) {
-        currentH = (currentH + (Math.random() * variation - variation / 2) + 360) % 360;
-        currentS = Math.max(5, currentS - Math.random() * 2); // Tendencia a bajar saturación
-        currentL = Math.max(10, currentL - Math.random() * 2); // Tendencia a bajar tono
+        // Slight randomization around the original center to stay affine but varied
+        currentH = (h + (Math.random() * hueVariation - hueVariation / 2) + 360) % 360;
+        currentS = Math.max(20, Math.min(100, s + (Math.random() * 30 - 15)));
+        currentL = Math.max(20, Math.min(80, l + (Math.random() * 30 - 15)));
 
-        //for (let i = 0; i < num; i++) {
-        //    currentH = (currentH + (Math.random() * 8 - 4) + 360) % 360;
-        //    currentS = Math.max(5, Math.min(100, currentS + (Math.random() * 6 - 3)));
-        //    currentL = Math.max(10, Math.min(90, currentL + (Math.random() * 4 - 2)));
+        const sArr = currentS / 100;
+        const lArr = currentL / 100;
+        const a = sArr * Math.min(lArr, 1 - lArr);
 
-        const sArr = currentS / 100, lArr = currentL / 100, a = sArr * Math.min(lArr, 1 - lArr);
         const f = (n, k = (n + currentH / 30) % 12) => Math.round(255 * (lArr - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)));
+
         colors.push(`rgb(${f(0)}, ${f(8)}, ${f(4)})`);
     }
-    //
     return colors;
 }
 
@@ -6133,6 +6117,7 @@ function createRitmoEditor(containerId) {
 
     const charSelector = document.createElement('select');
     charSelector.id = 'rhythm-char-selector'; // ✅ Added ID
+    charSelector.style.display = 'none'; // HIDDEN: currently unused
     charSelector.style.width = '30px';
     charSelector.style.height = '30px';
     charSelector.style.color = '#ffffff';
@@ -6292,10 +6277,16 @@ function createRitmoEditor(containerId) {
                 toneSpan.style.backgroundColor = color;
                 toneSpan.style.border = 'none';
 
-                // Relate MIDI values to color
+                // Relate MIDI values to color based on current voice
+                let targetVoice = 's';
+                const voiceSelector = document.getElementById('voice-selector');
+                if (voiceSelector) {
+                    targetVoice = voiceSelector.value;
+                }
+
                 let midiNotes = [60, 64]; // Fallback
                 if (typeof rgbToMidiInterval === 'function') {
-                    midiNotes = rgbToMidiInterval(r, g, b);
+                    midiNotes = rgbToMidiInterval(r, g, b, 60, targetVoice);
                 }
                 toneSpan.dataset.midiValues = JSON.stringify(midiNotes);
 
@@ -6394,7 +6385,7 @@ function createRitmoEditor(containerId) {
     colorMelodi.appendChild(selectedTonesContainer);
 
     const toplayi = document.createElement('button');
-    toplayi.textContent = 'play';
+    toplayi.textContent = 'Escuchar';
     toplayi.id = 'button-to-play';
     toplayi.style.display = 'inline-flex';
     toplayi.style.padding = '4px 12px';
@@ -6406,58 +6397,100 @@ function createRitmoEditor(containerId) {
     toplayi.style.borderRadius = '3px';
     toplayi.style.cursor = 'pointer';
     toplayi.addEventListener('click', (e) => {
-        //alert(currentPattern)
-        if (currentPattern) {
+        e.preventDefault();
 
-            const spans = document.querySelectorAll('#selected-tones-container span[data-midi-values]');
+        const spans = document.querySelectorAll('#selected-tones-container span[data-midi-values]');
+        if (spans.length === 0 || !window.bdi || !window.bdi.bar) return;
 
-            let accumulatedMidi = [];
-            let accumulatedTipis = [];
+        // Determine selected measure range
+        let startIdx = (typeof window.selectionRange !== 'undefined' && window.selectionRange.start !== -1)
+            ? window.selectionRange.start
+            : (typeof window.selectedMeasureIndex !== 'undefined' ? window.selectedMeasureIndex : 0);
 
-            spans.forEach(span => {
-                // MUSICOLI: Use all MIDI values, not just first 2 (for quaternary patterns)
-                const midiVals = JSON.parse(span.dataset.midiValues);
-                let pat = currentPattern; // Default
-                if (span.dataset.customPattern) {
-                    pat = JSON.parse(span.dataset.customPattern);
-                } else if (span.dataset.isRest === 'true') {
-                    pat = currentPattern.map(t => -Math.abs(t));
+        let endIdx = (typeof window.selectionRange !== 'undefined' && window.selectionRange.end !== -1)
+            ? window.selectionRange.end
+            : startIdx;
+
+        if (startIdx < 0) startIdx = 0;
+        if (endIdx >= window.bdi.bar.length) endIdx = window.bdi.bar.length - 1;
+        if (startIdx > endIdx) return;
+
+        const selectedCount = endIdx - startIdx + 1;
+
+        const voiceSelector = document.getElementById('voice-selector');
+        const targetVoice = voiceSelector ? voiceSelector.value : 's';
+
+        let previewMeasures = [];
+
+        for (let i = 0; i < selectedCount; i++) {
+            let measureIndex = startIdx + i;
+            if (!window.bdi.bar[measureIndex]) continue;
+
+            // Deep clone to avoid touching original score during preview
+            let measureCopy = JSON.parse(JSON.stringify(window.bdi.bar[measureIndex]));
+
+            let spanIndex = i % spans.length;
+            let span = spans[spanIndex];
+            let coli = span.style.backgroundColor;
+
+            const updateData = (data) => {
+                if (!data.tipis || data.tipis.length === 0) return;
+
+                // Re-calculate the midi notes dynamically for the specific target voice
+                let newMidiTones = [];
+                const rgbMatch = coli.match(/\d+/g);
+                if (rgbMatch && rgbMatch.length >= 3) {
+                    const r_val = parseInt(rgbMatch[0]);
+                    const g_val = parseInt(rgbMatch[1]);
+                    const b_val = parseInt(rgbMatch[2]);
+                    if (typeof rgbToMidiInterval === 'function') {
+                        newMidiTones = rgbToMidiInterval(r_val, g_val, b_val, 60, targetVoice);
+                    }
                 }
 
-                // We need to match pattern length to midi length? 
-                // Usually currentPattern length matches the 'notes' count logic or we repeat it.
-                // The original code calculated 'nimidi' length and repeated currentPattern.
-                // logic: for each MIDI note in this span, we assign a rhythm value?
-                // Or does typical logic imply 1:1?
-                // The logic: nimidi is flat list of midis. tipis is flat list of durations.
-                // If we have 2 midi notes per span, we need 2 dur values per span?
-                // If the pattern has more notes than midi values, what happens?
-                // Original code: nimidi was flatMap of slices(0,2). 
-                // Then repeti was length of nimidi, cycling currentPattern.
-                // So if currentPattern is [4,4] (2 notes) and we have 2 midi notes, it matches perfectly.
-
-                accumulatedMidi.push(...midiVals);
-
-                // Add pattern values corresponding to the midi values count
-                for (let k = 0; k < midiVals.length; k++) {
-                    accumulatedTipis.push(pat[k % pat.length]);
+                // Fallback in case of failure
+                if (newMidiTones.length === 0) {
+                    newMidiTones = JSON.parse(span.dataset.midiValues);
                 }
-            });
 
-            const basi = [{
-                nimidi: accumulatedMidi,
-                tipis: accumulatedTipis,
-                chordi: false,
-                dinami: new Array(accumulatedMidi.length).fill(127)
-            }];
+                let newNimidi = [];
+                let noteCounter = 0;
 
-            tuci(basi, 0);
+                for (let k = 0; k < data.tipis.length; k++) {
+                    if (data.tipis[k] < 0 || Math.abs(data.tipis[k]) === 100) {
+                        newNimidi.push(0);
+                    } else {
+                        newNimidi.push(newMidiTones[noteCounter % newMidiTones.length]);
+                        noteCounter++;
+                    }
+                }
+                data.nimidi = newNimidi;
+            };
+
+            // Update only the targeted voice in the cloned measure
+            if (measureCopy.voci) {
+                let voiceData = null;
+                if (Array.isArray(measureCopy.voci)) {
+                    voiceData = measureCopy.voci.find(v => v.nami === targetVoice);
+                } else {
+                    voiceData = measureCopy.voci[targetVoice];
+                }
+                if (voiceData) updateData(voiceData);
+            } else {
+                updateData(measureCopy);
+            }
+
+            previewMeasures.push(measureCopy);
+        }
+
+        if (typeof window.playMeasureFast === 'function') {
+            window.playMeasureFast(0, previewMeasures, [targetVoice]);
         }
     });
     colorMelodi.appendChild(toplayi);
 
     const toescori = document.createElement('button');
-    toescori.textContent = 'A partitura';
+    toescori.textContent = 'Colorear';
     toescori.id = 'button-to-score';
     toescori.style.display = 'inline-flex';
     toescori.style.padding = '4px 12px';
@@ -6578,48 +6611,106 @@ function createRitmoEditor(containerId) {
     percToggleContainer.appendChild(ritmoModeWrapper);
 
     toescori.addEventListener('click', (e) => {
+        e.preventDefault();
 
-        if (currentPattern) {
+        const currentPat = currentPattern || [1, 1]; // Fallback to avoid error
 
-            const spans = document.querySelectorAll('#selected-tones-container span[data-midi-values]');
-            const spanCount = spans.length;
-            for (let a = 0; a < spanCount; a++) {
-                // MUSICOLI: Use all MIDI values, not just first 2 (for quaternary patterns)
-                let nimidi = JSON.parse(spans[a].dataset.midiValues);
-                let tipis = currentPattern;
+        const spans = document.querySelectorAll('#selected-tones-container span[data-midi-values]');
+        if (spans.length === 0 || !bdi || !bdi.bar) return;
 
-                // MUSICOLI: Check for custom pattern (mixed rest/sound) first
-                if (spans[a].dataset.customPattern) {
-                    tipis = JSON.parse(spans[a].dataset.customPattern);
+        // Determine selected measure range
+        let startIdx = (typeof window.selectionRange !== 'undefined' && window.selectionRange.start !== -1)
+            ? window.selectionRange.start
+            : (typeof window.selectedMeasureIndex !== 'undefined' ? window.selectedMeasureIndex : 0);
+
+        let endIdx = (typeof window.selectionRange !== 'undefined' && window.selectionRange.end !== -1)
+            ? window.selectionRange.end
+            : startIdx;
+
+        if (startIdx < 0) startIdx = 0;
+        if (endIdx >= bdi.bar.length) endIdx = bdi.bar.length - 1;
+        if (startIdx > endIdx) return;
+
+        const selectedCount = endIdx - startIdx + 1;
+
+        const voiceSelector = document.getElementById('voice-selector');
+        const targetVoice = voiceSelector ? voiceSelector.value : 's';
+
+        for (let i = 0; i < selectedCount; i++) {
+            let measureIndex = startIdx + i;
+            if (!bdi.bar[measureIndex]) continue;
+
+            let spanIndex = i % spans.length; // cycle colors
+            let span = spans[spanIndex];
+
+            let newMidiTones = JSON.parse(span.dataset.midiValues);
+            let hexi = colorToHex(span.style.backgroundColor);
+            let coli = span.style.backgroundColor;
+            let measure = bdi.bar[measureIndex];
+
+            const updateData = (data) => {
+                // If there's no rhythm data to color, do nothing.
+                if (!data.tipis || data.tipis.length === 0) return;
+
+                // Re-calculate the midi notes dynamically for the specific target voice
+                let newMidiTones = [];
+                const rgbMatch = coli.match(/\d+/g);
+                if (rgbMatch && rgbMatch.length >= 3) {
+                    const r_val = parseInt(rgbMatch[0]);
+                    const g_val = parseInt(rgbMatch[1]);
+                    const b_val = parseInt(rgbMatch[2]);
+                    if (typeof rgbToMidiInterval === 'function') {
+                        newMidiTones = rgbToMidiInterval(r_val, g_val, b_val, 60, targetVoice);
+                    }
                 }
-                // If it is a rest span, negate the pattern (only if no custom pattern)
-                else if (spans[a].dataset.isRest === 'true') {
-                    tipis = currentPattern.map(t => -Math.abs(t));
+
+                // Fallback in case of failure
+                if (newMidiTones.length === 0) {
+                    newMidiTones = JSON.parse(span.dataset.midiValues);
                 }
 
-                let hexi = colorToHex(spans[a].style.backgroundColor);
+                let newNimidi = [];
+                let noteCounter = 0;
 
-                //bdi.push({
-                bdi.bar.splice((window.selectedMeasureIndex + a), 0, {
-                    idi: a,
-                    numi: spans[a].dataset.noteNumber,
-                    nami: spans[a].dataset.noteName,
-                    pinti: { c: 111, m: 111, y: 111, k: 111, w: 111 },
-                    coli: spans[a].style.backgroundColor,
-                    nimidi: JSON.parse(spans[a].dataset.midiValues),
-                    tipis: tipis,
-                    timis: [1, 1],
-                    dinami: [64, 64],
-                    chordi: false,
-                    tarari: tarareoInput.value,
-                    hexi: hexi
+                for (let k = 0; k < data.tipis.length; k++) {
+                    // Check if it's a rest or a barline (which have no pitch)
+                    if (data.tipis[k] < 0 || Math.abs(data.tipis[k]) === 100) {
+                        newNimidi.push(0);
+                    } else {
+                        // It's a note, assign the next pitch from the selected color
+                        newNimidi.push(newMidiTones[noteCounter % newMidiTones.length]);
+                        noteCounter++;
+                    }
+                }
 
-                });
+                // Only update pitch and colors, leave tipis (rhythm) untouched
+                data.nimidi = newNimidi;
+                data.coli = coli;
+                data.hexi = hexi;
+
+                if (!data.dinami || data.dinami.length !== newNimidi.length) {
+                    data.dinami = new Array(newNimidi.length).fill(64);
+                }
+            };
+
+            // Update the target voice or root measure
+            if (measure.voci) {
+                let voiceData = null;
+                if (Array.isArray(measure.voci)) {
+                    voiceData = measure.voci.find(v => v.nami === targetVoice);
+                } else {
+                    voiceData = measure.voci[targetVoice];
+                }
+                // We only color *existing* data. If the voice doesn't exist or is empty, it skips it.
+                if (voiceData) updateData(voiceData);
+            } else {
+                updateData(measure);
             }
-            window.applyTextLayer();
-            window.rebuildRecordi();
-
         }
+
+        if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+        if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
+        if (typeof window.renderVisualTracks === 'function') window.renderVisualTracks();
     });
     colorMelodi.appendChild(toescori);
 
@@ -6877,6 +6968,12 @@ function createRitmoEditor(containerId) {
                             } catch (e) { spanMidi = [60]; }
                             if (spanMidi.length === 0) spanMidi = [60];
 
+                            // Force monochromatic in rhythm mode
+                            const isRhythmMode = (typeof window.currentEditMode !== 'undefined' && window.currentEditMode === 'ritmo') || (typeof currentEditMode !== 'undefined' && currentEditMode === 'ritmo');
+                            if (isRhythmMode) {
+                                spanMidi = new Array(spanMidi.length).fill(spanMidi[0]);
+                            }
+
                             midiNotes.push(...spanMidi);
 
                             // 2. Get Rest Status
@@ -7052,10 +7149,30 @@ function createRitmoEditor(containerId) {
                 const currentIterationIndex = cursorMeasureIndex + m;
 
                 if (typeof window.addMeasureWithMode === 'function') {
-                    // Ensure we pass the active voice code derived earlier
-                    const voiceCode = selectedMatchCode || 's';
+                    // Update behavior based on independent/dependent mode
+                    const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : 'dependent';
                     const measureData = { ...activeVoiceData };
-                    window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
+                    const voiceCode = selectedMatchCode || 's';
+
+                    if (currentMode === 'independent') {
+                        // MODO INDEPENDIENTE: Llenar el patrón en TODAS las pistas audibles
+                        const playbackSelector = document.getElementById('playback-selector');
+                        const selectedVoicesStr = playbackSelector ? playbackSelector.value : 's,a,t,b';
+                        const audibleVoices = selectedVoicesStr.split(',').filter(v => ['s', 'a', 't', 'b'].includes(v));
+
+                        if (audibleVoices.length > 0) {
+                            audibleVoices.forEach(v => {
+                                // Aplicar el patrón a cada pista audible
+                                window.addMeasureWithMode({ ...measureData, nami: v }, v, currentIterationIndex);
+                            });
+                        } else {
+                            // Fallback por precaución
+                            window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
+                        }
+                    } else {
+                        // MODO DEPENDIENTE: Una sola llamada y addMeasureWithMode se encarga de armonizar las 4 pistas
+                        window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
+                    }
                 } else {
                     // Define voices locally to ensure it exists
                     const voices = ['s', 'a', 't', 'b'];
@@ -9369,18 +9486,18 @@ function tomidi(colorValue, minMidi = 48, maxOctavas = 3, inputRange = 255) {
 // Devuelve un array de 3 notas MIDI [R, G, B]
 function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
     const voiceSelector = document.getElementById('voice-selector');
-    let voice = voiceOverride || (voiceSelector ? voiceSelector.value : 'soprano');
+    let voice = voiceOverride || (voiceSelector ? voiceSelector.value : 's');
 
-    // Rangos específicos por voz
+    // Rangos específicos por voz (SATB)
     const voiceRanges = {
-        soprano: { min: 60, max: 81, base: 60 },
-        contralto: { min: 53, max: 72, base: 53 },
-        tenor: { min: 48, max: 67, base: 48 },
-        bajo: { min: 40, max: 60, base: 40 },
-        todos: { min: 36, max: 84, base: 36 }
+        's': { min: 60, max: 81, base: 60 },   // Soprano
+        'a': { min: 53, max: 76, base: 55 },   // Contralto (Alto)
+        't': { min: 48, max: 69, base: 48 },   // Tenor
+        'b': { min: 40, max: 64, base: 40 },   // Bajo
+        'todos': { min: 36, max: 84, base: 36 }
     };
 
-    const range = voiceRanges[voice] || voiceRanges.soprano;
+    const range = voiceRanges[voice] || voiceRanges['s'];
 
     const escalaActual = escalasNotas[escalas[scali]] || escalasNotas.mayor;
     const keyOffset = keyinselecti;
@@ -9402,50 +9519,89 @@ function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
         return [range.base, range.base, range.base];
     }
 
-    // Función de mapeo usando la lista precalculada
-    const mapComponentToMidi = (val, offset = 0) => {
-        // MUSICOLI FIX: Align with midiToRgb range [50, 255]
-        // normalized = (val - 50) / (255 - 50)
-        let normalized = (val - 50) / 205;
-        const valorNormalizado = Math.min(1, Math.max(0, normalized + offset * 0.01));
-        const indice = Math.floor(valorNormalizado * notasDisponibles.length);
-        const indiceSeguro = Math.min(indice, notasDisponibles.length - 1);
-        return notasDisponibles[indiceSeguro];
-    };
-
-    // MUSICOLI: Check if this is a monochromatic color (R=G=B)
-    // If so, return the same note 3 times instead of using offsets
-    const isMonochromatic = (r === g && g === b);
-
-    // Generar notas con pequeños offsets para variedad (solo si NO es monocromático)
-    const result = isMonochromatic ? [
-        mapComponentToMidi(r, 0),
-        mapComponentToMidi(r, 0),
-        mapComponentToMidi(r, 0)
-    ] : [
-        mapComponentToMidi(r, 0),
-        mapComponentToMidi(g, 1),
-        mapComponentToMidi(b, 2)
-    ];
-
+    // Si es gris/monocromático absoluto o si estamos en el "modo ritmo", devolvemos una repetición plana
+    const isMonochromatic = (r === g && g === b) || (typeof currentEditMode !== 'undefined' && currentEditMode === 'ritmo') || (typeof window.currentEditMode !== 'undefined' && window.currentEditMode === 'ritmo');
     if (isMonochromatic) {
+        let normalized = (r - 50) / 205;
+        let valNorm = Math.min(1, Math.max(0, normalized));
+        let idx = Math.floor(valNorm * notasDisponibles.length);
+        idx = Math.min(idx, notasDisponibles.length - 1);
+        let note = notasDisponibles[Math.max(0, idx)];
+        return [note, note, note, note, note, note, note, note];
     }
-    //
+
+    // --- NUEVA LÓGICA: EXTRAER MAYOR VARIEDAD DE TONOS ---
+    const result = [];
+
+    // 1. Calcular propiedades del color
+    const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255; // Brillo (0 a 1)
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    const saturation = maxC === 0 ? 0 : (maxC - minC) / maxC; // Saturación (0 a 1)
+
+    // 2. Centro de la melodía basado en el brillo (luma)
+    // Dejamos un margen del 20% en los bordes para tener espacio para saltos
+    const valCentrado = 0.2 + (luma * 0.6);
+    const baseIndex = Math.floor(valCentrado * notasDisponibles.length);
+
+    // 3. Tamaño de los saltos (intervalos) basado en la saturación
+    // Colores opacos = notas conjuntas (1). Colores vibrantes = grandes saltos (hasta 5 índices)
+    let step = 1 + Math.floor(saturation * 4);
+
+    // 4. Patrón y contorno basado en el color dominante
+    const sequenceLen = 8; // Extraemos 8 notas para generar gran variedad
+    for (let i = 0; i < sequenceLen; i++) {
+        let offset = 0;
+
+        if (r >= g && r >= b) {
+            // Predomina ROJO: Patrón en Arco (Sube intenso y luego cae)
+            if (i < 4) offset = i * step;
+            else offset = (7 - i) * step;
+
+        } else if (g > r && g >= b) {
+            // Predomina VERDE: Patrón Zig-Zag Alterno (Sube y baja cruzando el centro)
+            offset = (i % 2 === 0) ? (Math.floor(i / 2) * step) : -(Math.floor((i + 1) / 2) * step);
+
+        } else {
+            // Predomina AZUL: Patrón en cascada descendente ondulada
+            offset = -(i * step) + (i % 2 === 0 ? step : 0);
+            // Ajustar para centrarlo más
+            offset += (sequenceLen / 2 * step);
+        }
+
+        // Aplicar el salto al centro base
+        let targetIndex = baseIndex + offset;
+
+        // "Espejismo" (Rebote) si la melodía intenta salirse del registro del instrumento
+        if (targetIndex >= notasDisponibles.length) {
+            let overflow = targetIndex - (notasDisponibles.length - 1);
+            targetIndex = (notasDisponibles.length - 1) - overflow;
+        }
+        if (targetIndex < 0) {
+            targetIndex = Math.abs(targetIndex);
+        }
+
+        // Doble aseguramiento de los límites
+        targetIndex = Math.max(0, Math.min(targetIndex, notasDisponibles.length - 1));
+
+        result.push(notasDisponibles[targetIndex]);
+    }
+
     return result;
 }
 
 function rgbToMidiInterval02(r, g, b, notaBase = 36) {
     // Obtener tesitura seleccionada
     const voiceSelector = document.getElementById('voice-selector');
-    const voice = voiceSelector ? voiceSelector.value : 'soprano';
+    const voice = voiceSelector ? voiceSelector.value : 's';
 
     // Ajustar nota base según tesitura (aproximaciones MIDI)
     let base = notaBase;
     switch (voice) {
-        case 'soprano': base = 60; break;
-        case 'contralto': base = 53; break;
-        case 'tenor': base = 48; break;
-        case 'bajo': base = 40; break;
+        case 's': base = 60; break;
+        case 'a': base = 53; break;
+        case 't': base = 48; break;
+        case 'b': base = 40; break;
         case 'todos': base = 36; break;
         default: base = 60;
     }
@@ -10651,7 +10807,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } // end recordi
 
 
-    window.playMeasureFast = function (nc, measureOverride = null) {
+    window.playMeasureFast = function (nc, measureOverride = null, forceVoices = null) {
         if (hiddenPlayerState.fastPlayTimeout) {
             clearTimeout(hiddenPlayerState.fastPlayTimeout);
         }
@@ -10671,13 +10827,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 3. Prepare voices
         let voicesToPlay = null;
-        const effectiveVoiceEditMode = window.voiceEditMode || voiceEditMode;
-        const effectiveCurrentVoice = window.currentVoice || currentVoice;
-
-        if (effectiveVoiceEditMode === 'dependent') {
-            voicesToPlay = ['s', 'a', 't', 'b'];
+        if (forceVoices) {
+            voicesToPlay = Array.isArray(forceVoices) ? forceVoices : [forceVoices];
         } else {
-            voicesToPlay = [effectiveCurrentVoice];
+            const effectiveVoiceEditMode = window.voiceEditMode || voiceEditMode;
+            const effectiveCurrentVoice = window.currentVoice || currentVoice;
+
+            if (effectiveVoiceEditMode === 'dependent') {
+                voicesToPlay = ['s', 'a', 't', 'b'];
+            } else {
+                voicesToPlay = [effectiveCurrentVoice];
+            }
         }
 
         // 4. Generate MIDI
@@ -10693,8 +10853,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (measureOverride) {
-            // Use override data (array of 1 measure)
-            recordi([measureOverride], 0, localTracks, voicesToPlay);
+            // Use override data
+            const overrideArray = Array.isArray(measureOverride) ? measureOverride : [measureOverride];
+            for (let i = 0; i < overrideArray.length; i++) {
+                recordi(overrideArray, i, localTracks, voicesToPlay);
+            }
         } else {
             // Use standard BDI data
             recordi(window.bdi.bar, nc, localTracks, voicesToPlay);
@@ -12830,25 +12993,23 @@ ${notepadCss}
             `;
             duplicateBtn.title = "Duplicar compás";
             duplicateBtn.onclick = () => {
-                // 1. Auto-accept current changes
-                midiEditorAccept.click();
+                // To avoid unwanted auto-harmonization in dependent mode,
+                // we'll duplicate the CURRENT state of the BDI without accepting modal edits.
 
-                setTimeout(() => {
-                    // 2. Clone current measure (Deep copy)
-                    const currentMeasure = window.bdi.bar[measureIndex];
-                    const newMeasure = JSON.parse(JSON.stringify(currentMeasure));
+                // 1. Clone current measure (Deep copy) directly from BDI
+                const currentMeasure = window.bdi.bar[measureIndex];
+                const newMeasure = JSON.parse(JSON.stringify(currentMeasure));
 
-                    // 3. Insert after current
-                    window.bdi.bar.splice(measureIndex + 1, 0, newMeasure);
+                // 2. Insert after current
+                window.bdi.bar.splice(measureIndex + 1, 0, newMeasure);
 
-                    // 4. Update everything
-                    window.rebuildRecordi();
-                    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
-                    if (typeof window.highlightMeasure === 'function') window.highlightMeasure(measureIndex + 1);
+                // 3. Update everything
+                window.rebuildRecordi();
+                if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                if (typeof window.highlightMeasure === 'function') window.highlightMeasure(measureIndex + 1);
 
-                    // 5. Open editor for the NEW duplicate (measureIndex + 1)
-                    window.openMidiEditor(measureIndex + 1);
-                }, 50);
+                // 4. Open editor for the NEW duplicate (measureIndex + 1)
+                window.openMidiEditor(measureIndex + 1);
             };
             measureNumSpan.appendChild(duplicateBtn);
 
@@ -12866,10 +13027,16 @@ ${notepadCss}
             `;
             splitBtn.title = "Separar voces en 4 compases";
             splitBtn.onclick = () => {
+                // To avoid auto-harmonizing the other voices before splitting,
+                // we tell the accept handler to skip harmony if such flag exists.
+                window.isSplittingMeasure = true;
+
                 // 1. Auto-accept current changes
-                midiEditorAccept.click();
+                if (midiEditorAccept) midiEditorAccept.click();
 
                 setTimeout(() => {
+                    window.isSplittingMeasure = false;
+
                     // 2. Get current measure
                     const currentMeasure = window.bdi.bar[measureIndex];
 
@@ -12883,35 +13050,73 @@ ${notepadCss}
                     const voiceOrder = ['s', 'a', 't', 'b']; // Soprano, Alto, Tenor, Bajo
                     const newMeasures = [];
 
-                    voiceOrder.forEach((activeVoiceCode, voiceIndex) => {
+                    voiceOrder.forEach((activeVoiceCode) => {
                         // Clone the entire measure
                         const newMeasure = JSON.parse(JSON.stringify(currentMeasure));
 
-                        // For each voice in the new measure
                         newMeasure.voci.forEach(voice => {
                             if (voice.nami !== activeVoiceCode) {
-                                // This is NOT the active voice - silence all notes
-                                // Convert all tipis values to negative (silence)
+                                // This is NOT the active voice - silence it physically.
                                 if (voice.tipis && Array.isArray(voice.tipis)) {
                                     voice.tipis = voice.tipis.map(tipi => -Math.abs(tipi));
                                 }
-                                // Also set nimidi to 0 for clarity (though negative tipis is what matters)
                                 if (voice.nimidi && Array.isArray(voice.nimidi)) {
                                     voice.nimidi = voice.nimidi.map(() => 0);
                                 }
                             }
-                            // If voice.nami === activeVoiceCode, leave it unchanged (active)
                         });
+
+                        // Tell the system NOT to recalculate harmony for this measure
+                        newMeasure.voicesOverride = true;
 
                         newMeasures.push(newMeasure);
                     });
 
-                    // 4. Replace current measure with the 4 new measures
-                    window.bdi.bar.splice(measureIndex, 1, ...newMeasures);
+                    // 4. Apply measures based on mode
+                    const isIndependent = ((typeof window.voiceEditMode !== 'undefined' && window.voiceEditMode === 'independent') || (typeof voiceEditMode !== 'undefined' && voiceEditMode === 'independent'));
+
+                    if (!isIndependent) {
+                        // Modo dependiente: Replace current measure with the 4 new measures (desplaza el resto)
+                        window.bdi.bar.splice(measureIndex, 1, ...newMeasures);
+                    } else {
+                        // Modo independiente: modify corresponding measures (or create if missing)
+                        for (let i = 0; i < 4; i++) {
+                            const targetIndex = measureIndex + i;
+                            const targetVoiceCode = voiceOrder[i];
+                            const sourceVoiceData = newMeasures[i].voci.find(v => v.nami === targetVoiceCode);
+
+                            if (targetIndex < window.bdi.bar.length) {
+                                // Compás existente: NO reemplazar entero.
+                                // Modificar SÓLO la voz correspondiente, dejando las demás voces intocables.
+                                const targetMeasure = window.bdi.bar[targetIndex];
+
+                                // Impedir que se autoarmonice silencios de estar incompletas
+                                targetMeasure.voicesOverride = true;
+
+                                if (targetMeasure.voci && Array.isArray(targetMeasure.voci)) {
+                                    const targetVoice = targetMeasure.voci.find(v => v.nami === targetVoiceCode);
+                                    if (targetVoice && sourceVoiceData) {
+                                        targetVoice.nimidi = [...sourceVoiceData.nimidi];
+                                        targetVoice.tipis = [...sourceVoiceData.tipis];
+                                        targetVoice.timis = sourceVoiceData.timis ? [...sourceVoiceData.timis] : [];
+                                        targetVoice.dinami = sourceVoiceData.dinami ? [...sourceVoiceData.dinami] : [];
+                                        targetVoice.tarari = sourceVoiceData.tarari || "";
+                                        targetVoice.liri = sourceVoiceData.liri ? [...sourceVoiceData.liri] : [];
+                                    }
+                                }
+                            } else {
+                                // No existe compás: Añadir compás con la voz sola y demás silencios (como modo dependiente)
+                                window.bdi.bar.push(newMeasures[i]);
+                            }
+                        }
+                    }
 
                     // 5. Update everything
-                    window.rebuildRecordi();
+                    if (typeof window.saveBdiState === 'function') window.saveBdiState();
+                    if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
                     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+                    if (typeof window.renderVisualTracks === 'function') window.renderVisualTracks();
+                    if (typeof window.applyNotepadColoring === 'function') window.applyNotepadColoring();
                     if (typeof window.highlightMeasure === 'function') window.highlightMeasure(measureIndex);
 
                     // 6. Open editor for the first split measure
@@ -14574,7 +14779,7 @@ ${notepadCss}
                 }
 
                 // Handle other voices based on mode
-                if (voiceEditMode === 'dependent') {
+                if (voiceEditMode === 'dependent' && !window.isSplittingMeasure) {
                     newMeasure.voci.forEach(v => {
                         if (v.nami !== voiceCode) {
                             let isSilent = false;
@@ -15936,11 +16141,13 @@ ${notepadCss}
             const isInd = (voiceEditMode === 'independent');
             if (isInd) {
                 if (modeIcon) modeIcon.textContent = '🔓';
-                editModeToggle.style.background = '#ff9800';
+                editModeToggle.classList.add('independent');
+                editModeToggle.classList.remove('dependent');
                 editModeToggle.title = 'Modo: Independiente (solo voz seleccionada). Click para cambiar a Dependiente';
             } else {
                 if (modeIcon) modeIcon.textContent = '🔗';
-                editModeToggle.style.background = '#4caf50';
+                editModeToggle.classList.add('dependent');
+                editModeToggle.classList.remove('independent');
                 editModeToggle.title = 'Modo: Dependiente (armonía automática). Click para cambiar a Independiente';
             }
 
@@ -16129,24 +16336,63 @@ ${notepadCss}
             bdi.bar.splice(measureIndex, 0, newMeasure);
 
         } else {
-            // MODO INDEPENDIENTE: Solo anadir a la voz actual
+            // MODO INDEPENDIENTE: Solo anadir/modificar a la voz actual
 
-            // Create new measure with empty voices
-            const newMeasure = {
-                voci: [
-                    { nami: 's', ...createEmptyMeasure() },
-                    { nami: 'a', ...createEmptyMeasure() },
-                    { nami: 't', ...createEmptyMeasure() },
-                    { nami: 'b', ...createEmptyMeasure() }
-                ]
-            };
             const activeVoiceIdx = ['s', 'a', 't', 'b'].indexOf(voiceCode);
-            if (activeVoiceIdx >= 0) {
-                newMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
-            }
 
-            // Insert at index
-            bdi.bar.splice(measureIndex, 0, newMeasure);
+            if (measureIndex < bdi.bar.length) {
+                // No estamos al final: Sobrescribir solo la pista actual del compás existente
+                // y dejar las otras pistas "sin tocar"
+                const existingMeasure = bdi.bar[measureIndex];
+
+                // Asegurar que existe la estructura voci
+                if (!existingMeasure.voci) {
+                    existingMeasure.voci = [
+                        { nami: 's', ...createEmptyMeasure() },
+                        { nami: 'a', ...createEmptyMeasure() },
+                        { nami: 't', ...createEmptyMeasure() },
+                        { nami: 'b', ...createEmptyMeasure() }
+                    ];
+                }
+
+                if (Array.isArray(existingMeasure.voci)) {
+                    if (activeVoiceIdx >= 0) {
+                        existingMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
+                    }
+                } else {
+                    // Fallback para estructura de objeto
+                    existingMeasure.voci[voiceCode] = measureData;
+                }
+
+                // IMPORTANTE: Sincronizar las variables raíz para que el renderizador (np6) no muestre silencio
+                existingMeasure.nimidi = [...measureData.nimidi];
+                existingMeasure.tipis = [...measureData.tipis];
+                existingMeasure.timis = [...measureData.timis];
+                if (measureData.dinami) existingMeasure.dinami = [...measureData.dinami];
+
+            } else {
+                // Estamos al final: Insertar un compás nuevo
+                // con la pista actual llena y las demás vacías/en silencio
+                const newMeasure = {
+                    voci: [
+                        { nami: 's', ...createEmptyMeasure() },
+                        { nami: 'a', ...createEmptyMeasure() },
+                        { nami: 't', ...createEmptyMeasure() },
+                        { nami: 'b', ...createEmptyMeasure() }
+                    ],
+                    nimidi: [...measureData.nimidi],
+                    tipis: [...measureData.tipis],
+                    timis: [...measureData.timis]
+                };
+
+                if (measureData.dinami) newMeasure.dinami = [...measureData.dinami];
+
+                if (activeVoiceIdx >= 0) {
+                    newMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
+                }
+
+                bdi.bar.splice(measureIndex, 0, newMeasure);
+            }
 
             // Sincronizar para asegurar que todas las voces tengan el mismo numero de compases
             syncMeasureCount();
