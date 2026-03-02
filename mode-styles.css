@@ -4,7 +4,7 @@
 
 /* Variables CSS para cada modo basadas en las paletas de las imágenes */
 :root {
-  /* RITMO - Grises */
+  /* RITMO - Gris más oscuro (sin cambio) */
   --ritmo-primary: #4a4a4a;
   --ritmo-secondary: #6b6b6b;
   --ritmo-bg: #2a2a2a;
@@ -15,61 +15,61 @@
   --ritmo-accent: #7a7a7a;
   --ritmo-hover: #5a5a5a;
 
-  /* TONALIDAD/MELODÍA - Arcoíris/Multicolor (002.png) - Naranja más oscuro */
-  --tonalidad-primary: #b8600a;
-  --tonalidad-secondary: #d97706;
-  --tonalidad-bg: linear-gradient(135deg, #fff3e0 0%, #ffe4cc 25%, #ffd4a8 50%, #ffc488 75%, #ffb366 100%);
-  --tonalidad-bg-solid: #fff3e0;
-  --tonalidad-bg-light: #fffbf0;
-  --tonalidad-text: #78350f;
-  --tonalidad-text-dark: #92400e;
-  --tonalidad-border: #ffb74d;
-  --tonalidad-accent: #fb923c;
-  --tonalidad-hover: #ea580c;
+  /* TONALIDAD/MELODÍA - Gris paso 2 */
+  --tonalidad-primary: #525252;
+  --tonalidad-secondary: #6e6e6e;
+  --tonalidad-bg: #3e3e3e;
+  --tonalidad-bg-solid: #3e3e3e;
+  --tonalidad-bg-light: #424242;
+  --tonalidad-text: #d8d8d8;
+  --tonalidad-text-dark: #f0f0f0;
+  --tonalidad-border: #636363;
+  --tonalidad-accent: #787878;
+  --tonalidad-hover: #5e5e5e;
 
-  /* DINÁMICA - Azules Pastel (003.png) */
-  --dinamica-primary: #7ec8e3;
-  --dinamica-secondary: #a8d8ea;
-  --dinamica-bg: #e8f4f8;
-  --dinamica-bg-light: #f0f8fb;
-  --dinamica-text: #2c5f6f;
-  --dinamica-text-dark: #1e4a57;
-  --dinamica-border: #b8dce8;
-  --dinamica-accent: #9ad3e6;
-  --dinamica-hover: #6bb8d8;
+  /* DINÁMICA - Gris paso 3 */
+  --dinamica-primary: #5a5a5a;
+  --dinamica-secondary: #767676;
+  --dinamica-bg: #464646;
+  --dinamica-bg-light: #4a4a4a;
+  --dinamica-text: #e0e0e0;
+  --dinamica-text-dark: #f5f5f5;
+  --dinamica-border: #6b6b6b;
+  --dinamica-accent: #808080;
+  --dinamica-hover: #666666;
 
-  /* LYRICS - Tonos Piel (004.png) */
-  --lyrics-primary: #d4a574;
-  --lyrics-secondary: #e6b88a;
-  --lyrics-bg: #f5e6d3;
-  --lyrics-bg-light: #faf3ea;
-  --lyrics-text: #8b6f47;
-  --lyrics-text-dark: #6b5435;
-  --lyrics-border: #e0c9a6;
-  --lyrics-accent: #ddb892;
-  --lyrics-hover: #c89968;
+  /* LYRICS - Gris paso 4 */
+  --lyrics-primary: #626262;
+  --lyrics-secondary: #7e7e7e;
+  --lyrics-bg: #4e4e4e;
+  --lyrics-bg-light: #525252;
+  --lyrics-text: #e8e8e8;
+  --lyrics-text-dark: #f8f8f8;
+  --lyrics-border: #737373;
+  --lyrics-accent: #888888;
+  --lyrics-hover: #6e6e6e;
 
-  /* INSTRUMENTACIÓN - Púrpuras/Violetas */
-  --instrumentacion-primary: #7c3aed;
-  --instrumentacion-secondary: #a78bfa;
-  --instrumentacion-bg: #f3e8ff;
-  --instrumentacion-bg-light: #8b5cf6;
-  --instrumentacion-text: #5b21b6;
-  --instrumentacion-text-dark: #4c1d95;
-  --instrumentacion-border: #c4b5fd;
-  --instrumentacion-accent: #a78bfa;
-  --instrumentacion-hover: #6d28d9;
+  /* INSTRUMENTACIÓN - Gris paso 5 */
+  --instrumentacion-primary: #6a6a6a;
+  --instrumentacion-secondary: #868686;
+  --instrumentacion-bg: #565656;
+  --instrumentacion-bg-light: #5a5a5a;
+  --instrumentacion-text: #eeeeee;
+  --instrumentacion-text-dark: #ffffff;
+  --instrumentacion-border: #7b7b7b;
+  --instrumentacion-accent: #909090;
+  --instrumentacion-hover: #767676;
 
-  /* COMPOSICION - blancos */
-  --composicion-primary: #9e9e9e;
-  --composicion-secondary: #bdbdbd;
-  --composicion-bg: #ffffff;
-  --composicion-bg-light: #f5f5f5;
-  --composicion-text: #424242;
-  --composicion-text-dark: #212121;
-  --composicion-border: #e0e0e0;
-  --composicion-accent: #757575;
-  --composicion-hover: #616161;
+  /* COMPOSICIÓN - Gris paso 6 (el más claro, pero con contraste suficiente) */
+  --composicion-primary: #727272;
+  --composicion-secondary: #8e8e8e;
+  --composicion-bg: #5e5e5e;
+  --composicion-bg-light: #626262;
+  --composicion-text: #f0f0f0;
+  --composicion-text-dark: #ffffff;
+  --composicion-border: #838383;
+  --composicion-accent: #989898;
+  --composicion-hover: #7e7e7e;
 }
 
 /* ============================================
@@ -81,7 +81,6 @@ body.app-mode-ritmo {
   --theme-secondary: var(--ritmo-secondary);
   --theme-bg: var(--ritmo-bg);
   --theme-bg-light: #333333;
-  /* Darker header for rhythm */
   --theme-text: var(--ritmo-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--ritmo-border);
@@ -93,8 +92,7 @@ body.app-mode-tonalidad {
   --theme-primary: var(--tonalidad-primary);
   --theme-secondary: var(--tonalidad-secondary);
   --theme-bg: var(--tonalidad-bg-solid);
-  --theme-bg-light: var(--tonalidad-secondary);
-  /* Header color */
+  --theme-bg-light: var(--tonalidad-bg-light);
   --theme-text: var(--tonalidad-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--tonalidad-border);
@@ -106,23 +104,19 @@ body.app-mode-dinamica {
   --theme-primary: var(--dinamica-primary);
   --theme-secondary: var(--dinamica-secondary);
   --theme-bg: var(--dinamica-bg);
-  --theme-bg-light: var(--dinamica-text);
-  /* Header color */
+  --theme-bg-light: var(--dinamica-bg-light);
   --theme-text: var(--dinamica-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--dinamica-border);
   --theme-accent: var(--dinamica-accent);
   --theme-hover: var(--dinamica-hover);
-  --dinamica-text-light: #e0f7fa;
-  /* Light text for dark backgrounds */
 }
 
 body.app-mode-lyrics {
   --theme-primary: var(--lyrics-primary);
   --theme-secondary: var(--lyrics-secondary);
   --theme-bg: var(--lyrics-bg);
-  --theme-bg-light: var(--lyrics-text-dark);
-  /* Header color */
+  --theme-bg-light: var(--lyrics-bg-light);
   --theme-text: var(--lyrics-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--lyrics-border);
@@ -135,7 +129,6 @@ body.app-mode-instrumentacion {
   --theme-secondary: var(--instrumentacion-secondary);
   --theme-bg: var(--instrumentacion-bg);
   --theme-bg-light: var(--instrumentacion-bg-light);
-  /* Header color */
   --theme-text: var(--instrumentacion-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--instrumentacion-border);
@@ -143,13 +136,11 @@ body.app-mode-instrumentacion {
   --theme-hover: var(--instrumentacion-hover);
 }
 
-
 body.app-mode-composicion {
   --theme-primary: var(--composicion-primary);
   --theme-secondary: var(--composicion-secondary);
   --theme-bg: var(--composicion-bg);
   --theme-bg-light: var(--composicion-bg-light);
-  /* Header color */
   --theme-text: var(--composicion-text);
   --theme-text-inverse: #ffffff;
   --theme-border: var(--composicion-border);
@@ -200,6 +191,10 @@ body.app-mode-composicion {
    BOTONES DE MODO
    ============================================ */
 
+/* ============================================
+   BOTONES DE MODO - Unified Styling
+   ============================================ */
+
 .mode-btn {
   padding: 8px 16px;
   font-family: monospace;
@@ -208,121 +203,57 @@ body.app-mode-composicion {
   cursor: pointer;
   font-weight: bold;
   transition: all 0.3s ease;
-  border: 2px solid;
+  border: 2px solid #4d4d4d !important;
+  background: #3d3d3d !important;
+  color: #888 !important;
 }
 
-/* Ritmo Button */
-.mode-btn-ritmo {
-  background: var(--ritmo-secondary);
-  color: var(--ritmo-text);
-  border-color: var(--ritmo-border);
+.mode-btn:hover {
+  background: #4a4a4a !important;
+  color: #bbb !important;
 }
 
-.mode-btn-ritmo:hover {
-  background: var(--ritmo-hover);
-}
-
+/* Active States */
 .mode-btn-ritmo.active {
-  background: var(--ritmo-primary);
-  color: var(--ritmo-text-dark);
-  border-color: var(--ritmo-primary);
-  box-shadow: 0 0 0 3px rgba(44, 44, 44, 0.2);
-}
-
-/* Tonalidad Button */
-.mode-btn-tonalidad {
-  background: var(--tonalidad-bg);
-  color: var(--tonalidad-text);
-  border-color: var(--tonalidad-border);
-}
-
-.mode-btn-tonalidad:hover {
-  background: var(--tonalidad-accent);
-  color: white;
+  background: var(--ritmo-secondary) !important;
+  color: var(--ritmo-text-dark) !important;
+  border-color: var(--ritmo-accent) !important;
+  box-shadow: 0 0 0 2px rgba(107, 107, 107, 0.35);
 }
 
 .mode-btn-tonalidad.active {
-  background: var(--tonalidad-primary);
-  color: white;
-  border-color: var(--tonalidad-primary);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
-}
-
-/* Dinámica Button */
-.mode-btn-dinamica {
-  background: var(--dinamica-bg);
-  color: var(--dinamica-text);
-  border-color: var(--dinamica-border);
-}
-
-.mode-btn-dinamica:hover {
-  background: var(--dinamica-accent);
-  color: white;
+  background: var(--tonalidad-secondary) !important;
+  color: #fff !important;
+  border-color: var(--tonalidad-accent) !important;
+  box-shadow: 0 0 0 2px rgba(110, 110, 110, 0.35);
 }
 
 .mode-btn-dinamica.active {
-  background: var(--dinamica-primary);
-  color: white;
-  border-color: var(--dinamica-primary);
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
-}
-
-/* Lyrics Button */
-.mode-btn-lyrics {
-  background: var(--lyrics-bg);
-  color: var(--lyrics-text);
-  border-color: var(--lyrics-border);
-}
-
-.mode-btn-lyrics:hover {
-  background: var(--lyrics-accent);
-  color: white;
+  background: var(--dinamica-secondary) !important;
+  color: #fff !important;
+  border-color: var(--dinamica-accent) !important;
+  box-shadow: 0 0 0 2px rgba(118, 118, 118, 0.35);
 }
 
 .mode-btn-lyrics.active {
-  background: var(--lyrics-primary);
-  color: white;
-  border-color: var(--lyrics-primary);
-  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
-}
-
-/* Instrumentación Button */
-.mode-btn-instrumentacion {
-  background: var(--instrumentacion-bg);
-  color: var(--instrumentacion-text);
-  border-color: var(--instrumentacion-border);
-}
-
-.mode-btn-instrumentacion:hover {
-  background: var(--instrumentacion-accent);
-  color: white;
+  background: var(--lyrics-secondary) !important;
+  color: #fff !important;
+  border-color: var(--lyrics-accent) !important;
+  box-shadow: 0 0 0 2px rgba(126, 126, 126, 0.35);
 }
 
 .mode-btn-instrumentacion.active {
-  background: var(--instrumentacion-primary);
-  color: white;
-  border-color: var(--instrumentacion-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-}
-
-
-/* composición Button */
-.mode-btn-composicion {
-  background: var(--composicion-bg);
-  color: var(--composicion-text);
-  border-color: var(--composicion-border);
-}
-
-.mode-btn-composicion:hover {
-  background: var(--composicion-accent);
-  color: white;
+  background: var(--instrumentacion-secondary) !important;
+  color: #fff !important;
+  border-color: var(--instrumentacion-accent) !important;
+  box-shadow: 0 0 0 2px rgba(134, 134, 134, 0.35);
 }
 
 .mode-btn-composicion.active {
-  background: var(--composicion-primary);
-  color: white;
-  border-color: var(--composicion-primary);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+  background: var(--composicion-secondary) !important;
+  color: #fff !important;
+  border-color: var(--composicion-accent) !important;
+  box-shadow: 0 0 0 2px rgba(142, 142, 142, 0.35);
 }
 
 /* ============================================
@@ -539,4 +470,67 @@ body.app-mode-ritmo #editor-tonalidad-ladder {
 body.app-mode-tonalidad #editor-tonalidad-ladder {
   display: inline-block !important;
   width: 100%;
+}
+
+/* ============================================
+   TOGGLE SWITCH STYLES (PREMIUM)
+   ============================================ */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #555;
+  transition: .3s;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+input:checked+.slider {
+  background-color: #4CAF50;
+}
+
+input:focus+.slider {
+  box-shadow: 0 0 1px #4CAF50;
+}
+
+input:checked+.slider:before {
+  transform: translateX(14px);
+}
+
+/* Custom coloring for Rhythm mode */
+body.app-mode-ritmo .slider {
+  background-color: #444;
+}
+
+body.app-mode-ritmo input:checked+.slider {
+  background-color: #00acc1;
 }

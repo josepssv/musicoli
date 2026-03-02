@@ -145,9 +145,13 @@ let voiceEditMode = 'dependent'; // 'dependent' | 'independent' - Mode for voice
 // Check if trilipi is ready, otherwise default to a safe value
 let currentPattern = (typeof trilipi !== 'undefined' && trilipi[currentGroup]) ? trilipi[currentGroup][paterni] : [4, 4, 4, 4]; // Fallback if not ready
 let lastSelectedGrayMidi = null; // Store last selected gray tone MIDI for saturated buttons synchronization
+window.isGlobalPercussionEnabled = false; // MUSICOLI: Global percussion override in rhythm mode
 
-// Initialize Language
-if (typeof setLanguage === 'function') {
+
+// Initialize App Preferences (Language, Nomenclature, BPM, e.g.)
+if (window.appPrefs && typeof window.appPrefs.apply === 'function') {
+    window.appPrefs.apply();
+} else if (typeof setLanguage === 'function') {
     setLanguage('es');
 }
 
@@ -1024,6 +1028,12 @@ function renderVisualTracks() {
         updateVoiceLabelStyles();
     }
 
+    // MUSICOLI: Sync track labels (handles Snare/Hi-Hat names in Global Percussion mode)
+    if (typeof updateTrackLabels === 'function') {
+        updateTrackLabels();
+    }
+
+
     // Get containers
     const containers = {
         's': document.getElementById('visual-track-s'),
@@ -1145,8 +1155,31 @@ function renderVisualTracks() {
                 tipis = new Array(nimidi.length).fill(3);
             }
 
+            // RITMIZACIÓN VISUAL: apply the same transform used in MIDI playback
+            // so the Bravura notation in the track matrix reflects the real rhythm
+            let visualTipis = tipis;
+            if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled && typeof applyRitmizacion === 'function' && tipis.length > 0) {
+                // Get S (Snare) baseTipis for this measure
+                let visualBaseTipis = tipis; // fallback: own tipis
+                if (measure.voci) {
+                    const sVoice = Array.isArray(measure.voci)
+                        ? measure.voci.find(v => v.nami === 's')
+                        : measure.voci['s'];
+                    if (sVoice && sVoice.tipis && sVoice.tipis.length > 0) visualBaseTipis = sVoice.tipis;
+                }
+                visualTipis = applyRitmizacion([...tipis], key, visualBaseTipis);
+            }
+
             // Apply color (now supports gradients via background)
             const colorValue = getVoiceColor(index, key);
+
+            // Tooltip: show percussion instrument name when PERC is ON, else voice label
+            if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) {
+                const percNames = { 's': 'Snare', 'a': 'Hi-Hat', 't': 'Tom', 'b': 'Bass Drum' };
+                span.title = `Compás ${index + 1} — ${percNames[key] || key.toUpperCase()}`;
+            } else {
+                span.title = `Compás ${index + 1} - Voz ${key.toUpperCase()}`;
+            }
 
             // Check if it's a gradient or solid color
             if (colorValue.startsWith('linear-gradient')) {
@@ -1181,24 +1214,14 @@ function renderVisualTracks() {
                 span.style.zIndex = '10';
             }
 
-            // POS level logic moved to after innerHTML assignment to prevent overwriting
-
             // Generate Bravura notation if we have data
             let bravuraNotation = '';
 
-            // SECURITY: Ensure rhythm data exists if notes exist
-            if (nimidi.length > 0 && (!tipis || tipis.length === 0)) {
-                tipis = new Array(nimidi.length).fill(3);
-            }
-
-            if (tipis.length > 0 && typeof renderPattern === 'function' && typeof window.noteMap !== 'undefined') {
+            if (visualTipis.length > 0 && typeof renderPattern === 'function' && typeof window.noteMap !== 'undefined') {
                 try {
-                    bravuraNotation = renderPattern(window.noteMap, tipis);
+                    bravuraNotation = renderPattern(window.noteMap, visualTipis);
                 } catch (e) { }
             }
-
-            // REMOVED FALLBACK: If renderPattern fails, show NOTHING instead of wrong notes.
-            // This helps diagnose if the issue is empty generation vs wrong generation.
 
             // CREATIVE FALLBACK: Visual Melody if renderPattern fails or returns empty
             let customVisualNotation = '';
@@ -1211,74 +1234,55 @@ function renderVisualTracks() {
 
                 const noteElements = nimidi.map((note, i) => {
                     // MUSICOLI CODES: 1=Whole, 2=Half, 3=Quarter, 4=8th, 5=16th
-                    // 25=Half+Dot, 35=Quarter+Dot
-                    const code = (tipis && tipis[i]) ? parseInt(tipis[i]) : 3;
-                    const isRest = note <= 0 || code < 0; // Check BOTH note value AND duration sign
+                    const code = (visualTipis && visualTipis[i]) ? parseInt(visualTipis[i]) : 3;
+                    const isRest = note <= 0 || code < 0;
 
                     let char = '';
                     let dot = '';
                     let baseCode = Math.abs(code);
 
-                    // Handle Dots (codes 25, 35)
                     if (baseCode === 25 || baseCode === 35) {
-                        // Add margin to dot for better spacing
                         dot = `<span style="margin-left: 3px;">\uE1E7</span>`;
                         baseCode = (baseCode === 25) ? 2 : 3;
                     }
 
                     if (isRest) {
                         switch (baseCode) {
-                            case 1: char = '\uE4E3'; break; // Whole Rest
-                            case 2: char = '\uE4E4'; break; // Half Rest
-                            case 3: char = '\uE4E5'; break; // Quarter Rest
-                            case 4: char = '\uE4E6'; break; // 8th Rest
-                            case 5: char = '\uE4E7'; break; // 16th Rest
-                            case 6: char = '\uE4E8'; break; // 32nd Rest
+                            case 1: char = '\uE4E3'; break;
+                            case 2: char = '\uE4E4'; break;
+                            case 3: char = '\uE4E5'; break;
+                            case 4: char = '\uE4E6'; break;
+                            case 5: char = '\uE4E7'; break;
+                            case 6: char = '\uE4E8'; break;
                             default: char = '\uE4E5';
                         }
                     } else {
                         switch (baseCode) {
-                            case 1: char = '\uE1D2'; break; // Whole Note
-                            case 2: char = '\uE1D3'; break; // Half Note
-                            case 3: char = '\uE1D5'; break; // Quarter Note
-                            case 4: char = '\uE1D7'; break; // 8th Note
-                            case 5: char = '\uE1D9'; break; // 16th Note
-                            case 6: char = '\uE1DB'; break; // 32nd Note
+                            case 1: char = '\uE1D2'; break;
+                            case 2: char = '\uE1D3'; break;
+                            case 3: char = '\uE1D5'; break;
+                            case 4: char = '\uE1D7'; break;
+                            case 5: char = '\uE1D9'; break;
+                            case 6: char = '\uE1DB'; break;
                             default: char = '\uE1D5';
                         }
                     }
 
-                    // Melodic styling: Adjusted vertical spread
                     let yOffset = 0;
                     if (!isRest && note > 0) {
                         const normalized = (note - minNote) / noteRange;
-                        yOffset = (normalized * 8) - 4; // Tight spread (-4 to +4)
+                        yOffset = (normalized * 8) - 4;
                     }
 
-                    // Tight span width (auto or very small) + small margin
                     return `<span style="display:inline-block; transform: translateY(${-yOffset}px); margin: 0 1px; text-align: center;">${char}${dot}</span>`;
                 }).join('');
 
-                // Center alignment + gap for "Notes more together"
                 customVisualNotation = `<div style="display: flex; justify-content: center; align-items: center; width: 100%; pointer-events: none; gap: 2px;">${noteElements}</div>`;
             }
 
-            // Generate MIDI numbers display
-            let midiNumbers = '';
-            if (nimidi.length > 0) {
-                if (tipis && tipis.length === nimidi.length) {
-                    midiNumbers = nimidi.map((note, idx) => {
-                        return tipis[idx] < 0 ? '-' : note;
-                    }).join(' ');
-                } else {
-                    midiNumbers = nimidi.join(' ');
-                }
-            }
+            // Determine text color based on background
+            let textColor = '#ffffff';
 
-            // Determine text color based on background using the same function
-            let textColor = '#ffffff'; // Default fallback
-
-            // Get valid notes for color calculation
             const validNotesIndices = [];
             const validNotesForColor = nimidi.filter((n, idx) => {
                 if (typeof n === 'number' && n > 0) {
@@ -1289,7 +1293,6 @@ function renderVisualTracks() {
             });
 
             if (validNotesForColor.length > 0) {
-                // Get tesituras
                 const tesituras = {
                     's': { min: 60, max: 81 },
                     'a': { min: 55, max: 76 },
@@ -1297,15 +1300,11 @@ function renderVisualTracks() {
                     'b': { min: 40, max: 64 }
                 };
                 const tesitura = tesituras[key] || { min: 36, max: 84 };
-
-                // Filter velocities corresponding to valid notes
                 const validVelocities = validNotesIndices.map(idx => dinami[idx] || 64);
 
-                // Get the complete color result with proper text color and velocities
                 const colorResult = midiNotesToScaleColorNnotes(validNotesForColor, tesitura.min, tesitura.max, validVelocities);
                 textColor = colorResult.color || colorResult.textColor || '#ffffff';
             } else if (colorValue && !colorValue.startsWith('linear-gradient')) {
-                // Fallback for measures without valid notes
                 const rgbMatch = colorValue.match(/\d+/g);
                 if (rgbMatch) {
                     const brightness = (parseInt(rgbMatch[0]) * 299 + parseInt(rgbMatch[1]) * 587 + parseInt(rgbMatch[2]) * 114) / 1000;
@@ -1313,13 +1312,9 @@ function renderVisualTracks() {
                 }
             }
 
-            // Build the content HTML
             const measureNumber = index + 1;
             const numberStyle = 'position: absolute; top: 0; left: 0; font-size: 9px; font-weight: bold; color: #fff; background: rgba(0,0,0,0.5); padding: 0px 2px; cursor: default; user-select: none; z-index: 2; line-height: 1;';
 
-            // LOGIC: Show detailed content for ALL measures (active/inactive) per user request
-            // FORCE CENTERING with Absolute Positioning to conquer Bravura's weird metrics
-            // overflow: visible is CRITICAL for Bravura in small containers
             span.style.overflow = 'visible';
 
             span.innerHTML = `
@@ -1341,12 +1336,9 @@ function renderVisualTracks() {
             `;
 
             // RED CURSOR SYSTEM: Show insertion gap (POS level)
-            // Rendered at the end of loop to ensure it's not overwritten by innerHTML assignment
-            // Use both local and window variables to be safe as they might be out of sync
             const currentMode = (typeof window.voiceEditMode !== 'undefined') ? window.voiceEditMode : voiceEditMode;
             const showRedCursor = (currentMode === 'dependent') || (key === currentVoice);
             if (showRedCursor) {
-                // Determine if we show cursor on left of this measure or right (if at end)
                 const isAtEnd = (window.selectedMeasureIndex === measures.length);
                 const showOnLeft = (window.selectedMeasureIndex === index);
                 const showOnRight = isAtEnd && index === measures.length - 1;
@@ -1368,13 +1360,11 @@ function renderVisualTracks() {
                         cursorLine.style.right = '-1.5px';
                     }
                     span.appendChild(cursorLine);
-
-                    // CRITICAL: Ensure span has overflow visible to show the overlapping line
                     span.style.overflow = 'visible';
                 }
             }
 
-            // Crear tooltip simplificado con solo notaciones musicales (sin títulos)
+            // Tooltip logic
             const validNotesForTooltip = nimidi.filter(n => typeof n === 'number' && n > 0);
             let tooltipLines = [];
 
@@ -1392,19 +1382,16 @@ function renderVisualTracks() {
             span.style.cursor = 'pointer';
 
             span.onclick = (e) => {
-                // Switch voice logic
                 if (voiceSelector && voiceSelector.value !== key) {
                     voiceSelector.value = key;
                     const event = new Event('change');
                     voiceSelector.dispatchEvent(event);
                     if (typeof window.currentVoice !== 'undefined') window.currentVoice = key;
                 }
-                // Select measure
                 const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
                 if (index === bdiRef.length - 1) {
                     const rect = span.getBoundingClientRect();
                     const x = e.clientX - rect.left;
-                    // Si clicamos en el último 30% del último compás, ponemos el cursor al final
                     if (x > rect.width * 0.7) {
                         window.selectedMeasureIndex = bdiRef.length;
                     } else {
@@ -1416,16 +1403,19 @@ function renderVisualTracks() {
 
                 if (window.np6) window.np6.cursorPos = window.selectedMeasureIndex;
 
+                // Seek player to the clicked measure
+                if (typeof window.seekPlayerToMeasure === 'function' && window.selectedMeasureIndex < bdiRef.length) {
+                    window.seekPlayerToMeasure(window.selectedMeasureIndex);
+                }
+
                 if (typeof window.openMidiEditor === 'function' && window.selectedMeasureIndex < bdiRef.length) {
                     window.openMidiEditor(window.selectedMeasureIndex);
                 }
 
-                // Playback Logic (Fast Play) - Added to matrix click
                 if (typeof window.playMeasureFast === 'function') {
                     window.playMeasureFast(index);
                 }
 
-                // Re-render to update visual selection
                 renderVisualTracks();
                 if (typeof window.updateScoreIndicators === 'function') {
                     window.updateScoreIndicators();
@@ -1547,6 +1537,29 @@ function updateAfterBdiChange() {
 
     // Update visual track matrix
     setTimeout(renderVisualTracks, 50);
+
+    // Auto-scroll viewport to show cursor after tracks are rendered
+    setTimeout(() => {
+        const bdiRef = (window.bdi && window.bdi.bar) ? window.bdi.bar : [];
+        const cursorIdx = (typeof window.selectedMeasureIndex !== 'undefined') ? window.selectedMeasureIndex : bdiRef.length;
+        const viewport = document.getElementById('tracks-scroll-viewport');
+        if (!viewport) return;
+
+        if (typeof window.getRequiredMeasureWidth === 'function' && bdiRef.length > 0) {
+            // Show the last added measure centred in the viewport
+            const targetIdx = Math.min(cursorIdx, bdiRef.length - 1);
+            let cumulativeLeft = 0;
+            for (let i = 0; i < targetIdx; i++) {
+                cumulativeLeft += window.getRequiredMeasureWidth(i);
+            }
+            const measureWidth = window.getRequiredMeasureWidth(targetIdx);
+            const viewportWidth = viewport.clientWidth;
+            viewport.scrollLeft = Math.max(0, cumulativeLeft - (viewportWidth / 2) + (measureWidth / 2));
+        } else {
+            // Fallback: scroll to end
+            viewport.scrollLeft = viewport.scrollWidth;
+        }
+    }, 80); // Slightly after renderVisualTracks (50ms) so DOM is ready
 
     // Reset selection - DISABLED because we want to preserve selection after adding/editing measures
     // selectedMeasureIndex = -1;
@@ -6041,7 +6054,13 @@ function createRitmoEditor(containerId) {
     if (compisi) {
         compisi.addEventListener('change', () => {
             const evisi = JSON.parse(compisi.value);
+            if (window.bdi) {
+                if (!window.bdi.metadata) window.bdi.metadata = {};
+                window.bdi.metadata.timeSignature = evisi;
+            }
             inimetri(evisi);
+            // Si el modo ritmo está activo, forzar re-render de las guías
+            if (typeof renderVisualTracks === 'function') renderVisualTracks();
         });
     }
 
@@ -6449,7 +6468,117 @@ function createRitmoEditor(containerId) {
     toescori.style.border = 'none';
     toescori.style.borderRadius = '3px';
     toescori.style.cursor = 'pointer';
+
+    // MUSICOLI: Global Percussion Toggle (Premium Display Deslizador)
+    const percToggleContainer = document.createElement('div');
+    percToggleContainer.id = 'global-percussion-toggle-container';
+    percToggleContainer.style.display = 'inline-flex';
+    percToggleContainer.style.alignItems = 'center';
+    percToggleContainer.style.gap = '10px';
+    percToggleContainer.style.marginLeft = '20px';
+    percToggleContainer.style.padding = '4px 12px';
+    percToggleContainer.style.background = 'rgba(255,255,255,0.05)';
+    percToggleContainer.style.borderRadius = '20px';
+    percToggleContainer.style.border = '1px solid rgba(255,255,255,0.1)';
+    percToggleContainer.style.boxShadow = 'inset 0 1px 2px rgba(0,0,0,0.2)';
+    percToggleContainer.title = "Cambia todas las pistas a percusión (Snare, Hi-Hat, Tom, Kick)";
+
+    const percToggleLabel = document.createElement('span');
+    percToggleLabel.textContent = 'PERC';
+    percToggleLabel.style.fontSize = '10px';
+    percToggleLabel.style.fontWeight = 'bold';
+    percToggleLabel.style.color = '#fff';
+    percToggleLabel.style.letterSpacing = '1px';
+
+    const percLabelSwitch = document.createElement('label');
+    percLabelSwitch.className = 'switch';
+
+    const percInput = document.createElement('input');
+    percInput.type = 'checkbox';
+    percInput.id = 'global-percussion-checkbox';
+    percInput.checked = window.isGlobalPercussionEnabled;
+
+    const percSlider = document.createElement('span');
+    percSlider.className = 'slider';
+
+    percLabelSwitch.appendChild(percInput);
+    percLabelSwitch.appendChild(percSlider);
+
+    percToggleContainer.appendChild(percToggleLabel);
+    percToggleContainer.appendChild(percLabelSwitch);
+
+    percInput.addEventListener('change', (e) => {
+        window.isGlobalPercussionEnabled = e.target.checked;
+        console.log("🥁 Global Percussion Mode:", window.isGlobalPercussionEnabled ? "ON" : "OFF");
+
+        // Show/hide the ritmización selector
+        const ritmoModeSelector = document.getElementById('perc-ritmo-mode-wrapper');
+        if (ritmoModeSelector) {
+            ritmoModeSelector.style.display = e.target.checked ? 'inline-flex' : 'none';
+        }
+
+        // Force refresh of instruments and play
+        if (typeof rebuildRecordi === 'function') {
+            rebuildRecordi();
+        }
+
+        // Visual feedback on track labels if possible
+        if (typeof applyTextLayer === 'function') {
+            applyTextLayer();
+        }
+    });
+
+    // ----- Ritmización mode selector -----
+    // Shown inline next to the PERC toggle, only when PERC is ON
+    const ritmoModeWrapper = document.createElement('div');
+    ritmoModeWrapper.id = 'perc-ritmo-mode-wrapper';
+    ritmoModeWrapper.style.display = 'inline-flex';
+    ritmoModeWrapper.style.alignItems = 'center';
+    ritmoModeWrapper.style.gap = '5px';
+    ritmoModeWrapper.style.marginLeft = '6px';
+    // Hidden until PERC is toggled ON
+    ritmoModeWrapper.style.display = window.isGlobalPercussionEnabled ? 'inline-flex' : 'none';
+
+    const ritmoModeLabel = document.createElement('span');
+    ritmoModeLabel.textContent = '♩';
+    ritmoModeLabel.title = 'Modo de ritmización';
+    ritmoModeLabel.style.fontSize = '12px';
+    ritmoModeLabel.style.color = '#fff';
+
+    const ritmoModeSelect = document.createElement('select');
+    ritmoModeSelect.id = 'perc-ritmo-mode-select';
+    ritmoModeSelect.title = 'Modo de ritmización';
+    ritmoModeSelect.style.fontSize = '10px';
+    ritmoModeSelect.style.padding = '2px 4px';
+    ritmoModeSelect.style.borderRadius = '3px';
+    ritmoModeSelect.style.border = '1px solid rgba(255,255,255,0.3)';
+    ritmoModeSelect.style.background = 'rgba(0,0,0,0.4)';
+    ritmoModeSelect.style.color = '#fff';
+    ritmoModeSelect.style.cursor = 'pointer';
+
+    [['sincopa', 'Sincopación'], ['contratiempo', 'Contratiempo'], ['complementario', 'Complementariedad']].forEach(([val, label]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = label;
+        ritmoModeSelect.appendChild(opt);
+    });
+
+    // Set to current global value (or default 'sincopa')
+    if (!window.percRhythmMode) window.percRhythmMode = 'sincopa';
+    ritmoModeSelect.value = window.percRhythmMode;
+
+    ritmoModeSelect.addEventListener('change', (e) => {
+        window.percRhythmMode = e.target.value;
+        if (typeof rebuildRecordi === 'function') rebuildRecordi();
+        if (typeof applyTextLayer === 'function') applyTextLayer();
+    });
+
+    ritmoModeWrapper.appendChild(ritmoModeLabel);
+    ritmoModeWrapper.appendChild(ritmoModeSelect);
+    percToggleContainer.appendChild(ritmoModeWrapper);
+
     toescori.addEventListener('click', (e) => {
+
         if (currentPattern) {
 
             const spans = document.querySelectorAll('#selected-tones-container span[data-midi-values]');
@@ -6493,6 +6622,8 @@ function createRitmoEditor(containerId) {
         }
     });
     colorMelodi.appendChild(toescori);
+
+
 
     // Group selector and notation display - inline layout
     const controlRow = document.createElement('div');
@@ -6582,6 +6713,21 @@ function createRitmoEditor(containerId) {
             tuci(basi, 0);
         }
     });
+
+    // Multiplier selector for rhythm
+    const rhythmMultiplierSelect = document.createElement('select');
+    rhythmMultiplierSelect.id = 'rhythm-multiplier-select';
+    rhythmMultiplierSelect.style.padding = '3px';
+    rhythmMultiplierSelect.style.fontSize = '11px';
+    rhythmMultiplierSelect.style.fontFamily = 'monospace';
+    rhythmMultiplierSelect.style.display = 'none'; // Hidden by default
+    for (let i = 1; i <= 16; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i + 'x';
+        rhythmMultiplierSelect.appendChild(opt);
+    }
+    rhythmMultiplierSelect.value = 1;
 
     // Accept button for single rhythm selection
     const acceptBtn = document.createElement('button');
@@ -6899,85 +7045,75 @@ function createRitmoEditor(containerId) {
             const shortVoiceMap = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
             const selectedMatchCode = shortVoiceMap[selectedVoiceName] || (['s', 'a', 't', 'b'].includes(selectedVoiceName) ? selectedVoiceName : 's');
 
-            if (typeof window.addMeasureWithMode === 'function') {
-                // Ensure we pass the active voice code derived earlier
-                // selectedMatchCode was defined just above this block
-                const voiceCode = selectedMatchCode || 's';
+            // Multiplier logic
+            const multiplier = (typeof rhythmMultiplierSelect !== 'undefined') ? parseInt(rhythmMultiplierSelect.value) || 1 : 1;
 
-                // addMeasureWithMode expects (measureData, voiceCode, targetIndex)
-                // It will handleDependent/Independent logic internally
-                const measureData = { ...activeVoiceData };
-                window.addMeasureWithMode(measureData, voiceCode, cursorMeasureIndex);
+            for (let m = 0; m < multiplier; m++) {
+                const currentIterationIndex = cursorMeasureIndex + m;
 
-                // Note: bdiRef.splice happens inside addMeasureWithMode, so we don't do it here
-            } else {
-
-                // Define voices locally to ensure it exists
-                const voices = ['s', 'a', 't', 'b'];
-
-                // Fallback: Manual insertion (Legacy)
-                const newItem = {
-                    "idi": Date.now(),
-                    "voci": []
-                };
-
-                voices.forEach(v => {
-                    let voiceObj;
-                    if (v === selectedMatchCode) {
-                        voiceObj = { ...activeVoiceData, nami: v };
-                    } else {
-                        if (currentMode === 'dependent' && typeof window.generateHarmony === 'function') {
-                            const harm = window.generateHarmony(activeVoiceData, v, selectedMatchCode);
-                            voiceObj = harm;
-                            // Ensure tipis are positive for harmony
-                            if (voiceObj.tipis) voiceObj.tipis = voiceObj.tipis.map(t => Math.abs(t));
-                        } else {
-                            voiceObj = createSilence(calculatedTimis);
-                            voiceObj.nami = v;
-                        }
-                    }
-                    newItem.voci.push(voiceObj);
-                });
-
-                // Ensure we are operating on the real BDI
-                if (window.bdi && window.bdi.bar) {
-                    window.bdi.bar.splice(cursorMeasureIndex, 0, newItem);
-                } else if (typeof bdi !== 'undefined' && bdi.bar) {
-                    bdi.bar.splice(cursorMeasureIndex, 0, newItem);
+                if (typeof window.addMeasureWithMode === 'function') {
+                    // Ensure we pass the active voice code derived earlier
+                    const voiceCode = selectedMatchCode || 's';
+                    const measureData = { ...activeVoiceData };
+                    window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
                 } else {
-                    // Fallback to local ref if all else fails, though likely won't persist if it's a copy
-                    bdiRef.splice(cursorMeasureIndex, 0, newItem);
+                    // Define voices locally to ensure it exists
+                    const voices = ['s', 'a', 't', 'b'];
+
+                    // Fallback: Manual insertion (Legacy)
+                    const newItem = {
+                        "idi": Date.now() + m, // Ensure unique ID
+                        "voci": []
+                    };
+
+                    voices.forEach(v => {
+                        let voiceObj;
+                        if (v === selectedMatchCode) {
+                            voiceObj = { ...activeVoiceData, nami: v };
+                        } else {
+                            if (currentMode === 'dependent' && typeof window.generateHarmony === 'function') {
+                                const harm = window.generateHarmony(activeVoiceData, v, selectedMatchCode);
+                                voiceObj = harm;
+                                if (voiceObj.tipis) voiceObj.tipis = voiceObj.tipis.map(t => Math.abs(t));
+                            } else {
+                                voiceObj = createSilence(calculatedTimis);
+                                voiceObj.nami = v;
+                            }
+                        }
+                        newItem.voci.push(voiceObj);
+                    });
+
+                    if (window.bdi && window.bdi.bar) {
+                        window.bdi.bar.splice(currentIterationIndex, 0, newItem);
+                    } else if (typeof bdi !== 'undefined' && bdi.bar) {
+                        bdi.bar.splice(currentIterationIndex, 0, newItem);
+                    } else {
+                        bdiRef.splice(currentIterationIndex, 0, newItem);
+                    }
+
+                    if (typeof syncMeasureCount === 'function') syncMeasureCount();
+                    if (recordiRef) recordiRef(bdiRef, currentIterationIndex);
                 }
-
-                // Ensure synchronization just in case
-                if (typeof syncMeasureCount === 'function') syncMeasureCount();
-
-                // CRITICAL: Call recordiRef here only for manual path (addMeasureWithMode should handle it otherwise)
-                if (recordiRef) recordiRef(bdiRef, cursorMeasureIndex);
             }
 
-            // Update Notepad and Player - copied from tarareo options accept button (line 4340)
+            // Update Notepad and Player
             if (typeof updateAfterBdiChange === 'function') {
                 updateAfterBdiChange();
 
                 // Restore and advance cursor
                 if (typeof window.selectedMeasureIndex !== 'undefined') {
-                    window.selectedMeasureIndex = cursorMeasureIndex + 1;
+                    window.selectedMeasureIndex = cursorMeasureIndex + multiplier;
                     if (window.np6) {
-                        window.np6.cursorPos = cursorMeasureIndex + 1;
+                        window.np6.cursorPos = cursorMeasureIndex + multiplier;
                         if (typeof np6._render === 'function') np6._render();
                         if (typeof np6.focus === 'function') np6.focus();
                         if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
-                    }
-                    // Auto-open editor for the new position if valid
-                    if (typeof window.openMidiEditor === 'function' && window.selectedMeasureIndex < bdiRef.length) {
-                        window.openMidiEditor(window.selectedMeasureIndex);
                     }
                 }
             } else {
                 // Fallback: at least update cursor
                 if (typeof np6 !== 'undefined') {
-                    np6.cursorPos = cursorMeasureIndex + 1;
+                    np6.cursorPos = cursorMeasureIndex + multiplier;
                     np6._render();
                     if (typeof np6.focus === 'function') np6.focus();
                     if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
@@ -7203,7 +7339,104 @@ function createRitmoEditor(containerId) {
 
     notationContainer.appendChild(colorPreviewContainer);
     notationContainer.appendChild(notationDisplay);
+    notationContainer.appendChild(rhythmMultiplierSelect);
     notationContainer.appendChild(acceptBtn);
+    notationContainer.appendChild(percToggleContainer); // MUSICOLI: Add toggle to the visible Ritmo container
+
+    // ── Aplicar Ritmo button ──────────────────────────────────────────────────
+    // Bakes the current ritmización transforms permanently into bdi.bar:
+    // each voice gets its effectiveTipis written back, then PERC is turned OFF
+    // so tracks play melodically with the new rhythm.
+    const aplicarRitmoBtn = document.createElement('button');
+    aplicarRitmoBtn.id = 'aplicar-ritmo-btn';
+    aplicarRitmoBtn.textContent = '⬇ Aplicar Ritmo';
+    aplicarRitmoBtn.title = 'Escribe los efectos de ritmización en la partitura y desactiva PERC para reproducción melódica';
+    aplicarRitmoBtn.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #e65c00, #f9d423);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        margin-left: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        letter-spacing: 0.5px;
+        transition: opacity 0.15s;
+    `;
+    aplicarRitmoBtn.addEventListener('mouseenter', () => { aplicarRitmoBtn.style.opacity = '0.85'; });
+    aplicarRitmoBtn.addEventListener('mouseleave', () => { aplicarRitmoBtn.style.opacity = '1'; });
+
+    aplicarRitmoBtn.addEventListener('click', () => {
+        const bar = window.bdi && window.bdi.bar;
+        if (!bar || bar.length === 0) {
+            alert('No hay compases para procesar.');
+            return;
+        }
+        if (!window.isGlobalPercussionEnabled) {
+            alert('Activa PERC primero para elegir el modo de ritmización antes de aplicar.');
+            return;
+        }
+        if (typeof window.applyRitmizacion !== 'function') {
+            alert('La función applyRitmizacion no está disponible.');
+            return;
+        }
+
+        const voices = ['s', 'a', 't', 'b'];
+
+        bar.forEach(measure => {
+            // Get S (Snare) baseTipis for this measure
+            let baseTipis = null;
+            if (measure.voci) {
+                const sVoice = Array.isArray(measure.voci)
+                    ? measure.voci.find(v => v.nami === 's')
+                    : measure.voci['s'];
+                if (sVoice && sVoice.tipis) baseTipis = [...sVoice.tipis];
+            }
+            if (!baseTipis && measure.tipis) baseTipis = [...measure.tipis];
+            if (!baseTipis) return; // no rhythm data, skip
+
+            voices.forEach(vKey => {
+                let voiceData = null;
+                if (measure.voci) {
+                    voiceData = Array.isArray(measure.voci)
+                        ? measure.voci.find(v => v.nami === vKey)
+                        : measure.voci[vKey];
+                }
+                if (!voiceData && vKey === 's') voiceData = measure; // legacy flat structure
+
+                if (voiceData && voiceData.tipis && voiceData.tipis.length > 0) {
+                    // Bake: write the transformed tipis back into the data
+                    voiceData.tipis = window.applyRitmizacion([...voiceData.tipis], vKey, baseTipis);
+                }
+            });
+        });
+
+        // Turn PERC OFF
+        window.isGlobalPercussionEnabled = false;
+        const percCheckbox = document.getElementById('global-percussion-checkbox');
+        if (percCheckbox) percCheckbox.checked = false;
+        const wrapperEl = document.getElementById('perc-ritmo-mode-wrapper');
+        if (wrapperEl) wrapperEl.style.display = 'none';
+
+        // Rebuild and redraw
+        if (typeof rebuildRecordi === 'function') rebuildRecordi();
+        if (typeof applyTextLayer === 'function') applyTextLayer();
+
+        // Visual confirmation
+        aplicarRitmoBtn.textContent = '✓ Aplicado';
+        aplicarRitmoBtn.style.background = 'linear-gradient(135deg, #1a7540, #56ab2f)';
+        setTimeout(() => {
+            aplicarRitmoBtn.textContent = '⬇ Aplicar Ritmo';
+            aplicarRitmoBtn.style.background = 'linear-gradient(135deg, #e65c00, #f9d423)';
+        }, 2000);
+    });
+
+    notationContainer.appendChild(aplicarRitmoBtn);
 
     // controlRow.appendChild(groupSelector); // Removed per user request (relocated to monocromati)
     // controlRow.appendChild(notationContainer); // RELOCATED to colorInfoDiv per user request
@@ -7348,8 +7581,9 @@ function createRitmoEditor(containerId) {
             updateColorPreview(pattern);
         }
 
-        // Show accept button
+        // Show accept button and multiplier select
         if (acceptBtn) acceptBtn.style.display = 'block';
+        if (rhythmMultiplierSelect) rhythmMultiplierSelect.style.display = 'block';
 
         // Update tarareo
         const tarareoInput = document.getElementById('tarareo-input');
@@ -7541,6 +7775,7 @@ function createRitmoEditor(containerId) {
 
         // Hide accept button and clear notation display when switching groups
         acceptBtn.style.display = 'none';
+        if (typeof rhythmMultiplierSelect !== 'undefined') rhythmMultiplierSelect.style.display = 'none';
         notationDisplay.innerHTML = '';
         colorPreviewContainer.innerHTML = '';
         currentPattern = null;
@@ -7626,8 +7861,9 @@ function createRitmoEditor(containerId) {
                     notationDisplay.style.alignItems = 'center';
                 }
 
-                // Show accept button
+                // Show accept button and multiplier
                 if (acceptBtn) acceptBtn.style.display = 'block';
+                if (typeof rhythmMultiplierSelect !== 'undefined') rhythmMultiplierSelect.style.display = 'block';
 
                 // Preview color
                 if (typeof window.updateRhythmColorPreview === 'function') {
@@ -9488,6 +9724,10 @@ window.applyTextLayer = function () {
             window.selectedMeasureIndex = index;
             if (window.np6) window.np6.cursorPos = index;
             window.applyTextLayer(); // Re-render to update selection highlight
+            // Seek player to this measure
+            if (typeof window.seekPlayerToMeasure === 'function') {
+                window.seekPlayerToMeasure(index);
+            }
             // Also notify other components
             if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
         };
@@ -9619,7 +9859,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
             const bpm = metadata.bpm || 120;
             const timeSig = metadata.timeSignature || [4, 4];
-            const beatsPerMeasure = timeSig[0];
+            const beatsPerMeasure = timeSig[0] ? parseInt(timeSig[0]) : 4;
+            // El MIDI se genera con setTimeSignature(beatsPerMeasure, 4),
+            // así que un compás siempre dura beatsPerMeasure negras.
             const secondsPerMeasure = (beatsPerMeasure * 60) / bpm;
 
             const seekTime = measureIndex * secondsPerMeasure;
@@ -9980,8 +10222,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
         const bpm = metadata.bpm || 120;
         const timeSig = metadata.timeSignature || [4, 4];
-        const beatsPerMeasure = timeSig[0];
-        // 60 / bpm = seconds per beat. * beats per measure = seconds per measure.
+        const beatsPerMeasure = timeSig[0] ? parseInt(timeSig[0]) : 4;
+        // El MIDI se genera con setTimeSignature(beatsPerMeasure, 4),
+        // así que un compás siempre dura beatsPerMeasure negras.
         const secondsPerMeasure = (beatsPerMeasure * 60) / bpm;
 
         if (typeof currentTime === 'number' && !isNaN(currentTime) && secondsPerMeasure > 0) {
@@ -10025,19 +10268,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (newSpan) {
                         newSpan.style.backgroundColor = 'rgba(0,0,0,0.1)';
                         newSpan.style.borderRadius = '4px';
-
-                        // Optional: Scroll to keep in view (horizontal)
-                        // Simple centering logic
-                        if (newSpan.parentElement) {
-                            const containerWidth = newSpan.parentElement.clientWidth;
-                            const spanLeft = newSpan.offsetLeft;
-                            const spanWidth = newSpan.offsetWidth;
-                            // Basic scroll
-                            if (newSpan.scrollIntoView) {
-                                newSpan.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
-                            }
-                        }
                     }
+                }
+
+                // Auto-scroll viewport to keep the active measure centred during playback.
+                // Uses getRequiredMeasureWidth to avoid any DOM position dependency.
+                const tracksViewport = document.getElementById('tracks-scroll-viewport');
+                if (tracksViewport && typeof window.getRequiredMeasureWidth === 'function') {
+                    let cumulativeLeft = 0;
+                    for (let i = 0; i < measureIndex; i++) {
+                        cumulativeLeft += window.getRequiredMeasureWidth(i);
+                    }
+                    const measureWidth = window.getRequiredMeasureWidth(measureIndex);
+                    const viewportWidth = tracksViewport.clientWidth;
+                    // Centre the active measure in the visible area
+                    const targetScroll = cumulativeLeft - (viewportWidth / 2) + (measureWidth / 2);
+                    tracksViewport.scrollLeft = Math.max(0, targetScroll);
                 }
 
                 // Update status bar text (POS: X)
@@ -10192,12 +10438,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.updatePlayerMIDI = updatePlayerMIDI;
 
+    // ============================================================
+    // RITMIZACIÓN ALGORITHMS (apply when PERC is ON)
+    // Each receives (tipis, voiceKey, timeSignatureBeats) and
+    // returns a new tipis array. Voices S/B are "on-beat",
+    // A/T are "off-beat" by default.
+    // ============================================================
+    function applyRitmizacion(tipis, voiceKey, baseTipis) {
+        if (!baseTipis || baseTipis.length === 0) baseTipis = tipis;
+        if (!tipis || tipis.length === 0) return tipis;
+        const mode = window.percRhythmMode || 'sincopa';
+        const baseDur = 3; // fallback duration code (quarter note)
+
+        // S (Snare) is always the base — never transformed
+        if (voiceKey === 's') return tipis;
+
+        // Helper: duration at position i (preserves original event length)
+        const d = i => Math.abs(baseTipis[i]) || baseDur;
+
+        if (mode === 'sincopa') {
+            // Sincopación — desplazamiento de acento:
+            // A (Hi-Hat)  : off-beat (silencio en pares, nota en impares)
+            // T (Tom)     : cada 3ª posición silenciada (acento sincopado)
+            // B (Bass)    : downbeat (nota en pares, silencio en impares)
+            if (voiceKey === 'a') return baseTipis.map((_, i) => (i % 2 === 0) ? -d(i) : d(i));
+            if (voiceKey === 't') return baseTipis.map((_, i) => (i % 3 === 0) ? -d(i) : d(i));
+            if (voiceKey === 'b') return baseTipis.map((_, i) => (i % 2 === 0) ? d(i) : -d(i));
+        }
+
+        if (mode === 'contratiempo') {
+            // Contratiempo — relleno continuo junto a Snare:
+            // A (Hi-Hat)  : notas en TODOS los tiempos (hi-hat continuo)
+            // T (Tom)     : off-beat (silencio en pares, nota en impares)
+            // B (Bass)    : notas en TODOS los tiempos (bombo continuo)
+            if (voiceKey === 'a') return baseTipis.map((_, i) => d(i));            // all notes
+            if (voiceKey === 't') return baseTipis.map((_, i) => (i % 2 === 0) ? -d(i) : d(i));
+            if (voiceKey === 'b') return baseTipis.map((_, i) => d(i));            // all notes
+        }
+
+        if (mode === 'complementario') {
+            // Complementariedad — cada voz ocupa una capa distinta del pulso:
+            // A (Hi-Hat)  : muy esporádico (una nota cada 4 posiciones)
+            // T (Tom)     : denso (notas en todos los tiempos, sin silencios)
+            // B (Bass)    : contratiempo invertido (nota en impares, silencio en pares)
+            if (voiceKey === 'a') return baseTipis.map((_, i) => (i % 4 === 0) ? d(i) : -d(i));
+            if (voiceKey === 't') return baseTipis.map((_, i) => d(i));
+            if (voiceKey === 'b') return baseTipis.map((_, i) => (i % 2 !== 0) ? d(i) : -d(i));
+        }
+
+        return tipis; // fallback
+    }
+    window.applyRitmizacion = applyRitmizacion; // expose for renderVisualTracks
+
+
     function recordi(basi, nc, targetTracks = traki, voicesOverride = null) {
+
+
         let item = basi[nc];
         if (!item) return;
         const metadata = (window.bdi && window.bdi.metadata) ? window.bdi.metadata : {};
         const currentActiveVoice = metadata.voici || 's';
         const voiceMap = { 's': 1, 'a': 2, 't': 3, 'b': 4 };
+
+        // Extract S (Snare) pattern as the base for all ritmización transforms
+        let baseTipis = null;
+        if (item.voci) {
+            const sVoice = Array.isArray(item.voci)
+                ? item.voci.find(v => v.nami === 's')
+                : item.voci['s'];
+            if (sVoice && sVoice.tipis) baseTipis = [...sVoice.tipis];
+        }
+        if (!baseTipis && item.tipis) baseTipis = [...item.tipis];
 
         const processVoice = (voiceData, trackIndex, voiceKey) => {
             if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
@@ -10209,35 +10520,56 @@ document.addEventListener('DOMContentLoaded', () => {
             let instrument = (voiceMeta && voiceMeta.instrument !== undefined) ? parseInt(voiceMeta.instrument) : 1;
             // Ensure instrument 0 is not defaulted to 1 (Acoustic Grand Piano)
             if (isNaN(instrument)) instrument = 1;
-            const isPercussion = voiceMeta ? voiceMeta.percussion : false;
+
+            // MUSICOLI: Global Percussion Override
+            let isPercussion = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) ? true : (voiceMeta ? voiceMeta.percussion : false);
+
             const trackVol = (voiceMeta && typeof voiceMeta.volume !== 'undefined') ? voiceMeta.volume : 100;
+
             const volFactor = trackVol / 127;
 
             const noteCount = voiceData.nimidi.length;
+
+            // RITMIZACIÓN: transform tipis when PERC is ON, using S (Snare) as base
+            const effectiveTipis = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled && voiceData.tipis)
+                ? applyRitmizacion([...voiceData.tipis], voiceKey, baseTipis)
+                : (voiceData.tipis || []);
 
             if (voiceData.chordi) {
                 dati[1] = [];
                 dati[2] = [1];
                 dati[0] = instrument;
                 dati[3] = false;
-                let baseVel = (voiceData.dinami && voiceData.dinami[a] !== undefined) ? voiceData.dinami[a] : 100;
+                let baseVel = (voiceData.dinami && voiceData.dinami[0] !== undefined) ? voiceData.dinami[0] : 100;
                 dati[4] = Math.round(baseVel * volFactor);
                 dati[5] = 0;
                 dati[6] = isPercussion ? 'p' : '1';
                 for (let u = 0; u < noteCount; u++) {
-                    dati[1].push(voiceData.nimidi[u]);
+                    let midiNote = voiceData.nimidi[u];
+                    if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) {
+                        const percMap = { 's': [38, 40], 'a': [42, 44], 't': [48, 45], 'b': [36, 35] };
+                        const pNotes = percMap[voiceKey] || [38];
+                        midiNote = pNotes[u % pNotes.length];
+                    }
+                    dati[1].push(midiNote);
                 }
                 addi(dati, trackIndex, targetTracks);
             } else {
                 let pendingWaits = [];
                 for (var a = 0; a < noteCount; a++) {
-                    let duration = dobli5(voiceData.tipis[a]);
-                    if (voiceData.tipis[a] < 0) {
+                    let duration = dobli5(effectiveTipis[a]);
+                    if (effectiveTipis[a] < 0) {
                         if (Array.isArray(duration)) pendingWaits.push(...duration);
                         else pendingWaits.push(duration);
                     } else {
                         dati[0] = instrument;
-                        dati[1] = voiceData.nimidi[a];
+                        let midiNote = voiceData.nimidi[a];
+                        if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) {
+                            const percMap = { 's': [38, 40], 'a': [42, 44], 't': [48, 45], 'b': [36, 35] };
+                            const pNotes = percMap[voiceKey] || [38];
+                            midiNote = pNotes[a % pNotes.length];
+                        }
+                        dati[1] = midiNote;
                         dati[2] = Array.isArray(duration) ? duration : [duration];
                         dati[3] = false;
                         let baseVel = (voiceData.dinami && voiceData.dinami[a] !== undefined) ? voiceData.dinami[a] : 100;
@@ -10264,7 +10596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     addi(dati, trackIndex, targetTracks);
                 }
             }
-        };
+        }; // end processVoice
 
         const playbackSelector = document.getElementById('playback-selector');
         const selectedVoicesStr = playbackSelector ? playbackSelector.value : 's,a,t,b';
@@ -10294,16 +10626,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (vData) {
                     const tIdx = voiceMap[vKey];
-                    // Ensure track exists and set metadata once at the start of the file (nc === 0)
                     if (targetTracks[tIdx]) {
                         const vMeta = metadata.voices ? metadata.voices[vKey] : null;
                         let inst = (vMeta && vMeta.instrument !== undefined) ? parseInt(vMeta.instrument) : 1;
                         if (isNaN(inst)) inst = 1;
-                        const isPerc = vMeta ? vMeta.percussion : false;
+                        let isPerc = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) ? true : (vMeta ? vMeta.percussion : false);
                         const chan = isPerc ? 10 : tIdx;
-
                         if (nc === 0) {
-                            targetTracks[tIdx].addTrackName('Voice ' + vKey.toUpperCase());
+                            const trackName = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) ?
+                                (vKey === 's' ? 'Snare' : vKey === 'a' ? 'Hi-Hat' : vKey === 't' ? 'Tom' : 'Bass Drum') :
+                                'Voice ' + vKey.toUpperCase();
+                            targetTracks[tIdx].addTrackName(trackName);
                             targetTracks[tIdx].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
                         }
                     }
@@ -10315,7 +10648,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetTracks !== traki) {
             const activeTracks = targetTracks.filter(t => t && t.events && t.events.length > 0).length;
         }
-    }
+    } // end recordi
+
 
     window.playMeasureFast = function (nc, measureOverride = null) {
         if (hiddenPlayerState.fastPlayTimeout) {
@@ -10594,45 +10928,145 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Define saveti function BEFORE using it in addEventListener
     // Make saveti global so it can be called from HTML onclick
-    window.saveti = function saveti() {
+    window.saveti = async function saveti() {
 
         try {
+            // CDN URLs for Bravura (official Steinberg repo via jsDelivr)
+            const BRAVURA_CDN_WOFF2 = 'https://cdn.jsdelivr.net/gh/steinbergmedia/bravura@master/redist/Bravura.woff2';
+            const BRAVURA_CDN_OTF = 'https://cdn.jsdelivr.net/gh/steinbergmedia/bravura@master/redist/Bravura.otf';
+
+            // Embed Bravura font as base64 data URI so it works in blob URLs and downloaded files
+            let bravuraFontCSS = '';
+            const fontFiles = ['Bravura.woff', 'Bravura.ttf'];
+            for (const fontFile of fontFiles) {
+                try {
+                    const fontUrl = new URL(fontFile, window.location.href).href;
+                    const resp = await fetch(fontUrl);
+                    if (!resp.ok) continue;
+                    const buf = await resp.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let binary = '';
+                    const chunk = 8192;
+                    for (let i = 0; i < bytes.length; i += chunk) {
+                        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+                    }
+                    const b64 = btoa(binary);
+                    const mimeType = fontFile.endsWith('.woff') ? 'font/woff' : 'font/truetype';
+                    const fmt = fontFile.endsWith('.woff') ? 'woff' : 'truetype';
+                    // Embed base64 first (works offline/blob), CDN as fallback (works when moved elsewhere)
+                    bravuraFontCSS = `@font-face { font-family: "Bravura"; src: url("data:${mimeType};base64,${b64}") format("${fmt}"), url("${BRAVURA_CDN_WOFF2}") format("woff2"), url("${BRAVURA_CDN_OTF}") format("opentype"); }`;
+                    break;
+                } catch (fe) { /* try next */ }
+            }
+            if (!bravuraFontCSS) {
+                // Fallback: CDN only (internet required, but works from any location)
+                bravuraFontCSS = `@font-face { font-family: "Bravura"; src: url("${BRAVURA_CDN_WOFF2}") format("woff2"), url("${BRAVURA_CDN_OTF}") format("opentype"); }`;
+            }
             const player15 = document.getElementById('player15');
             const expi = document.getElementById('expi');
             let playeti = player15 ? player15.outerHTML : '';
             let expiti = expi ? expi.outerHTML : '';
             const bdiRef = (typeof window.bdi.bar !== 'undefined') ? window.bdi.bar : [];
-            const codigo = [JSON.stringify(bdiRef, null, 2)]
-            const codigos = [document.getElementById('notepi6').innerHTML, playeti, expiti];
+            // Collect notepad style from the page
+            const notepadStyleEl = document.getElementById('notepad-style');
+            const notepadCss = notepadStyleEl ? notepadStyleEl.innerHTML : '';
+            // Collect notepad innerHTML
+            const notepadEl = document.getElementById('notepi6');
+            const notepadHTML = notepadEl ? notepadEl.outerHTML : '';
+            // Collect visual track rows (S, A, T, B) for labels
+            const labelS = document.getElementById('voiceline-s');
+            const labelA = document.getElementById('voiceline-a');
+            const labelT = document.getElementById('voiceline-t');
+            const labelB = document.getElementById('voiceline-b');
+            const visualS = document.getElementById('visual-track-s');
+            const visualA = document.getElementById('visual-track-a');
+            const visualT = document.getElementById('visual-track-t');
+            const visualB = document.getElementById('visual-track-b');
+            const tracksHTML = `
+<div style="display:flex;flex-direction:row;align-items:stretch;background:#666;width:100%;overflow-x:auto;">
+  <div style="display:flex;flex-direction:column;min-width:80px;background:#555;border-right:1px solid #777;">
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #666;padding:0 10px;font-family:monospace;font-size:11px;color:white;font-weight:bold;">${labelS ? labelS.textContent.trim() : 'S'}</div>
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #666;padding:0 10px;font-family:monospace;font-size:11px;color:white;font-weight:bold;">${labelA ? labelA.textContent.trim() : 'A'}</div>
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #666;padding:0 10px;font-family:monospace;font-size:11px;color:white;font-weight:bold;">${labelT ? labelT.textContent.trim() : 'T'}</div>
+    <div style="display:flex;align-items:center;height:28.8px;padding:0 10px;font-family:monospace;font-size:11px;color:white;font-weight:bold;">${labelB ? labelB.textContent.trim() : 'B'}</div>
+  </div>
+  <div style="display:flex;flex-direction:column;overflow-x:auto;flex:1;">
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #777;">${visualS ? visualS.innerHTML : ''}</div>
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #777;">${visualA ? visualA.innerHTML : ''}</div>
+    <div style="display:flex;align-items:center;height:28.8px;border-bottom:1px solid #777;">${visualT ? visualT.innerHTML : ''}</div>
+    <div style="display:flex;align-items:center;height:28.8px;">${visualB ? visualB.innerHTML : ''}</div>
+  </div>
+</div>`;
+            const bdiFullRef = (typeof window.bdi !== 'undefined') ? window.bdi : { bar: bdiRef };
+            const codigo = [JSON.stringify(bdiFullRef, null, 2)];
+            // Build a clean, filesystem-safe title
+            const rawTitle = (window.bdi && window.bdi.metadata && window.bdi.metadata.title)
+                ? window.bdi.metadata.title
+                : (document.getElementById('title-input') ? document.getElementById('title-input').value : '');
+            const titleMeta = (rawTitle || 'resumen')
+                .replace(/[\\/:*?"<>|]/g, '_')  // strip invalid filename chars
+                .replace(/\s+/g, '_')             // spaces to underscores
+                .trim() || 'resumen';
+            const bpmMeta = (window.bdi && window.bdi.metadata && window.bdi.metadata.bpm)
+                ? window.bdi.metadata.bpm : (window.bpmValue || 120);
+            const timeSig = (window.bdi && window.bdi.metadata && window.bdi.metadata.timeSignature)
+                ? window.bdi.metadata.timeSignature.join('/') : '4/4';
             const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Archivo Generado</title>
-<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"></script>
-<style>
-@font-face {
-  font-family: "Bravura";
-   src: url("Bravura.woff") format("woff2"), url("https://github.com/josepssv/metrohmp/blob/main/Bravura.ttf") format("woff"),
-   url("Bravura.ttf") format("truetype");
-}
-</style>
+  <title>${titleMeta} - Resumen Musicoli</title>
+  <script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0"><\/script>
+  <style>
+${bravuraFontCSS}
+body { background: #444; color: #ddd; font-family: monospace; margin: 0; padding: 10px; }
+h2 { color: #4dd; margin: 8px 0 4px; font-size: 16px; }
+.section { background: #555; border-radius: 6px; padding: 8px; margin-bottom: 10px; }
+.section-title { color: #aef; font-size: 12px; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.json-box { background: #333; color: #7fc; font-family: monospace; font-size: 11px; padding: 8px; border-radius: 4px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.meta-bar { display: flex; gap: 15px; align-items: center; padding: 6px 10px; background: #333; border-radius: 4px; font-size: 13px; color: #ddd; }
+.meta-bar span { color: #4dd; font-weight: bold; }
+${notepadCss}
+  </style>
 </head>
 <body>
-<div style="background-color:#aaa;color:#000;height:100px;overflow: scroll;"> ${codigo.join('\n  ')} </div>
-${codigos.join('\n  ')}
-`.trim();
+  <div class="section">
+    <div class="meta-bar">
+      <div>🎵 <span>${titleMeta}</span></div>
+      <div>BPM: <span>${bpmMeta}</span></div>
+      <div>Compás: <span>${timeSig}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🎼 Partitura (Notepad)</div>
+    ${tracksHTML}
+  </div>
+
+  <div class="section">
+    <div class="section-title">🎹 Player MIDI</div>
+    ${playeti}
+    ${expiti}
+  </div>
+
+  <div class="section">
+    <div class="section-title">📋 Datos BDI (JSON)
+      <button id="copy-btn" onclick="(function(){var t=document.getElementById('json-data');navigator.clipboard.writeText(t.textContent).then(function(){var b=document.getElementById('copy-btn');b.textContent='✅ ¡Copiado!';b.style.background='#2a7';setTimeout(function(){b.textContent='📋 Copiar código';b.style.background='#08c';},2000);});})(); return false;"
+        style="margin-left:10px;padding:3px 10px;background:#08c;color:#fff;border:none;border-radius:4px;font-family:monospace;font-size:11px;cursor:pointer;font-weight:bold;">
+        📋 Copiar código
+      </button>
+    </div>
+    <div class="json-box" id="json-data">${codigo[0].replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+  </div>
+</body>
+</html>`.trim();
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
 
             // creamos el enlace al vuelo
             const a = document.createElement('a');
             a.href = url;
-            // Use title from bdi.metadata if available, otherwise fallback to tarari or default
-            const title = (window.bdi && window.bdi.metadata && window.bdi.metadata.title)
-                ? window.bdi.metadata.title
-                : 'resumen';
-            a.download = title + '.html';
+            a.download = titleMeta + '.html';
             a.style.display = 'none';
             document.body.appendChild(a);
 
@@ -10642,16 +11076,12 @@ ${codigos.join('\n  ')}
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-            }, 1000);
-
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 1000);
+            }, 5000);
         } catch (error) {
             alert('Error al generar el resumen: ' + error.message);
         }
     }
+
 
 
 
@@ -11265,11 +11695,6 @@ ${codigos.join('\n  ')}
     // Initialize mode
     setMode('text');
 
-
-    document.getElementById('export-img-6').addEventListener('click', () => {
-        np6.exportAsImageWithP5('notepad-snapshot-6.png', { scale: 2, background: 'transparent' })
-            .then(() => { });
-    });
 
     // BPM Selector event listener
     const bpmSelector = document.getElementById('bpm-selector');
@@ -15417,72 +15842,23 @@ ${codigos.join('\n  ')}
 
     function setActiveScale(index) {
         scali = index;
+        makeladi();
 
-        // Update chromatic semitones in the ladder (now with correct ordering: monochromatic, binary, ternary)
-        //updateChromaticSemitones();
-        makeladi()
-
-        // Update button styles
-        // Explicitly re-fetch buttons to avoid any stale reference issues
-        const currentButtons = [
-            document.getElementById('mayor'),
-            document.getElementById('menor'),
-            document.getElementById('cromatica')
-        ];
-        if (index == 2) { document.getElementById('keyin').style.visibility = 'hidden' } else {
-            document.getElementById('keyin').style.visibility = 'visible'
+        // Sync header-1 select
+        const scaleModeSelect = document.getElementById('scale-mode');
+        if (scaleModeSelect) {
+            const modeMap = ['Major', 'Minor', 'Chromatic'];
+            scaleModeSelect.value = modeMap[index] || 'Major';
         }
-        currentButtons.forEach((btn, i) => {
-            if (btn) {
-                if (i === index) {
-                    btn.style.background = 'var(--theme-primary)';
-                    btn.style.fontWeight = 'bold';
-                    btn.style.color = 'var(--theme-text-inverse)';
-                    btn.style.border = '2px solid var(--theme-primary)';
-                    btn.style.boxShadow = '0 0 0 3px rgba(255, 255, 255, 0.3)';
-                    btn.style.transform = 'scale(1.05)';
-                } else {
-                    btn.style.background = 'var(--theme-secondary)';
-                    btn.style.fontWeight = 'normal';
-                    btn.style.color = 'var(--theme-text-inverse)';
-                    btn.style.border = '1px solid rgba(0, 0, 0, 0.1)';
-                    btn.style.boxShadow = 'none';
-                    btn.style.transform = 'scale(1)';
-                }
-            } else {
-            }
-        });
+
+        // Sync key selector visibility
+        const keyWrapper = document.getElementById('key-selector-wrapper');
+        if (keyWrapper) {
+            keyWrapper.style.visibility = (index === 2) ? 'hidden' : 'visible';
+        }
     }
 
-    if (mayorBtn) {
-        mayorBtn.addEventListener('click', () => setActiveScale(0));
-    }
-    if (menorBtn) {
-        menorBtn.addEventListener('click', () => setActiveScale(1));
-    }
-    if (cromaticaBtn) {
-        cromaticaBtn.addEventListener('click', () => setActiveScale(2));
-    }
-
-    // Set initial active scale (Mayor by default)
-    // Use setTimeout to ensure DOM is fully ready and all elements are accessible
-    setTimeout(() => {
-        setActiveScale(0);
-    }, 100);
-
-    // Key selector event listener (escoci - header 2, hidden)
-    const keyinSelector = document.getElementById('keyin');
-    if (keyinSelector) {
-        keyinSelector.addEventListener('change', (e) => {
-            keyinselecti = e.target.selectedIndex;
-            makeladi();
-        });
-    }
-
-    // ── Header-1 selects: scale-root (C, C#, D...) and scale-mode (Major/Minor) ──
-    // These are the VISIBLE controls the user sees at the top of the page.
-    // They must update the same globals (keyinselecti, scali) so that all algorithms
-    // (image-melody, tarareo, harmony generators) use the correct key and scale.
+    // ── Header-1 selects: scale-root (C, C#, D...) and scale-mode (Major/Minor/Chromatic) ──
     const noteNames12 = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
     const scaleRootSelect = document.getElementById('scale-root');
@@ -15491,8 +15867,6 @@ ${codigos.join('\n  ')}
             const idx = noteNames12.indexOf(e.target.value);
             if (idx >= 0) {
                 keyinselecti = idx;
-                // Also sync the hidden keyin selector
-                if (keyinSelector) keyinSelector.selectedIndex = idx;
                 makeladi();
             }
         });
@@ -15501,21 +15875,23 @@ ${codigos.join('\n  ')}
     const scaleModeSelect = document.getElementById('scale-mode');
     if (scaleModeSelect) {
         scaleModeSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'Minor') {
-                setActiveScale(1); // menor
-            } else {
-                setActiveScale(0); // mayor
-            }
+            const modeMap = { 'Major': 0, 'Minor': 1, 'Chromatic': 2 };
+            setActiveScale(modeMap[e.target.value] ?? 0);
         });
     }
 
-    // Sync header-1 selects on init (read current scali/keyinselecti → update header-1 UI)
+    // Sync header-1 selects on init
     setTimeout(() => {
         if (scaleRootSelect && noteNames12[keyinselecti]) {
             scaleRootSelect.value = noteNames12[keyinselecti];
         }
         if (scaleModeSelect) {
-            scaleModeSelect.value = (scali === 1) ? 'Minor' : 'Major';
+            const modeMap = ['Major', 'Minor', 'Chromatic'];
+            scaleModeSelect.value = modeMap[scali] || 'Major';
+            const keyWrapper = document.getElementById('key-selector-wrapper');
+            if (keyWrapper) {
+                keyWrapper.style.visibility = (scali === 2) ? 'hidden' : 'visible';
+            }
         }
     }, 150);
     //////////INSTRUMENT SELECTOR
@@ -16489,11 +16865,12 @@ ${codigos.join('\n  ')}
                 window.selectedMeasureIndex = bdiRef.length;
             }
 
-            // AUTO-FOLLOW: If new measures were added, select the last one
+            // AUTO-FOLLOW: If new measures were added, place cursor AFTER the last one
             if (typeof window.lastBdiLength !== 'undefined' && bdiRef.length > window.lastBdiLength) {
-                window.selectedMeasureIndex = bdiRef.length - 1;
+                window.selectedMeasureIndex = bdiRef.length; // past-the-end → cursor after last measure
+                if (window.np6) window.np6.cursorPos = window.selectedMeasureIndex;
                 if (typeof window.openMidiEditor === 'function') {
-                    const newIdx = window.selectedMeasureIndex;
+                    const newIdx = window.selectedMeasureIndex - 1; // open editor for the newly added measure
                     setTimeout(() => {
                         // Only open if index still valid
                         if (newIdx >= 0 && newIdx < window.bdi.bar.length) {
@@ -17011,15 +17388,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        const previousMode = window.currentEditMode;
+
         // Update current edit mode global variable
         window.currentEditMode = mode;
 
-        // MUSICOLI: Force re-render of text layer when switching to RITMO to ensure selection is visible
-        if (mode === 'ritmo' && typeof applyTextLayer === 'function') {
-            setTimeout(() => {
-                applyTextLayer();
-            }, 50);
+        // MUSICOLI: Force re-render and rebuild when switching to/from RITMO to ensure instruments sync
+        if (mode === 'ritmo' || (previousMode === 'ritmo' && mode !== 'ritmo')) {
+            if (typeof rebuildRecordi === 'function') {
+                rebuildRecordi();
+            }
+            if (typeof applyTextLayer === 'function') {
+                setTimeout(() => {
+                    applyTextLayer();
+                }, 100);
+            }
         }
+
+
 
         // Update button states - remove 'active' from all, add to selected
         Object.keys(modeButtons).forEach(buttonId => {
@@ -17186,11 +17572,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Scale Controls (escoci): Only in Tonalidad (Melodía) mode
-        const escociSpan = document.getElementById('escoci');
-        if (escociSpan) {
-            escociSpan.style.display = (mode === 'tonalidad') ? 'inline' : 'none';
-        }
+
 
         // Instrumentation Panel: Only in Instrumentación mode
         const panelModoInstrumentacion = document.getElementById('panel-modo-instrumentacion');
@@ -17756,9 +18138,21 @@ function updateTrackLabels() {
     tracksConfig.forEach(track => {
         const labelElement = document.getElementById(`voiceline-${track.key}`);
         if (labelElement) {
-            labelElement.textContent = track.displayName;
+            // MUSICOLI: Show drum names in global percussion mode
+            if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) {
+                const percNames = {
+                    's': '🥁 Snare',
+                    'a': '🥁 Hi-Hat',
+                    't': '🥁 Tom',
+                    'b': '🥁 Kick'
+                };
+                labelElement.textContent = percNames[track.key];
+            } else {
+                labelElement.textContent = track.displayName;
+            }
         }
     });
+
 
     // Sync ruler spacer width with labels column to align red bar
     setTimeout(() => {

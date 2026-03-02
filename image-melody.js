@@ -628,14 +628,52 @@
         //   [3,4,4,3,4,4]   = 1+.5+.5+1+.5+.5 = 4 (6 notes)  — swing pairs
         //   [3,3,5,5,5,5,5,5,5,5] = 1+1+.25*8=4  (10 notes)  — negras + semis burst
         //   [4,4,4,4,4,4,4,4]     = .5*8 = 4      (8 notes)   — normal corcheas
-        const ARP_PATTERNS = {
-            normal: [4, 4, 4, 4, 4, 4, 4, 4],         // base: 8 corcheas
-            calm: [3, 3, 3, 3],                  // 4 negras — más lento, reposado
-            wide: [2, 4, 4, 4, 4],                // blanca + 4 corcheas — apertura dramática
-            swing: [3, 4, 4, 3, 4, 4],             // pares swing — groove
-            burst: [3, 3, 5, 5, 5, 5, 5, 5, 5, 5],    // negras + explosión de semis
-            resolve: [2, 2]                       // 2 blancas — cierre final
+        // ARP_PATTERNS: generados en función del compás actual.
+        // TODOS los patrones deben sumar exactamente p corcheas (= PPM).
+        // Códigos: 1=redonda(8c), 2=blanca(4c), 3=negra(2c), 4=corchea(1c), 5=semi(0.5c)
+        const makeArpPatterns = (ppm) => {
+            const p = Math.round(ppm);
+
+            // normal: p corcheas — siempre correcto
+            const normal = Array(p).fill(4);
+
+            // calm: negras (2c cada una); si p es impar la última es corchea
+            const calm = [];
+            { let rem = p; while (rem >= 2) { calm.push(3); rem -= 2; } if (rem > 0) calm.push(4); }
+
+            // wide: 1 blanca (4c) + resto en corcheas; si p < 4, solo corcheas
+            const wide = p >= 4 ? [2, ...Array(p - 4).fill(4)] : Array(p).fill(4);
+
+            // swing: grupos de (negra+corchea)=3c si p%3==0;
+            //        grupos de (negra+corchea+corchea)=4c si p%4==0;
+            //        combinación libre en otro caso
+            const swing = [];
+            if (p % 3 === 0) {
+                for (let g = 0; g < p / 3; g++) swing.push(3, 4);
+            } else if (p % 4 === 0) {
+                for (let g = 0; g < p / 4; g++) swing.push(3, 4, 4);
+            } else {
+                let rem = p;
+                while (rem >= 3) { swing.push(3, 4); rem -= 3; }
+                while (rem > 0) { swing.push(4); rem--; }
+            }
+
+            // burst: 1 negra (2c) + (p-2)*2 semicorcheas; si p < 2, corcheas
+            const burst = p >= 2 ? [3, ...Array((p - 2) * 2).fill(5)] : Array(p).fill(4);
+
+            // resolve: blancas + negras + corcheas para llenar exactamente p
+            const resolve = [];
+            {
+                let rem = p;
+                while (rem >= 4) { resolve.push(2); rem -= 4; }
+                while (rem >= 2) { resolve.push(3); rem -= 2; }
+                while (rem > 0) { resolve.push(4); rem--; }
+            }
+            if (resolve.length === 0) resolve.push(4);
+
+            return { normal, calm, wide, swing, burst, resolve };
         };
+        const ARP_PATTERNS = makeArpPatterns(PIXELS_PER_MEASURE);
 
         const arpRhythmState = {
             s: { prevAvgLum: null, momentum: 0, currentPattern: null },
@@ -650,7 +688,7 @@
                 const fullVoiceData = notesByVoice[vk];
                 if (!fullVoiceData || fullVoiceData.length === 0) return;
 
-                const sliceCount = numOvertureMeasures * 8; // 8 puntos por cada compás de obertura
+                const sliceCount = numOvertureMeasures * Math.round(PIXELS_PER_MEASURE); // ppm puntos por cada compás de obertura
                 const sliceSize = Math.floor(fullVoiceData.length / sliceCount);
                 const summaryNotes = [];
                 let entropyCount = 0;
@@ -706,8 +744,12 @@
                 }
 
                 // 2. Mapear cambios de densidad basados en saltos lumínicos ("por proporción de compás")
-                const densityLevels = [1, 2, 4, 8]; // Opciones de extraer N colores
-                let currentDensityIdx = 1; // Base media (2 colores -> 6 notas)
+                // Máximo de colores: el máx de notas útiles es PPM×2 semicorcheas (llena justo el compás).
+                // Como cada color produce 3 notas: maxColors = floor(PPM*2 / 3).
+                // Ejemplo: 3/4 (PPM=6) → max 4 colores → 12 notas. 4/4 (PPM=8) → max 5 colores → 15 notas.
+                const _maxColors = Math.max(2, Math.floor(PIXELS_PER_MEASURE * 2 / 3));
+                const densityLevels = [1, 2, Math.min(4, _maxColors), Math.min(8, _maxColors)];
+                let currentDensityIdx = 1; // Base media (2 colores → 6 notas)
 
                 let densityMap = [];
                 if (measureLums.length > 0) {
@@ -819,38 +861,54 @@
                     // Pasar por la función inversa
                     const range = TESSITURA[vKey];
                     // Recuperar las notas (se obtendrán N * 3 notas)
-                    const literalMidiNotes = window.scaleColorsToMidiNotes(extractedColors, range.min, range.max, 32);
+                    const literalMidiNotes = window.scaleColorsToMidiNotes(extractedColors, range.min, range.max, Math.round(PIXELS_PER_MEASURE * 4));
 
                     if (literalMidiNotes && literalMidiNotes.length > 0) {
-                        // Mapeo Rítmico Estricto para llenar el 4/4 matemáticamente perfecto
-                        // Cada color produce exactamente 3 notas (R, G, B).
-                        // Para que cuadre en sistema binario (sin tresillos puros), 
-                        // aplicamos un groove "Corto-Corto-Largo" por cada trío:
+                        // Usar patrones trilipi, que ya están calculados para el compás activo.
+                        // trilipi[N] contiene variaciones rítmicas con exactamente N notas
+                        // que suman el compás completo. Es la fuente de verdad correcta.
 
                         const baseVolSlider = document.getElementById('img-min-volume');
                         const baseVol = baseVolSlider ? parseInt(baseVolSlider.value) : 40;
+                        const totalNotes = literalMidiNotes.length;
 
-                        // 1 color = 3 notas -> [Negra, Negra, Blanca] (tipis: 3, 3, 2)
-                        // 2 colores = 6 notas -> [Corchea, Corchea, Negra] x 2 (tipis: 4, 4, 3)
-                        // 4 colores = 12 notas -> [Semicorchea, Semi, Corchea] x 4 (tipis: 5, 5, 4)
-                        // 8 colores = 24 notas -> [Fusa, Fusa, Semicorchea] x 8 (tipis: 6, 6, 5)
+                        // Buscar patrón en trilipi para exactamente totalNotes notas
+                        let chosenPattern = null;
+                        if (typeof window.trilipi !== 'undefined') {
+                            if (window.trilipi[totalNotes] && window.trilipi[totalNotes].length > 0) {
+                                // Índice exacto disponible → elegir variación aleatoria
+                                const variants = window.trilipi[totalNotes];
+                                chosenPattern = variants[Math.floor(Math.random() * variants.length)];
+                            } else {
+                                // Buscar el índice disponible más cercano
+                                const availableKeys = Object.keys(window.trilipi)
+                                    .map(Number).filter(n => !isNaN(n) && n > 0 && window.trilipi[n]?.length > 0);
+                                if (availableKeys.length > 0) {
+                                    const closest = availableKeys.reduce((prev, curr) =>
+                                        Math.abs(curr - totalNotes) < Math.abs(prev - totalNotes) ? curr : prev
+                                    );
+                                    const variants = window.trilipi[closest];
+                                    const raw = variants[Math.floor(Math.random() * variants.length)];
+                                    // Adaptar longitud: repetir o truncar para cubrir totalNotes
+                                    chosenPattern = Array.from({ length: totalNotes }, (_, i) => raw[i % raw.length]);
+                                }
+                            }
+                        }
 
-                        let rhythmPattern = [];
-                        if (literalMidiNotes.length <= 3) rhythmPattern = [3, 3, 2];
-                        else if (literalMidiNotes.length <= 6) rhythmPattern = [4, 4, 3];
-                        else if (literalMidiNotes.length <= 12) rhythmPattern = [5, 5, 4];
-                        else rhythmPattern = [6, 6, 5]; // 24 notas
+                        // Fallback: si no hay trilipi, usar corcheas uniformes
+                        if (!chosenPattern) {
+                            chosenPattern = Array(totalNotes).fill(4);
+                        }
 
-                        // Aplicar al arreglo
+                        // Aplicar notas con el patrón trilipi
                         literalMidiNotes.forEach((midi, idx) => {
                             const snappedPitch = snapToScale(midi, scaleIntervals, globalKeyIndex);
                             nimidi.push(snappedPitch);
-                            // Asignar el tipi correspondiente del ciclo Corto-Corto-Largo
-                            tipis.push(rhythmPattern[idx % 3]);
-                            // Simular dinámica: la tercera nota del trío reposa más suave, la primera acentúa
+                            tipis.push(chosenPattern[idx] ?? 4);
+                            // Dinámica: acento al inicio de cada trío RGB
                             let dynamics = baseVol;
-                            if (idx % 3 === 0) dynamics = Math.min(127, baseVol + 20); // Acento en la primera
-                            else if (idx % 3 === 2) dynamics = Math.max(0, baseVol - 10); // Reposo en la larga
+                            if (idx % 3 === 0) dynamics = Math.min(127, baseVol + 20);
+                            else if (idx % 3 === 2) dynamics = Math.max(0, baseVol - 10);
                             dinami.push(dynamics);
                         });
                         processed = true;
@@ -975,8 +1033,9 @@
                             // --- CASO ESPECIAL: Obertura Resumen ---
                             // En los compases de obertura usamos los datos globales calculados en la Fase 0
                             chosenPattern = globalSummary[vKey].pattern;
-                            // Extraemos las 8 notas que corresponden a ESTE compás de obertura
-                            dirLadder = globalSummary[vKey].notes.slice(m * 8, (m + 1) * 8);
+                            // Extraemos las notas que corresponden a ESTE compás de obertura
+                            const ppmRound = Math.round(PIXELS_PER_MEASURE);
+                            dirLadder = globalSummary[vKey].notes.slice(m * ppmRound, (m + 1) * ppmRound);
                         } else {
                             // Comportamiento normal (local al compás)
                             dirLadder = (m === 0 || m % 2 === 0) ? ladder : [...ladder].reverse();
@@ -1070,27 +1129,56 @@
                             return stepInScale(src.nimidi[midIdx], -intervalSteps, scaleIntervals, globalKeyIndex, range.min, range.max);
                         };
 
+                        // Helper para obtener un patrón exacto según el número deseado de notas
+                        const getExactTrilipi = (targetNotes) => {
+                            const timeSig = getGlobalTimeSignature();
+                            const tr = window.trilipi && window.trilipi[timeSig[0]] ? window.trilipi[timeSig[0]] : null;
+                            if (!tr) return null;
+                            const patterns = tr[targetNotes];
+                            if (patterns && patterns.length > 0) return patterns[0];
+                            return null;
+                        };
+
                         if (contrast < 28 && brightness > 165) {
-                            // === REDONDA (1 whole note) ===
-                            const note = depNote(0, src.nimidi.length);
-                            nimidi.push(note);
-                            tipis.push(1);   // whole note
-                            dinami.push(depVel);
+                            // === MUY LENTO (1 o 2 notas dependiendo del compás) ===
+                            const pattern = getExactTrilipi(1) || getExactTrilipi(2) || [(timeSig?.[0] === 3 ? [3, 3, 3] : [2, 2])];
+                            const p = Array.isArray(pattern) ? pattern : pattern[0] || [timeSig?.[0] === 3 ? 3 : 2];
+
+                            p.forEach((t, idx) => {
+                                const segLen = src.nimidi.length / p.length;
+                                nimidi.push(depNote(idx * segLen, segLen));
+                                tipis.push(t);
+                                dinami.push(depVel);
+                            });
 
                         } else if (contrast < 70) {
-                            // === 2 BLANCAS (half notes) ===
-                            const half = Math.floor(src.nimidi.length / 2);
-                            nimidi.push(depNote(0, half)); tipis.push(2); dinami.push(depVel);
-                            nimidi.push(depNote(half, half)); tipis.push(2); dinami.push(depVel);
+                            // === LENTO (2 o 3 notas) ===
+                            const timeSig = getGlobalTimeSignature();
+                            const targetNotes = timeSig[0] === 3 ? 3 : 2; // Para 3/4 buscamos 3 negras o similar
+                            const pattern = getExactTrilipi(targetNotes) || getExactTrilipi(2) || [3, 3, 3];
+                            const p = Array.isArray(pattern) ? (Array.isArray(pattern[0]) ? pattern[0] : pattern) : [3, 3];
+
+                            p.forEach((t, idx) => {
+                                const segLen = src.nimidi.length / p.length;
+                                nimidi.push(depNote(idx * segLen, segLen));
+                                tipis.push(t);
+                                dinami.push(depVel);
+                            });
 
                         } else if (contrast < 140) {
-                            // === 4 NEGRAS (quarter notes) ===
-                            const q = Math.floor(src.nimidi.length / 4);
-                            for (let qi = 0; qi < 4; qi++) {
-                                nimidi.push(depNote(qi * q, q));
-                                tipis.push(3);
+                            // === MEDIO (4 notas o lo más cercano) ===
+                            const timeSig = getGlobalTimeSignature();
+                            // En 3/4 no caben 4 negras. Así que buscamos el pattern para 4 notas (ej: 4 corcheas y 1 negra), o si no, el max
+                            let target = Math.min(4, Math.floor(PIXELS_PER_MEASURE));
+                            const pattern = getExactTrilipi(target) || getExactTrilipi(3) || [3, 3, 3, 3];
+                            const p = Array.isArray(pattern) ? (Array.isArray(pattern[0]) ? pattern[0] : pattern) : [3, 3, 3, 3];
+
+                            p.forEach((t, idx) => {
+                                const segLen = src.nimidi.length / p.length;
+                                nimidi.push(depNote(idx * segLen, segLen));
+                                tipis.push(t);
                                 dinami.push(depVel);
-                            }
+                            });
 
                         } else {
                             // === 8 CORCHEAS (follow leader exactly) ===
@@ -1204,24 +1292,25 @@
                             }
                         }
                     }
-                    // A & B: 4 Negras (Quarter notes) - Slow backing
+                    // A & B: Negras (Quarter notes) ajustadas al compás - Slow backing
                     else {
-                        const step = 2;
-                        for (let i = 0; i < 4; i++) {
-                            // Average the 2 pixels for this beat
-                            const idx1 = i * step;
-                            const idx2 = idx1 + 1;
-
-                            const p1 = chunk[idx1] || { r: 0, g: 0, b: 0 };
-                            const p2 = chunk[idx2] || { r: 0, g: 0, b: 0 };
-
-                            // Average props
-                            const avgR = (p1.r + p2.r) / 2;
-                            const avgG = (p1.g + p2.g) / 2;
-                            const avgB = (p1.b + p2.b) / 2;
+                        // Número de negras = PIXELS_PER_MEASURE / 2 (cada negra = 2 píxeles/corcheas)
+                        const numQuarters = Math.round(PIXELS_PER_MEASURE / 2);
+                        const step = PIXELS_PER_MEASURE / numQuarters; // Píxeles por negra
+                        for (let i = 0; i < numQuarters; i++) {
+                            // Promediar los píxeles de este tiempo
+                            const startI = Math.floor(i * step);
+                            const endI = Math.floor((i + 1) * step);
+                            let sumR = 0, sumG = 0, sumB = 0, cnt = 0;
+                            for (let pi = startI; pi < endI; pi++) {
+                                const px = chunk[pi] || { r: 0, g: 0, b: 0 };
+                                sumR += px.r; sumG += px.g; sumB += px.b; cnt++;
+                            }
+                            if (cnt === 0) { sumR = sumG = sumB = 0; cnt = 1; }
 
                             // Create a pseudo pixel for getPitch
-                            const pAvg = { r: avgR, g: avgG, b: avgB };
+                            const pAvg = { r: sumR / cnt, g: sumG / cnt, b: sumB / cnt };
+                            const avgB = pAvg.b;
 
                             const rawAvgVel = Math.max(0, Math.min(127, Math.floor(avgB / 2)));
                             const playAvgVel = Math.floor(baseVol + (avgB / 255) * volRange);
@@ -1288,7 +1377,20 @@
                     }
                     st.prevLum = avgLum;
 
-                    for (let i = 0; i < Math.floor(PIXELS_PER_MEASURE); i++) {
+                    // Calcular posiciones proporcionales al compás
+                    const ppm = Math.round(PIXELS_PER_MEASURE);
+                    // Tiempos fuertes del bombo (proporcional): beat 1 y beat 3 del compás
+                    // En 4/4 (ppm=8): i=0 y i=4. En 3/4 (ppm=6): i=0 y i=3. En 6/8 (ppm=6): i=0, i=3.
+                    const beat1 = 0;
+                    const beat2 = Math.round(ppm * 0.5);   // mitad del compás
+                    const beat1q = Math.round(ppm * 0.25); // primer cuarto
+                    const beat3q = Math.round(ppm * 0.75); // tercer cuarto
+                    const beatLast = ppm - 1;              // último slot
+                    // Backbeat caja (normalmente en 2 y 4 → ~25% y ~75%)
+                    const snare1 = Math.round(ppm * 0.25);
+                    const snare2 = Math.round(ppm * 0.75);
+
+                    for (let i = 0; i < ppm; i++) {
                         const p = chunk[i] || { r: 0, g: 0, b: 0 };
                         const l = 0.299 * p.r + 0.587 * p.g + 0.114 * p.b;
                         // Volumen ligeramente influenciado por brillo del pixel
@@ -1299,44 +1401,48 @@
 
                         if (vKey === 't' || vKey === 'b') { // Bombo
                             if (m < numOvertureMeasures && numOvertureMeasures > 0) {
-                                // Intro: Ritmo más disperso, bombo marcando solo el inicio del compás
-                                if (i === 0) isSounding = true;
-                                else if (i === 4 && st.pattern > 0) { isSounding = true; noteVel = Math.floor(vel * 0.7); }
+                                // Intro: bombo marcando solo el inicio del compás
+                                if (i === beat1) isSounding = true;
+                                else if (i === beat2 && st.pattern > 0) { isSounding = true; noteVel = Math.floor(vel * 0.7); }
                             } else if (m >= totalMeasures - numCodaMeasures && numCodaMeasures > 0) {
-                                // Fin: Bombo constante y simétrico para cerrar
-                                if (i === 0 || i === 4) isSounding = true;
+                                // Fin: Bombo constante y simétrico
+                                if (i === beat1 || i === beat2) isSounding = true;
                             } else {
                                 // Centro normal
                                 if (st.pattern === 0) { // Base Uniforme Motor
-                                    if (i === 0 || i === 4) isSounding = true;
-                                    else if (i === 2 || i === 6) { isSounding = true; noteVel = Math.floor(vel * 0.7); }
+                                    if (i === beat1 || i === beat2) isSounding = true;
+                                    else if (i === beat1q || i === beat3q) { isSounding = true; noteVel = Math.floor(vel * 0.7); }
                                 } else if (st.pattern === 1) { // Síncopa / Roto
-                                    if (i === 0 || i === 3 || i === 5) isSounding = true;
-                                    if (i === 3 || i === 5) noteVel = Math.floor(vel * 0.85);
+                                    const sync1 = Math.round(ppm * 0.375);
+                                    const sync2 = Math.round(ppm * 0.625);
+                                    if (i === beat1 || i === sync1 || i === sync2) isSounding = true;
+                                    if (i === sync1 || i === sync2) noteVel = Math.floor(vel * 0.85);
                                 } else if (st.pattern === 2) { // Intenso / Rock
-                                    if (i === 0 || i === 2 || i === 4 || i === 6) isSounding = true;
-                                    if (i === 7) { isSounding = true; noteVel = Math.floor(vel * 0.85); }
+                                    if (i === beat1 || i === beat1q || i === beat2 || i === beat3q) isSounding = true;
+                                    if (i === beatLast) { isSounding = true; noteVel = Math.floor(vel * 0.85); }
                                 }
                             }
                         } else { // Caja (S, A)
                             if (m < numOvertureMeasures && numOvertureMeasures > 0) {
-                                // Intro: caja marcando muy levemente y con menos frecuencia
-                                if (i === 6) { isSounding = true; noteVel = Math.floor(vel * 0.6); }
-                                else if (i === 2 && st.pattern > 0) { isSounding = true; noteVel = Math.floor(vel * 0.4); }
+                                // Intro: caja marcando muy levemente
+                                if (i === snare2) { isSounding = true; noteVel = Math.floor(vel * 0.6); }
+                                else if (i === snare1 && st.pattern > 0) { isSounding = true; noteVel = Math.floor(vel * 0.4); }
                             } else if (m >= totalMeasures - numCodaMeasures && numCodaMeasures > 0) {
                                 // Fin: Caja en backbeat seco
-                                if (i === 2 || i === 6) { isSounding = true; noteVel = Math.floor(vel * 0.8); }
+                                if (i === snare1 || i === snare2) { isSounding = true; noteVel = Math.floor(vel * 0.8); }
                             } else {
                                 // Centro normal
                                 if (st.pattern === 0) { // Base Uniforme
-                                    if (i === 2 || i === 6) isSounding = true;
-                                    else if (i % 2 !== 0) { isSounding = true; noteVel = Math.floor(baseVol * 0.8); } // Padding continuo y uniforme
+                                    if (i === snare1 || i === snare2) isSounding = true;
+                                    else if (i % 2 !== 0) { isSounding = true; noteVel = Math.floor(baseVol * 0.8); }
                                 } else if (st.pattern === 1) { // Síncopa / Roto
-                                    if (i === 2) isSounding = true;
-                                    else if (i === 4 || i === 7) { isSounding = true; noteVel = Math.floor(vel * 0.6); } // Fantasmas rotos
+                                    const ghost1 = Math.round(ppm * 0.5);
+                                    const ghost2 = Math.round(ppm * 0.875);
+                                    if (i === snare1) isSounding = true;
+                                    else if (i === ghost1 || i === ghost2) { isSounding = true; noteVel = Math.floor(vel * 0.6); }
                                 } else if (st.pattern === 2) { // Intenso / Fill
-                                    if (i === 2 || i === 6) { isSounding = true; noteVel = Math.floor(vel * 1.1); }
-                                    else if (i % 2 !== 0 || i === 5) { isSounding = true; noteVel = Math.floor(vel * 0.7); } // Fills densos ocupando el compás
+                                    if (i === snare1 || i === snare2) { isSounding = true; noteVel = Math.floor(vel * 1.1); }
+                                    else if (i % 2 !== 0) { isSounding = true; noteVel = Math.floor(vel * 0.7); }
                                 }
                             }
                         }
@@ -1381,6 +1487,8 @@
 
                 // --- NEW LOGIC: Structural Volume/Dynamics (Fade In/Out) for ALL Modes ---
                 // Se aplica a todos los modos: Un fade proporcional de inicio y fin en el volumen base
+                // [Removed: Abandonando esta estrategia para centrarnos en la música, no en bajar el volumen]
+                /*
                 if (nimidi.length > 0) {
                     if (m < numOvertureMeasures && numOvertureMeasures > 0) {
                         // Fade in: from 0.4 to 1.0 depending on how far into the intro we are
@@ -1395,6 +1503,7 @@
                         dinami = dinami.map(v => Math.floor(v * scale));
                     }
                 }
+                */
 
                 if (processed && (rhythmMode === 'sensible' || rhythmMode === 'relativa')) {
                     // --- REDUCTION LOGIC ---

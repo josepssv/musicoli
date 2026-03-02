@@ -29,6 +29,7 @@
     src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0">
     </script>
   <script src="tarareo-melodic.js"></script> <!-- Melodic Tarareo Logic -->
+  <script src="preferences.js"></script>
   <script src="musicoli.js"></script>
 
 
@@ -185,7 +186,8 @@
       display: flex;
       flex-direction: column;
       padding: 0 !important;
-      /* No padding to eliminate extra space */
+      padding-right: 50px !important;
+      /* 50px trailing space so cursor can be placed after last measure */
       gap: 0 !important;
       /* No gap between rows */
     }
@@ -386,34 +388,34 @@
       style="padding: 4px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
         <div style="font-size: 16px; font-weight: bold;">Musicoli</div>
-        <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active"
+        <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active" data-i18n="Ritmo"
           style="padding: 3px 8px; font-size: 11px;">Ritmo</button>
         <button id="mode-tarareo"
           style="padding: 3px 8px; font-size: 11px; font-family: monospace; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold; display:none;">Tarareo</button>
-        <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad"
+        <button id="mode-tonalidad" class="mode-btn mode-btn-tonalidad" data-i18n="Melodía"
           style="padding: 3px 8px; font-size: 11px;">Melodía</button>
-        <button id="mode-dinamica" class="mode-btn mode-btn-dinamica"
+        <button id="mode-dinamica" class="mode-btn mode-btn-dinamica" data-i18n="Dinámica"
           style="padding: 3px 8px; font-size: 11px;">Dinámica</button>
-        <button id="mode-lyrics" class="mode-btn mode-btn-lyrics"
+        <button id="mode-lyrics" class="mode-btn mode-btn-lyrics" data-i18n="Lyrics"
           style="padding: 3px 8px; font-size: 11px;">Lyrics</button>
 
 
-        <button id="mode-instrumentacion" class="mode-btn mode-btn-instrumentacion"
+        <button id="mode-instrumentacion" class="mode-btn mode-btn-instrumentacion" data-i18n="Instrumentación"
           style="padding: 3px 8px; font-size: 11px;">Instrumentación</button>
-        <button id="mode-composicion" class="mode-btn mode-btn-composicion"
+        <button id="mode-composicion" class="mode-btn mode-btn-composicion" data-i18n="Composición"
           style="padding: 3px 8px; font-size: 11px;">Composición</button>
 
       </div>
       <div style="display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap;">
-        <span>BPM:</span>
+        <span data-i18n="BPM">BPM</span>:
         <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
           style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
-        <span>Compás: <select id="compas-select">
+        <span><span data-i18n="Compás">Compás</span>: <select id="compas-select">
             <option value="[4,4]">4/4</option>
             <option value="[3,4]">3/4</option>
             <option value="[2,4]">2/4</option>
           </select></span>
-        <span>Key:
+        <span id="key-selector-wrapper"><span data-i18n="Key">Key</span>:
           <select id="scale-root"
             style="background: #444; color: white; border: 1px solid #666; padding: 4px; border-radius: 3px; font-family: monospace;">
             <option value="C" selected>C</option>
@@ -428,20 +430,23 @@
             <option value="A">A</option>
             <option value="A#">A#</option>
             <option value="B">B</option>
-          </select>
+          </select></span>
+        <span><span data-i18n="Escala">Escala</span>:
           <select id="scale-mode"
             style="background: #444; color: white; border: 1px solid #666; padding: 4px; border-radius: 3px; font-family: monospace;">
-            <option value="Major" selected>Mayor</option>
-            <option value="Minor">Menor</option>
+            <option value="Major" data-i18n="Mayor" selected>Mayor</option>
+            <option value="Minor" data-i18n="Menor">Menor</option>
+            <option value="Chromatic" data-i18n="Cromática">Cromática</option>
           </select></span>
         <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
+          data-i18n-placeholder="Título de la composición"
           style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
         <!-- Hidden voice selector for state management -->
         <select id="voice-selector" style="display: none;">
-          <option value="s" selected>Soprano</option>
-          <option value="a">Contralto</option>
-          <option value="t">Tenor</option>
-          <option value="b">Bajo</option>
+          <option value="s" data-i18n="Soprano" selected>Soprano</option>
+          <option value="a" data-i18n="Contralto">Contralto</option>
+          <option value="t" data-i18n="Tenor">Tenor</option>
+          <option value="b" data-i18n="Bajo">Bajo</option>
         </select>
       </div>
     </header>
@@ -449,79 +454,51 @@
     <!-- Header 2: Edition Buttons -->
     <div class="mode-header-2"
       style="padding: 2px 20px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: #555;">
-      <button id="frase-btn" class="theme-btn-accent"
+      <button id="frase-btn" class="theme-btn-accent" data-i18n="Frase"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         Frase
       </button>
-      <button id="copy-measures-btn" class="theme-btn"
+      <button id="copy-measures-btn" class="theme-btn" data-i18n="Copiar"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         Copiar
       </button>
-      <button id="paste-measures-btn" class="theme-btn"
+      <button id="paste-measures-btn" class="theme-btn" data-i18n="Pegar"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         Pegar
       </button>
+      <button id="delete-measures-btn" class="theme-btn theme-btn-danger"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        data-i18n-title="Borrar compás o compases seleccionados">
+        🗑️
+      </button>
       <div id="status-indicators"
         style="display: flex; gap: 8px; margin-left: auto; color: #ddd; font-size: 10px; padding-right: 15px; border-right: 1px solid #666; margin-right: 8px;">
-        <div style="cursor: pointer;" title="Ir a posición de cursor" onclick="jumpToPosition()">POS: <span
-            id="cursorPos" style="color: #4CAF50; font-weight: bold;">0</span></div>
-        <div style="cursor: pointer;" title="Ir a compás" onclick="jumpToMeasure()">COMP: <span id="measurePos"
-            style="color: #FF9800; font-weight: bold;">0</span> / <span id="totalMeasures"
-            style="color: #FF9800; font-weight: bold;">0</span></div>
+        <div style="cursor: pointer;" data-i18n-title="Ir a posición de cursor" onclick="jumpToPosition()"><span
+            data-i18n="POS">POS</span>: <span id="cursorPos" style="color: #4CAF50; font-weight: bold;">0</span></div>
+        <div style="cursor: pointer;" data-i18n-title="Ir a compás" onclick="jumpToMeasure()"><span
+            data-i18n="COMP">COMP</span>: <span id="measurePos" style="color: #FF9800; font-weight: bold;">0</span> /
+          <span id="totalMeasures" style="color: #FF9800; font-weight: bold;">0</span>
+        </div>
       </div>
-      <button id="empezar-btn" class="theme-btn rhythm-only"
+      <button id="empezar-btn" class="theme-btn rhythm-only" data-i18n="Empezar"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         Empezar
       </button>
-      <button id="undo-btn" class="theme-btn rhythm-only"
+      <button id="undo-btn" class="theme-btn" data-i18n-title="Deshacer"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         ←
       </button>
-      <button id="redo-btn" class="theme-btn rhythm-only"
+      <button id="redo-btn" class="theme-btn" data-i18n-title="Rehacer"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
         →
       </button>
       <!-- Dependent/Independent Mode Toggle -->
       <button id="html-mode-toggle" class="mode-btn"
         style="padding: 3px; font-size: 14px; font-family: monospace; border: none; border-radius: 20px; background: #4CAF50; color: white; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 28px; height: 28px;"
-        title="Modo: Dependiente (armonía automática)">
+        data-i18n-title="Modo: Dependiente (armonía diatónica)">
         <span id="html-mode-icon">🔗</span>
       </button>
 
-      <button id="delete-measures-btn" class="theme-btn theme-btn-danger rhythm-only"
-        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
-        title="Borrar compás seleccionado (o último si ninguno seleccionado)">
-        🗑️
-      </button>
-      <span id="escoci" style="display: none; margin-left: 20px;">
-        <select id="keyin" class="theme-btn scale-control"
-          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-          <option value="C" selected="">C</option>
-          <option value="C#">C#</option>
-          <option value="D">D</option>
-          <option value="D#">D#</option>
-          <option value="E">E</option>
-          <option value="F">F</option>
-          <option value="F#">F#</option>
-          <option value="G">G</option>
-          <option value="G#">G#</option>
-          <option value="A">A</option>
-          <option value="A#">A#</option>
-          <option value="B">B</option>
-        </select>
-        <button id="mayor" class="theme-btn scale-control"
-          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-          Mayor
-        </button>
-        <button id="menor" class="theme-btn scale-control"
-          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
-          Menor
-        </button>
-        <button id="cromatica" class="theme-btn scale-control"
-          style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: normal; cursor: pointer; font-size: 12px;">
-          Cromática
-        </button>
-      </span>
     </div>
 
     <!-- MUSICOLI: Global Timeline / Measure Selector -->
@@ -609,7 +586,7 @@
         <div id="tracks-scroll-viewport"
           style="flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; flex-direction: column; padding: 0;">
           <div id="macoti-tracks-container"
-            style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px;">
+            style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px; padding-right: 50px;">
 
             <!-- Row S -->
             <div id="content-row-s" class="content-row"
@@ -674,11 +651,11 @@
                 <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
                   <a id="title-display"
                     style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
-                    title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
+                    data-i18n-title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
                   <span style="display:inline-flex; align-items: center; gap: 2px;">
                     <input id="title-input" type="text"
                       style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
-                      value="emotion">
+                      data-i18n-placeholder="Título de la composición" value="emotion">
                     <span id="title-extension"
                       style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
                   </span>
@@ -689,7 +666,7 @@
                             text-decoration:underline;
                             color:#ddd;
                             font-family: monospace;
-                            font-size: 14px;" data-listener-attached="true">
+                            font-size: 14px;" data-i18n="Resumen" data-listener-attached="true">
                   Resumen
                 </span>
               </div>
@@ -883,7 +860,8 @@
               <div id="editor-tonalidad" class="mode-panel mode-editor editor-tonalidad" style="display: none;">
                 <!-- Content preserved -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                  <h3 class="mode-editor-title">Editor de Paleta de Tonalidades</h3>
+                  <h3 class="mode-editor-title" data-i18n="Editor de Paleta de Tonalidades">Editor de Paleta de
+                    Tonalidades</h3>
                   <select
                     style="padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
                     <option value="RGB">RGB</option>
@@ -895,14 +873,14 @@
                 </div>
                 <div id="harmonize-container"
                   style="margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                  <h4
+                  <h4 data-i18n="ZONA DE ARMONIZACIÓN"
                     style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
                     🎹 ZONA DE ARMONIZACIÓN</h4>
 
                   <!-- PHRASE TOOLS (At Top, No Title) -->
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
-                      <label
+                      <label data-i18n="Cant:"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
                       <input type="number" id="transpose-amount" value="0"
                         style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
@@ -910,33 +888,33 @@
 
                     <select id="transpose-unit"
                       style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                      <option value="scale">Escala</option>
-                      <option value="semitone">Semitonos</option>
+                      <option value="scale" data-i18n="Escala">Escala</option>
+                      <option value="semitone" data-i18n="Semitonos">Semitonos</option>
                     </select>
 
-                    <button class="theme-btn" onclick="triggerTranspose(); return false;"
+                    <button class="theme-btn" data-i18n="Trasponer" onclick="triggerTranspose(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Trasponer
                     </button>
 
-                    <button class="theme-btn" onclick="triggerDuplicate(); return false;"
+                    <button class="theme-btn" data-i18n="Duplicar" onclick="triggerDuplicate(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Duplicar
                     </button>
                   </div>
 
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button id="harmonize-btn" class="theme-btn"
+                    <button id="harmonize-btn" class="theme-btn" data-i18n="Armonizar desde esta voz"
                       style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">✨
                       Armonizar desde esta voz</button>
-                    <button id="harmonize-scale-btn" class="theme-btn"
+                    <button id="harmonize-scale-btn" class="theme-btn" data-i18n="Ajustar a escala"
                       style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">🎼
                       Ajustar a escala</button>
                   </div>
 
                   <!-- ONDA TOOL (Integrated) -->
                   <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
-                  <h4
+                  <h4 data-i18n="🌊 Onda (Modulación)"
                     style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
                     🌊 Onda (Modulación)</h4>
 
@@ -1559,24 +1537,24 @@
 
                     <!-- Apply To -->
                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label
+                      <label data-i18n="Aplicar"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f; white-space: nowrap;">Aplicar
                         a:</label>
                       <select id="comp-onda-target"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333; max-width: 150px;">
-                        <option value="selected">Solo Selecc.</option>
-                        <option value="audible" selected>Todas Audibles</option>
+                        <option value="selected" data-i18n="Solo Selecc.">Solo Selecc.</option>
+                        <option value="audible" data-i18n="Todas Audibles" selected>Todas Audibles</option>
                       </select>
                     </div>
 
                     <!-- Action -->
                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label
+                      <label data-i18n="Acc:"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acc:</label>
                       <select id="comp-onda-ritmo-action"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="modify">Modif</option>
-                        <option value="generate" selected>Generar</option>
+                        <option value="modify" data-i18n="Modif">Modif</option>
+                        <option value="generate" data-i18n="Generar" selected>Generar</option>
                       </select>
                     </div>
 
@@ -1595,13 +1573,13 @@
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
-                      <label
+                      <label data-i18n="Modo:"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Modo:</label>
                       <select id="comp-onda-ritmo-mode"
                         style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="random">Aleatorio</option>
-                        <option value="cyclic">Cíclico</option>
-                        <option value="structure" selected>Estructura</option>
+                        <option value="random" data-i18n="Aleatorio">Aleatorio</option>
+                        <option value="cyclic" data-i18n="Cíclico">Cíclico</option>
+                        <option value="structure" data-i18n="Estructura" selected>Estructura</option>
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
@@ -1637,7 +1615,7 @@
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
-                      <label
+                      <label data-i18n="Amp:"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Amp:</label>
                       <select id="comp-onda-amp"
                         style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
@@ -1649,13 +1627,13 @@
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
-                      <label
+                      <label data-i18n="Freq:"
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Freq:</label>
                       <select id="comp-onda-freq"
                         style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="0.05">Lento</option>
-                        <option value="0.15" selected>Normal</option>
-                        <option value="0.3">Rápido</option>
+                        <option value="0.05" data-i18n="Lento">Lento</option>
+                        <option value="0.15" data-i18n="Normal" selected>Normal</option>
+                        <option value="0.3" data-i18n="Rápido">Rápido</option>
                       </select>
                     </div>
                     <button id="comp-onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
@@ -1730,17 +1708,19 @@
           <div id="editor-composicion" class="mode-panel mode-editor editor-composicion"
             style="display: none; padding: 10px;">
             <div style="margin-bottom: 10px;">
-              <h3 class="mode-editor-title" style="font-size: 14px; margin-bottom: 5px;">🧩 Compositor de Estructuras
+              <h3 class="mode-editor-title" data-i18n="🧩 Compositor de Estructuras"
+                style="font-size: 14px; margin-bottom: 5px;">🧩 Compositor de Estructuras
               </h3>
             </div>
             <div style="padding: 10px; background: #e8f5e9; border-radius: 8px; border: 2px solid #4CAF50;">
-              <p style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Define la estructura
+              <p data-i18n="Define la estructura (letras A, B, C...)"
+                style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Define la estructura
                 (letras A, B, C...)</p>
               <div
                 style="display: flex; gap: 5px; align-items: center; background: white; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9;">
-                <input type="text" id="composition-structure" placeholder="Ej: ABBC"
+                <input type="text" id="composition-structure" placeholder="Ej: ABBC" data-i18n-placeholder="Ej: ABBC"
                   style="flex-grow: 1; padding: 8px; font-family: monospace; font-size: 14px; border: 1px solid #4CAF50; border-radius: 4px; text-transform: uppercase;">
-                <button id="generate-composition-btn" class="theme-btn"
+                <button id="generate-composition-btn" class="theme-btn" data-i18n="Generar"
                   style="padding: 8px 12px; font-size: 12px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">🚀
                   Generar</button>
               </div>
@@ -1756,14 +1736,17 @@
           <div id="editor-lyrics" class="mode-panel mode-editor editor-lyrics"
             style="display: none; padding: 10px; background: #fff5f8; border-radius: 8px; border: 2px solid #e91e63; margin-bottom: 15px;">
             <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <h3 class="mode-editor-title" style="font-size: 14px; margin: 0; color: #c2185b;">🎵 Editor de Letras
+              <h3 class="mode-editor-title" data-i18n="🎵 Editor de Letras"
+                style="font-size: 14px; margin: 0; color: #c2185b;">🎵 Editor de Letras
                 (Compás <span id="lyrics-measure-num" style="font-weight: bold; color: #e91e63;">-</span>)</h3>
             </div>
             <div>
-              <p style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Escribe una sílaba
+              <p data-i18n="Escribe una sílaba por nota. Usa espacios para separar."
+                style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Escribe una sílaba
                 por
                 nota. Usa espacios para separar.</p>
               <input type="text" id="lyrics-input-static" placeholder="Ej: La la la..."
+                data-i18n-placeholder="Ej: La la la..."
                 style="width: 100%; padding: 10px; border: 1px solid #e91e63; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 10px; box-sizing: border-box;">
               <div style="display: flex; justify-content: flex-end;">
                 <button id="lyrics-editor-accept" class="theme-btn"
@@ -1807,28 +1790,19 @@
 
       <!-- 4. BOTTOM TOOLS -->
       <div id="codigi"
-        style="display: block; width: 100%; margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+        style="display: block; width: 100%; box-sizing: border-box; margin-top: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
         <label style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 5px;">DBI
           (JSON):</label>
-        <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <div
+          style="display: flex; gap: 8px; align-items: flex-start; width: 100%; box-sizing: border-box; overflow: hidden;">
           <textarea id="bdi-display"
-            style="width: 100%; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+            style="flex: 1; min-width: 0; width: 0; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;"></textarea>
           <button id="update-bdi-btn"
-            style="padding: 8px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
+            style="flex-shrink: 0; width: 90px; padding: 8px 6px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
             Actualizar
           </button>
         </div>
-        <div id="vari" style="margin-top: 10px;">
-          <pre style="background: #333; color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto;">[]</pre>
-        </div>
-        <div id="jasi" style="margin-top: 10px; font-family: monospace; font-size: 10px; color: #aaa;">
-          {"index":0,"char":"M","type":"character","color":"hsl(0, 100%,
-          50%)","rgb":null,"padding":{"y":12.5,"x":25},"margin":0,"borderRadius":50,"border":{"width":0,"color":"#000000"},"textColor":"rgb(0,
-          255, 255)"}
-        </div>
-        <button id="export-img-6" class="export-button"
-          style="display: block; margin-top: 10px; background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Exportar
-          a PNG</button>
+
       </div>
 
     </div> <!-- END EXAMPLE CONTAINER -->
@@ -1894,6 +1868,655 @@
         }
       });
     }
+  </script>
+
+  <!-- ====================================================
+     WELCOME / PREFERENCES OVERLAY
+     ==================================================== -->
+  <div id="welcome-overlay">
+
+    <!-- Animated background particles -->
+    <canvas id="welcome-canvas"></canvas>
+
+    <!-- The card -->
+    <div id="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+
+      <!-- Logo & title & Language -->
+      <div id="welcome-logo"
+        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div id="welcome-note" style="font-size: 48px;">𝄞</div>
+          <div id="welcome-title-wrap">
+            <h1 id="welcome-title" style="font-size: 28px;">Musicoli</h1>
+            <p id="welcome-subtitle" data-i18n="Composición por compases" style="font-size: 11px;">Composición por
+              compases</p>
+          </div>
+        </div>
+
+        <!-- Language (Now in header) -->
+        <div class="pref-options" style="gap: 5px;">
+          <label class="pref-chip" style="padding: 4px 10px; font-size: 12px; border-radius: 12px;">
+            <input type="radio" name="pref-lang" value="es"> ES
+          </label>
+          <label class="pref-chip" style="padding: 4px 10px; font-size: 12px; border-radius: 12px;">
+            <input type="radio" name="pref-lang" value="en" checked> EN
+          </label>
+          <label class="pref-chip" style="padding: 4px 10px; font-size: 12px; border-radius: 12px;">
+            <input type="radio" name="pref-lang" value="de"> DE
+          </label>
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div id="welcome-prefs" style="gap: 12px; margin-bottom: 24px;">
+
+        <!-- Composition Title -->
+        <div class="pref-section" style="margin-bottom: 12px; padding: 10px 14px;">
+          <span class="pref-label" data-i18n="Título de la composición" style="font-size: 10px; margin-bottom: 6px;">📝
+            Título</span>
+          <input type="text" id="pref-title" placeholder="Mi Composición"
+            data-i18n-placeholder="Título de la composición"
+            style="width: 100%; padding: 8px; font-size: 14px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #fff; font-family: inherit; box-sizing: border-box;">
+        </div>
+
+        <!-- Smart Harmony & Nomenclature (Flexible Row) -->
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <!-- Nomenclature -->
+          <div class="pref-section" style="flex: 1; min-width: 140px; padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Nomenclatura" style="font-size: 10px; margin-bottom: 6px;">🎵
+              Nomenclatura</span>
+            <div class="pref-options" style="gap: 6px;">
+              <label class="pref-chip" style="font-size: 12px; padding: 4px 10px;">
+                <input type="radio" name="pref-nomen" value="english" checked> C / D / E
+              </label>
+              <label class="pref-chip" style="font-size: 12px; padding: 4px 10px;">
+                <input type="radio" name="pref-nomen" value="latin"> Do / Re
+              </label>
+            </div>
+          </div>
+
+          <!-- Smart Harmony -->
+          <div class="pref-section" style="flex: 1; min-width: 140px; padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Armonía Diatónica" style="font-size: 10px; margin-bottom: 6px;">🎼
+              Armonía Diatónica</span>
+            <label class="pref-toggle">
+              <input type="checkbox" id="pref-smart-diatonic" checked>
+              <span class="pref-toggle-track" style="width: 36px; height: 20px;"><span class="pref-toggle-thumb"
+                  style="width: 14px; height: 14px; top: 2px; left: 2px;"></span></span>
+              <span class="pref-toggle-label" id="smart-diatonic-label" style="font-size: 12px;">On</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Musical Preferences (Grid for compactness) -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+          <!-- BPM -->
+          <div class="pref-section" style="padding: 10px 14px;">
+            <span class="pref-label" data-i18n="BPM" style="font-size: 10px; margin-bottom: 6px;">⏱️ BPM</span>
+            <input type="number" id="pref-bpm" min="40" max="300" step="1"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+          </div>
+          <!-- Time Signature -->
+          <div class="pref-section" style="padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Métrica" style="font-size: 10px; margin-bottom: 6px;">📏 Métrica</span>
+            <select id="pref-metrica"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              <option value="[2,4]">2 / 4</option>
+              <option value="[3,4]">3 / 4</option>
+              <option value="[4,4]" selected>4 / 4</option>
+            </select>
+          </div>
+          <!-- Key Root -->
+          <div class="pref-section" style="padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Key" style="font-size: 10px; margin-bottom: 6px;">🎹 Key</span>
+            <select id="pref-key"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              <option value="C">C</option>
+              <option value="C#">C#</option>
+              <option value="D">D</option>
+              <option value="D#">D#</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="F#">F#</option>
+              <option value="G">G</option>
+              <option value="G#">G#</option>
+              <option value="A">A</option>
+              <option value="A#">A#</option>
+              <option value="B">B</option>
+            </select>
+          </div>
+          <!-- Scale Mode -->
+          <div class="pref-section" style="padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Escala" style="font-size: 10px; margin-bottom: 6px;">🎼 Escala</span>
+            <select id="pref-scale"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              <option value="Major" data-i18n="Mayor">Major</option>
+              <option value="Minor" data-i18n="Menor">Minor</option>
+              <option value="Chromatic" data-i18n="Cromática">Chromatic</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action button -->
+      <button id="welcome-start-btn" data-i18n="EmpezarLabel">Empezar →</button>
+
+      <!-- Countdown bar -->
+      <div id="welcome-countdown-bar"></div>
+
+    </div>
+  </div>
+
+  <!-- Welcome Screen Styles -->
+  <style id="welcome-styles">
+    /* ---- Overlay ---- */
+    #welcome-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #1a1a2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      animation: wFadeIn 0.5s ease forwards;
+    }
+
+    @keyframes wFadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    #welcome-overlay.hiding {
+      animation: wFadeOut 0.45s ease forwards;
+      pointer-events: none;
+    }
+
+    @keyframes wFadeOut {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+      }
+    }
+
+    /* ---- Background canvas ---- */
+    #welcome-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* ---- Card ---- */
+    #welcome-card {
+      position: relative;
+      z-index: 2;
+      background: rgba(26, 28, 58, 0.97);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 24px 32px;
+      max-width: 480px;
+      width: calc(100vw - 40px);
+      max-height: calc(100vh - 40px);
+      overflow-y: hidden;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+      animation: wSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      color: #e8eaf6;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    @keyframes wSlideIn {
+      from {
+        transform: translateY(40px) scale(0.93);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* ---- Logo ---- */
+    #welcome-logo {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+
+    #welcome-note {
+      font-size: 64px;
+      line-height: 1;
+      animation: wPulse 2.5s ease-in-out infinite;
+      filter: drop-shadow(0 0 18px rgba(126, 87, 194, 0.7));
+    }
+
+    @keyframes wPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 12px rgba(126, 87, 194, 0.5));
+      }
+
+      50% {
+        transform: scale(1.08);
+        filter: drop-shadow(0 0 28px rgba(126, 87, 194, 0.9));
+      }
+    }
+
+    #welcome-title {
+      margin: 0 0 2px;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #9c80ff 0%, #c084fc 50%, #f0abfc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #welcome-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: #9fa8da;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---- Preferences ---- */
+    #welcome-prefs {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .pref-section {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+
+    .pref-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9fa8da;
+      margin-bottom: 10px;
+    }
+
+    .pref-options {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pref-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 14px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .pref-chip:has(input:checked) {
+      background: rgba(156, 128, 255, 0.2);
+      border-color: #9c80ff;
+      color: #c5b5ff;
+    }
+
+    .pref-chip input[type=radio] {
+      accent-color: #9c80ff;
+    }
+
+    /* ---- Toggle switch ---- */
+    .pref-toggle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .pref-toggle input[type=checkbox] {
+      display: none;
+    }
+
+    .pref-toggle-track {
+      width: 44px;
+      height: 24px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      position: relative;
+      transition: background 0.25s;
+      flex-shrink: 0;
+    }
+
+    .pref-toggle input:checked~.pref-toggle-track {
+      background: linear-gradient(135deg, #7e57c2, #9c80ff);
+      border-color: #9c80ff;
+    }
+
+    .pref-toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .pref-toggle input:checked~.pref-toggle-track .pref-toggle-thumb {
+      transform: translateX(20px);
+    }
+
+    .pref-toggle-label {
+      font-size: 14px;
+      color: #b0bec5;
+    }
+
+    /* ---- Start button ---- */
+    #welcome-start-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7e57c2 0%, #9c80ff 100%);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(126, 87, 194, 0.4);
+      font-family: inherit;
+      margin-bottom: 0;
+    }
+
+    #welcome-start-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(126, 87, 194, 0.6);
+    }
+
+    #welcome-start-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ---- Countdown bar (hidden, kept for future use) ---- */
+    #welcome-countdown-bar {
+      display: none;
+    }
+  </style>
+
+  <!-- Welcome Screen Script -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ---- Particle canvas preload animation ---- */
+      (function initParticles() {
+        const canvas = document.getElementById('welcome-canvas');
+        const overlay = document.getElementById('welcome-overlay');
+        if (!canvas || !overlay) return;
+
+        const ctx = canvas.getContext('2d');
+        let W, H, particles, animId;
+
+        function resize() {
+          W = canvas.width = overlay.offsetWidth;
+          H = canvas.height = overlay.offsetHeight;
+        }
+
+        function makeParticle() {
+          return {
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: Math.random() * 2.5 + 0.5,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: (Math.random() - 0.5) * 0.4,
+            a: Math.random(),
+            da: (Math.random() * 0.008 + 0.002) * (Math.random() < 0.5 ? 1 : -1)
+          };
+        }
+
+        function init() {
+          resize();
+          particles = Array.from({ length: 110 }, makeParticle);
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            p.a += p.da;
+            if (p.a <= 0 || p.a >= 1) p.da *= -1;
+            if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+            if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(156,128,255,${p.a * 0.5})`;
+            ctx.fill();
+          });
+          animId = requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', resize);
+        init();
+        draw();
+
+        // Expose stop function
+        window._welcomeStopParticles = function () {
+          cancelAnimationFrame(animId);
+        };
+      })();
+
+      /* ---- Helper: dismiss overlay ---- */
+      function dismiss() {
+        const overlay = document.getElementById('welcome-overlay');
+        if (!overlay || overlay.classList.contains('hiding')) return;
+        clearTimeout(window._welcomeTimer);
+        window._welcomeStopParticles && window._welcomeStopParticles();
+        overlay.classList.add('hiding');
+        setTimeout(() => { overlay.style.display = 'none'; }, 460);
+      }
+
+      /* ---- Helper: save prefs and apply ---- */
+      function saveAndApply() {
+        const prefs = window.appPrefs;
+        if (!prefs) return;
+
+        // Language
+        const langEl = document.querySelector('input[name="pref-lang"]:checked');
+        if (langEl) prefs.set('language', langEl.value);
+
+        // Nomenclature
+        const nomenEl = document.querySelector('input[name="pref-nomen"]:checked');
+        if (nomenEl) prefs.set('nomenclature', nomenEl.value);
+
+        // Smart diatonic
+        const sdEl = document.getElementById('pref-smart-diatonic');
+        if (sdEl) prefs.set('smartDiatonic', sdEl.checked);
+
+        // BPM
+        const bpmEl = document.getElementById('pref-bpm');
+        if (bpmEl) prefs.set('bpm', parseInt(bpmEl.value));
+
+        // Métrica
+        const metricaEl = document.getElementById('pref-metrica');
+        if (metricaEl) prefs.set('timeSignature', metricaEl.value);
+
+        // Key
+        const keyEl = document.getElementById('pref-key');
+        if (keyEl) prefs.set('keyRoot', keyEl.value);
+
+        // Scale
+        const scaleEl = document.getElementById('pref-scale');
+        if (scaleEl) prefs.set('scaleMode', scaleEl.value);
+
+        // Title sync
+        const titleEl = document.getElementById('pref-title');
+        if (titleEl && titleEl.value.trim() !== '') {
+          const newTitle = titleEl.value.trim();
+          // Update both possible main title inputs
+          ['title-input', 'lyrics-title-input'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.value = newTitle;
+              el.dispatchEvent(new Event('input'));
+              el.dispatchEvent(new Event('change'));
+            }
+          });
+          // Update visual display if it exists
+          const display = document.getElementById('title-display');
+          if (display) display.textContent = newTitle + '.mid';
+        }
+
+        prefs.set('welcomed', true);
+        prefs.save();
+        prefs.apply();
+      }
+
+      /* ---- Restore saved values to form controls ---- */
+      function restoreFormValues() {
+        const prefs = window.appPrefs;
+        if (!prefs) return;
+
+        // Language
+        const langVal = prefs.get('language');
+        const langEl = document.querySelector(`input[name="pref-lang"][value="${langVal}"]`);
+        if (langEl) langEl.checked = true;
+
+        // Nomenclature
+        const nomenVal = prefs.get('nomenclature');
+        const nomenEl = document.querySelector(`input[name="pref-nomen"][value="${nomenVal}"]`);
+        if (nomenEl) nomenEl.checked = true;
+
+        // Smart diatonic
+        const sdEl = document.getElementById('pref-smart-diatonic');
+        if (sdEl) sdEl.checked = prefs.get('smartDiatonic');
+
+        // BPM
+        const bpmVal = prefs.get('bpm');
+        const bpmEl = document.getElementById('pref-bpm');
+        if (bpmEl) bpmEl.value = bpmVal;
+
+        // Métrica
+        const metricaVal = prefs.get('timeSignature');
+        const metricaEl = document.getElementById('pref-metrica');
+        if (metricaEl) metricaEl.value = metricaVal;
+
+        // Key
+        const keyVal = prefs.get('keyRoot');
+        const keyEl = document.getElementById('pref-key');
+        if (keyEl) keyEl.value = keyVal;
+
+        // Scale
+        const scaleVal = prefs.get('scaleMode');
+        const scaleEl = document.getElementById('pref-scale');
+        if (scaleEl) scaleEl.value = scaleVal;
+
+        // Title (Default from main title-input)
+        const prefTitleEl = document.getElementById('pref-title');
+        const mainTitleEl = document.getElementById('title-input');
+        if (prefTitleEl && mainTitleEl) {
+          prefTitleEl.value = mainTitleEl.value;
+        }
+
+        // Update toggle label
+        updateToggleLabel();
+
+        // MANUALLY APPLY LANGUAGE FROM FORM (Crucial for first load visibility)
+        const initialLangEl = document.querySelector('input[name="pref-lang"]:checked');
+        if (initialLangEl && typeof setLanguage === 'function') {
+          setLanguage(initialLangEl.value);
+        }
+      }
+
+      function updateToggleLabel() {
+        const sdEl = document.getElementById('pref-smart-diatonic');
+        const labelEl = document.getElementById('smart-diatonic-label');
+        if (sdEl && labelEl && typeof t === 'function') {
+          labelEl.textContent = sdEl.checked ? t('Activada') : t('Desactivada');
+        }
+      }
+
+      /* ---- Main init ---- */
+      function init() {
+        const overlay = document.getElementById('welcome-overlay');
+        const startBtn = document.getElementById('welcome-start-btn');
+        const sdEl = document.getElementById('pref-smart-diatonic');
+
+        if (!overlay) return;
+
+        // Restore saved values to form each time
+        restoreFormValues();
+
+        // Initial apply to ensure UI is translated based on prefs
+        if (typeof applyTranslations === 'function') {
+          applyTranslations();
+        }
+
+        // --- Real-time listeners for the welcome screen controls ---
+
+        // Language chips
+        document.querySelectorAll('input[name="pref-lang"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (typeof setLanguage === 'function') setLanguage(radio.value);
+          });
+        });
+
+        // Nomenclature chips
+        document.querySelectorAll('input[name="pref-nomen"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            prefs.set('nomenclature', radio.value);
+            prefs.apply(); // This will update Key selectors via _applyNomenclature
+          });
+        });
+
+        // Toggle label update
+        if (sdEl) sdEl.addEventListener('change', updateToggleLabel);
+
+        // Only the Empezar button closes the overlay
+        if (startBtn) {
+          startBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveAndApply();
+            dismiss();
+          });
+        }
+      }
+
+      // Run after DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
   </script>
 
 </body>

@@ -33,7 +33,70 @@ const LANGUAGES = {
         "Volumen General": "Volumen General",
         "Mezcla por Pistas": "Mezcla por Pistas",
         "Configuración de Instrumentos": "Configuración de Instrumentos",
-        "Instrumento General": "Instrumento General"
+        "Instrumento General": "Instrumento General",
+        "Composición por compases": "Composición por compases",
+        "Nomenclatura": "Nomenclatura",
+        "Armonía Diatónica": "Armonía Diatónica",
+        "Métrica": "Métrica",
+        "Key": "Clave",
+        "Escala": "Escala",
+        "Título de la composición": "Título de la composición",
+        "Activada": "Activada",
+        "Desactivada": "Desactivada",
+        "Mayor": "Mayor",
+        "Menor": "Menor",
+        "Cromática": "Cromática",
+        "EmpezarLabel": "Empezar →",
+        "Cant:": "Cant:",
+        "Trasponer": "Trasponer",
+        "Duplicar": "Duplicar",
+        "Semitonos": "Semitonos",
+        "Estructura": "Estructura",
+        "Aleatorio": "Aleatorio",
+        "Cíclico": "Cíclico",
+        "Solo Selecc.": "Solo Selecc.",
+        "Todas Audibles": "Todas Audibles",
+        "ONDA TOTAL": "ONDA TOTAL",
+        "Onda Ritmo": "Onda Ritmo",
+        "POS": "POS",
+        "COMP": "COMP",
+        "Copiar": "Copiar",
+        "Pegar": "Pegar",
+        "Trasponer": "Trasponer",
+        "Ir a posición de cursor": "Ir a posición de cursor",
+        "Ir a compás": "Ir a compás",
+        "Modo: Dependiente (armonía diatónica)": "Modo: Dependiente (armonía diatónica)",
+        "Modo: Independiente (manual)": "Modo: Independiente (manual)",
+        "Borrar compás o compases seleccionados": "Borrar compás o compases seleccionados",
+        "🧩 Compositor de Estructuras": "🧩 Compositor de Estructuras",
+        "Define la estructura (letras A, B, C...)": "Define la estructura (letras A, B, C...)",
+        "Generar": "Generar",
+        "Frases Disponibles:": "Frases Disponibles:",
+        "🎵 Editor de Letras": "🎵 Editor de Letras",
+        "Escribe una sílaba por nota. Usa espacios para separar.": "Escribe una sílaba por nota. Usa espacios para separar.",
+        "Guardar Letra": "Guardar Letra",
+        "Ej: ABBC": "Ej: ABBC",
+        "Ej: La la la...": "Ej: La la la...",
+        "Clic para descargar, doble clic para editar": "Clic para descargar, doble clic para editar",
+        "Variaciones": "Variaciones",
+        "Actualizar": "Actualizar",
+        "Acc:": "Acc:",
+        "Modo:": "Modo:",
+        "Bio:": "Bio:",
+        "Cnt:": "Cnt:",
+        "Amp:": "Amp:",
+        "Freq:": "Freq:",
+        "Fma:": "Fma:",
+        "Mn:": "Mn:",
+        "Mx:": "Mx:",
+        "🌊 Onda": "🌊 Onda",
+        "✨ Dinámica (Volumen)": "✨ Dinámica (Volumen)",
+        "Generar": "Generar",
+        "Armonizar desde esta voz": "Armonizar desde esta voz",
+        "Ajustar a escala": "Ajustar a escala",
+        "🌊 Onda (Modulación)": "🌊 Onda (Modulación)",
+        "Modif": "Modif",
+        "Generar": "Generar"
     },
     en: {
         "Ritmo": "Rhythm",
@@ -69,11 +132,158 @@ const LANGUAGES = {
         "Volumen General": "Master Volume",
         "Mezcla por Pistas": "Track Mix",
         "Configuración de Instrumentos": "Instrument Configuration",
-        "Instrumento General": "General Instrument"
+        "Instrumento General": "General Instrument",
+        "Composición por compases": "Measure-based Composition",
+        "Nomenclatura": "Nomenclature",
+        "Armonía Diatónica": "Diatonic Harmony",
+        "Métrica": "Time Signature",
+        "Key": "Key",
+        "Escala": "Scale",
+        "Título de la composición": "Composition Title",
+        "Activada": "Enabled",
+        "Desactivada": "Disabled",
+        "Mayor": "Major",
+        "Menor": "Minor",
+        "Cromática": "Chromatic",
+        "EmpezarLabel": "Start →",
+        "Cant:": "Amt:",
+        "Trasponer": "Transpose",
+        "Duplicar": "Duplicate",
+        "Semitonos": "Semitones",
+        "Estructura": "Structure",
+        "Aleatorio": "Random",
+        "Cíclico": "Cyclic",
+        "Solo Selecc.": "Only Selected",
+        "Todas Audibles": "All Audible",
+        "ONDA TOTAL": "TOTAL WAVE",
+        "Onda Ritmo": "Rhythm Wave",
+        "POS": "POS",
+        "COMP": "MEAS",
+        "Copiar": "Copy",
+        "Pegar": "Paste",
+        "Trasponer": "Transpose",
+        "Ir a posición de cursor": "Go to cursor position",
+        "Ir a compás": "Go to measure",
+        "Modo: Dependiente (armonía diatónica)": "Mode: Dependent (diatonic harmony)",
+        "Modo: Independiente (manual)": "Mode: Independent (manual)",
+        "Borrar compás o compases seleccionados": "Delete selected measure(s)",
+        "🧩 Compositor de Estructuras": "🧩 Structure Compositor",
+        "Define la estructura (letras A, B, C...)": "Define the structure (letters A, B, C...)",
+        "Generar": "Generate",
+        "Frases Disponibles:": "Available Phrases:",
+        "🎵 Editor de Letras": "🎵 Lyrics Editor",
+        "Escribe una sílaba por nota. Usa espacios para separar.": "Write one syllable per note. Use spaces to separate.",
+        "Guardar Letra": "Save Lyrics",
+        "Ej: ABBC": "Ex: ABBC",
+        "Ej: La la la...": "Ex: La la la...",
+        "Clic para descargar, doble clic para editar": "Click to download, double click to edit",
+        "Variaciones": "Variations",
+        "Actualizar": "Update",
+        "Acc:": "Act:",
+        "Modo:": "Mode:",
+        "Bio:": "Block:",
+        "Cnt:": "Cnt:",
+        "Amp:": "Amp:",
+        "Freq:": "Freq:",
+        "Fma:": "Shape:",
+        "Mn:": "Mn:",
+        "Mx:": "Mx:",
+        "🌊 Onda": "🌊 Wave",
+        "✨ Dinámica (Volumen)": "✨ Dynamics (Volume)",
+        "Generar": "Generate",
+        "Armonizar desde esta voz": "Harmonize from this voice",
+        "Ajustar a escala": "Adjust to scale",
+        "🌊 Onda (Modulación)": "🌊 Wave (Modulation)",
+        "Modif": "Modify",
+        "Generar": "Generate"
+    },
+    de: {
+        "Ritmo": "Rhythmus",
+        "Melodía": "Melodie",
+        "Dinámica": "Dynamik",
+        "Instrumentación": "Instrumente",
+        "Composición": "Komposition",
+        "Lyrics": "Liedtext",
+        "BPM": "BPM",
+        "Compás": "Takt",
+        "Frase": "Phrase",
+        "Empezar": "Starten",
+        "Tonalidad": "Tonalität",
+        "Borrar compás": "Takt löschen",
+        "Deshacer": "Rückgängig",
+        "Rehacer": "Wiederholen",
+        "Soprano": "Sopran",
+        "Contralto": "Alt",
+        "Tenor": "Tenor",
+        "Bajo": "Bass",
+        "Loop OFF": "Schleife AUS",
+        "Loop ON": "Schleife AN",
+        "Resumen": "Zusammenfassung",
+        "Editor de Paleta de Tonalidades": "Tonart-Palette-Editor",
+        "ZONA DE ARMONIZACIÓN": "HARMONISIERUNGSBEREICH",
+        "Armonizar desde esta voz": "Ab dieser Stimme harmonisieren",
+        "Ajustar a escala": "An Tonleiter anpassen",
+        "Onda (Modulación)": "Welle (Modulation)",
+        "Aplicar": "Anwenden",
+        "Editor de Lyrics": "Liedtext-Editor",
+        "Configuración de lyrics próximamente...": "Liedtext-Konfiguration demnächst...",
+        "Mezclador de Volúmenes": "Lautstärke-Mixer",
+        "Volumen General": "Gesamtlautstärke",
+        "Mezcla por Pistas": "Spurenmischung",
+        "Configuración de Instrumentos": "Instrumentenkonfiguration",
+        "Instrumento General": "Allgemeines Instrument",
+        "Composición por compases": "Taktbasierte Komposition",
+        "Nomenclatura": "Nomenklatur",
+        "Armonía Diatónica": "Diatonische Harmonie",
+        "Métrica": "Taktart",
+        "Key": "Tonart",
+        "Escala": "Skala",
+        "Título de la composición": "Kompositionstitel",
+        "Activada": "Aktiviert",
+        "Desactivada": "Deaktiviert",
+        "Mayor": "Dur",
+        "Menor": "Moll",
+        "Cromática": "Chromatisch",
+        "EmpezarLabel": "Starten →",
+        "Copiar": "Kopieren",
+        "Pegar": "Einfügen",
+        "POS": "POS",
+        "COMP": "TAKT",
+        "Trasponer": "Transponieren",
+        "Ir a posición de cursor": "Zur Cursorposition springen",
+        "Ir a compás": "Zum Takt springen",
+        "Modo: Dependiente (armonía diatónica)": "Modus: Abhängig (diatonische Harmonie)",
+        "Modo: Independiente (manual)": "Modus: Unabhängig (manuell)",
+        "Borrar compás o compases seleccionados": "Ausgewählte(n) Takt(e) löschen",
+        "🧩 Compositor de Estructuras": "🧩 Struktur-Komponist",
+        "Define la estructura (letras A, B, C...)": "Struktur definieren (Buchstaben A, B, C...)",
+        "Generar": "Generieren",
+        "Frases Disponibles:": "Verfügbare Phrasen:",
+        "🎵 Editor de Letras": "🎵 Text-Editor",
+        "Escribe una sílaba por nota. Usa espacios para separar.": "Eine Silbe pro Note schreiben. Mit Leerzeichen trennen.",
+        "Guardar Letra": "Text speichern",
+        "Ej: ABBC": "Z.B.: ABBC",
+        "Ej: La la la...": "Z.B.: La la la...",
+        "Clic para descargar, doble clic para editar": "Klicken zum Herunterladen, Doppelklicken zum Bearbeiten",
+        "Variaciones": "Variationen",
+        "Actualizar": "Aktualisieren",
+        "Acc:": "Aktion:",
+        "Modo:": "Modus:",
+        "Bio:": "Block:",
+        "Cnt:": "Anz:",
+        "Amp:": "Amp:",
+        "Freq:": "Freq:",
+        "Fma:": "Form:",
+        "Mn:": "Mn:",
+        "Mx:": "Mx:",
+        "🌊 Onda": "🌊 Welle",
+        "✨ Dinámica (Volumen)": "✨ Dynamik (Lautstärke)",
+        "Generar": "Generieren",
+        "Modif": "Modif"
     }
 };
 
-let currentLanguage = 'es';
+let currentLanguage = 'en';
 
 function setLanguage(lang) {
     if (LANGUAGES[lang]) {
@@ -96,18 +306,29 @@ function applyTranslations() {
         }
     });
 
+    // Translate elements with data-i18n-placeholder attribute
+    const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
+    placeholderElements.forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (key) {
+            el.placeholder = t(key);
+        }
+    });
+
+    // Translate elements with data-i18n-title attribute
+    const titleElements = document.querySelectorAll('[data-i18n-title]');
+    titleElements.forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (key) {
+            el.title = t(key);
+        }
+    });
+
     // Translate specific buttons by ID (legacy support / if data-i18n not added yet)
     // We will add logic here or prefer using data-i18n in HTML
 
-    // Example: Update Rhythm button text if it matches a key
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        const text = btn.textContent.trim();
-        // This is a bit risky if text changes, better to use data-i18n
-        // But for initial migration:
-        if (LANGUAGES[currentLanguage][text]) {
-            btn.textContent = t(text);
-        }
-    });
+    // Translate specific buttons by ID (legacy support / if data-i18n not added yet)
+    // We will add logic here or prefer using data-i18n in HTML
 
     console.log(`Language set to ${currentLanguage}`);
 }
