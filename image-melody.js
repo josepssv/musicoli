@@ -107,10 +107,11 @@
             panel.style.flexDirection = 'column';
             panel.style.gap = '5px';
             panel.style.padding = '8px';
-            panel.style.background = '#fefefe';
+            panel.style.background = '#333333';
             panel.style.borderRadius = '6px';
-            panel.style.boxShadow = '0 1px 4px rgba(0,0,0,0.1)';
+            panel.style.boxShadow = '0 1px 4px rgba(0,0,0,0.5)';
             panel.style.height = '100%';
+            panel.style.border = '1px solid #555555';
             panel.style.overflowY = 'auto';
             container.prepend(panel);
         } else {
@@ -120,52 +121,55 @@
 
         // Compact UI Layout
         panel.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #555555; padding-bottom: 4px; margin-bottom: 5px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <h4 style="margin: 0; font-family: monospace; color: #333; font-size: 13px;">🖼️ Img2Melody</h4>
+                    <h4 data-i18n="Img2MelodyTitle" style="margin: 0; font-family: monospace; color: #eeeeee; font-size: 13px;">️ Img2Melody</h4>
                     <button id="img-melody-info-btn"
-                        style="background: #FF9800; color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
-                        title="Información sobre el algoritmo">ℹ</button>
+                        style="background: #555555; color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
+                        data-i18n-title="ImgMelodyInfoTitle" title="Información sobre el algoritmo">ℹ</button>
                 </div>
-                <button id="img-melody-open-btn" 
-                    style="background: #2196F3; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 10px;">
-                    📂 Abrir
+                <button id="img-melody-open-btn" data-i18n="ImgMelodyOpen"
+                    style="background: #444444; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 10px; border: 1px solid #555555;">
+                     Abrir
                 </button>
                 <input type="file" id="img-melody-upload" accept="image/*" style="display: none;">
             </div>
 
             <!-- Preview Area -->
-            <div style="display: flex; gap: 8px; align-items: center; justify-content: center; background: #eee; padding: 2px; border-radius: 4px;">
-                <canvas id="img-melody-canvas" style="image-rendering: pixelated; max-width: 100%; height: auto; border: 1px solid #ccc;"></canvas>
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: center; background: #222222; padding: 2px; border-radius: 4px;">
+                <canvas id="img-melody-canvas" style="image-rendering: pixelated; max-width: 100%; height: auto; border: 1px solid #555555;"></canvas>
             </div>
             
             <div style="margin-top: 5px; display: flex; flex-direction: column; gap: 4px;">
                 <!-- Slider Control -->
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size:10px; font-family:monospace;">Duración:</span>
-                    <span id="img-width-val" style="font-size:10px; font-family:monospace; font-weight:bold;">16 compases</span>
+                    <span data-i18n="ImgMelodyDuration" style="font-size:10px; font-family:monospace; color: #cccccc;">Duración:</span>
+                    <span id="img-width-val" style="font-size:10px; font-family:monospace; font-weight:bold; color: #eeeeee;">16 compases</span>
                 </div>
                 <input type="range" id="img-width-slider" min="1" max="125" value="16" step="1" style="width: 100%;">
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                    <span style="font-size:10px; font-family:monospace;">Ritmo:</span>
-                    <select id="img-melody-rhythm" style="font-family: monospace; font-size: 10px; padding: 1px;">
-                        <option value="sensible">Sensible (Dinámico + Silencios Trilipi)</option>
-                        <option value="relativa">Relativa (Sensible + Tono Relativo)</option>
-                        <option value="literal">Literal (Color a Compás RGB)</option>
-                        <option value="uniforme">Uniforme (Percusión B/C)</option>
-                        <option value="dinamico">Basado en Brillo (Trilipi)</option>
-                        <option value="silencio_relleno">Completo (Dinámico + Silencios/Rel.)</option>
-                        <option value="arpegio" selected>Arpegio (Escalera de Extremos)</option>
+                    <span data-i18n="ImgMelodyRhythm" style="font-size:10px; font-family:monospace; color: #cccccc;">Ritmo:</span>
+                    <select id="img-melody-rhythm" style="font-family: monospace; font-size: 10px; padding: 1px; background: #444444; color: #eeeeee; border: 1px solid #555555;">
+                        <option value="sensible" data-i18n="Sensible (Dinámico + Silencios Trilipi)">Sensible (Dinámico + Silencios Trilipi)</option>
+                        <option value="relativa" data-i18n="Relativa (Sensible + Tono Relativo)">Relativa (Sensible + Tono Relativo)</option>
+                        <option value="literal" data-i18n="Literal (Color a Compás RGB)">Literal (Color a Compás RGB)</option>
+                        <option value="uniforme" data-i18n="Uniforme (Percusión B/C)">Uniforme (Percusión B/C)</option>
+                        <option value="dinamico" data-i18n="Basado en Brillo (Trilipi)">Basado en Brillo (Trilipi)</option>
+                        <option value="silencio_relleno" data-i18n="Completo (Dinámico + Silencios/Rel.)">Completo (Dinámico + Silencios/Rel.)</option>
+                        <option value="arpegio" selected data-i18n="Arpegio (Escalera de Extremos)">Arpegio (Escalera de Extremos)</option>
                     </select>
                 </div>
 
-                <div id="img-sensible-controls" style="display: block; margin-top: 4px; padding: 5px; background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px;">
+                <div id="img-sensible-controls" style="display: block; margin-top: 4px; padding: 5px; background: #2a2a2a; border: 1px solid #555555; border-radius: 4px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                        <div style="font-size: 10px; font-weight: bold; font-family: monospace; color: #333;">🎛️ Ajustes Sensibles y Estructura</div>
+                        <div data-i18n="ImgMelodySettings" style="font-size: 10px; font-weight: bold; font-family: monospace; color: #eeeeee;">️ Ajustes Sensibles y Estructura</div>
                     </div>
                     
-                    <div style="font-size: 9px; font-family: monospace; color: #333; margin-top:2px;">Estructura (Intro - Medio - Fin): <span id="img-struct-vals" style="font-weight:bold;">25% - 50% - 25%</span></div>
+                    <div style="font-size: 9px; font-family: monospace; color: #cccccc; margin-top:2px;">
+                        <span data-i18n="ImgMelodyStructure">Estructura (Intro - Medio - Fin):</span> 
+                        <span id="img-struct-vals" style="font-weight:bold;">25% - 50% - 25%</span>
+                    </div>
                     <div class="dual-range-container">
                         <div class="dual-range-track"></div>
                         <div class="dual-range-fill" id="img-struct-fill" style="left: 25%; width: 50%;"></div>
@@ -175,56 +179,56 @@
 
                     <style>
                     .dual-range-container { position: relative; width: 100%; height: 20px; margin-bottom: 4px; }
-                    .dual-range-track { position: absolute; top: 10px; width: 100%; height: 4px; background: #ddd; border-radius: 2px; }
-                    .dual-range-fill { position: absolute; top: 10px; height: 4px; background: #FF9800; border-radius: 2px; }
+                    .dual-range-track { position: absolute; top: 10px; width: 100%; height: 4px; background: #444444; border-radius: 2px; }
+                    .dual-range-fill { position: absolute; top: 10px; height: 4px; background: #555555; border-radius: 2px; }
                     .dual-range-input { position: absolute; top: 0; width: 100%; -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; margin: 0; height: 20px;}
-                    .dual-range-input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 12px; height: 12px; background: #fff; border: 2px solid #FF9800; border-radius: 50%; cursor: pointer;}
-                    .dual-range-input::-moz-range-thumb { pointer-events: auto; width: 12px; height: 12px; background: #fff; border: 2px solid #FF9800; border-radius: 50%; cursor: pointer; }
+                    .dual-range-input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 12px; height: 12px; background: #fff; border: 2px solid #555555; border-radius: 50%; cursor: pointer;}
+                    .dual-range-input::-moz-range-thumb { pointer-events: auto; width: 12px; height: 12px; background: #fff; border: 2px solid #555555; border-radius: 50%; cursor: pointer; }
                     </style>
-                    <div id="img-sensible-desc" style="font-size: 9px; font-family: monospace; color: #666; margin-bottom: 4px; line-height: 1.1;">
+                    <div id="img-sensible-desc" data-i18n="ImgMelodyDescSensible" style="font-size: 9px; font-family: monospace; color: #999999; margin-bottom: 4px; line-height: 1.1;">
                         Define umbral de oscuridad (silencio) y base de volumen.
                     </div>
                     
                     <div style="display:flex; align-items:center; gap: 8px;">
                         <!-- Silence Control -->
                         <div style="display:flex; align-items:center; flex: 1; gap: 2px;">
-                            <span id="img-sil-label" style="font-size:9px; font-family:monospace;">Sil:</span>
+                            <span id="img-sil-label" data-i18n="ImgMelodySil" style="font-size:9px; font-family:monospace; color: #cccccc;">Sil:</span>
                             <input type="range" id="img-silence-threshold" min="0" max="100" value="20" step="5" style="flex: 1; min-width: 0;">
-                            <span id="img-silence-val" style="font-size:9px; font-family:monospace; width: 18px; text-align: right;">20</span>
+                            <span id="img-silence-val" style="font-size:9px; font-family:monospace; width: 18px; text-align: right; color: #eeeeee;">20</span>
                         </div>
 
                         <!-- Volume Control -->
                         <div style="display:flex; align-items:center; flex: 1; gap: 2px;">
-                            <span style="font-size:9px; font-family:monospace;">Vol:</span>
+                            <span data-i18n="ImgMelodyVol" style="font-size:9px; font-family:monospace; color: #cccccc;">Vol:</span>
                             <input type="range" id="img-min-volume" min="0" max="100" value="40" step="10" style="flex: 1; min-width: 0;">
-                            <span id="img-vol-val" style="font-size:9px; font-family:monospace; width: 18px; text-align: right;">40</span>
+                            <span id="img-vol-val" style="font-size:9px; font-family:monospace; width: 18px; text-align: right; color: #eeeeee;">40</span>
                         </div>
                     </div>
                 </div>
                 
-                <div id="img-stats" style="font-family: monospace; font-size: 9px; color: #666; text-align: right; margin-top:2px;"></div>
+                <div id="img-stats" style="font-family: monospace; font-size: 9px; color: #999999; text-align: right; margin-top:2px;"></div>
 
                 <div style="display: flex; gap: 4px; margin-top: 4px;"> 
-                    <button id="img-melody-process-btn" disabled 
-                        style="flex: 1; background: #FF9800; color: white; border: none; padding: 6px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 11px; opacity: 0.5;">
-                        🚀 Generar
+                    <button id="img-melody-process-btn" disabled data-i18n="ImgMelodyGenerate"
+                        style="flex: 1; background: #555555; color: white; border: none; padding: 6px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 11px; opacity: 0.5; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                         Generar
                     </button>
                 </div>
             </div>
              
              <!-- Algorithm Explanation -->
-             <div id="img-melody-info-tooltip" style="display: none; margin-top: 8px; padding: 8px; background: #fff; border: 1px solid #FF9800; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                <h5 style="margin: 0 0 6px 0; font-size: 10px; font-family: monospace; color: #E65100; text-transform: uppercase; border-bottom: 1px solid #FF9800; padding-bottom: 2px;">🎯 Lógica Polifónica:</h5>
-                <ul style="margin: 0; padding-left: 12px; font-size: 10px; font-family: monospace; color: #444; line-height: 1.4;">
-                    <li>📏 <span style="font-weight:bold">Eje X</span> = Tiempo</li>
-                    <li>↕️ <span style="font-weight:bold">Eje Y</span> = Voces (SATB)</li>
-                    <li>🎵 <span style="font-weight:bold">Brillo</span> = Altura</li>
-                    <li>⚫ <span style="font-weight:bold">Negro</span> = Silencio (si activo)</li>
-                    <li>⚪ <span style="font-weight:bold">Blanco</span> = Nota Larga (si activo)</li>
+             <div id="img-melody-info-tooltip" style="display: none; margin-top: 8px; padding: 8px; background: #2a2a2a; border: 1px solid #555555; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+                <h5 data-i18n="ImgMelodyLogicTitle" style="margin: 0 0 6px 0; font-size: 10px; font-family: monospace; color: #eeeeee; text-transform: uppercase; border-bottom: 1px solid #555555; padding-bottom: 2px;"> Lógica Polifónica:</h5>
+                <ul style="margin: 0; padding-left: 12px; font-size: 10px; font-family: monospace; color: #cccccc; line-height: 1.4;">
+                    <li> <span style="font-weight:bold" data-i18n="Eje X">Eje X</span> = <span data-i18n="Tiempo">Tiempo</span></li>
+                    <li>↕️ <span style="font-weight:bold" data-i18n="Eje Y">Eje Y</span> = <span data-i18n="Voces (SATB)">Voces (SATB)</span></li>
+                    <li> <span style="font-weight:bold" data-i18n="Brillo">Brillo</span> = <span data-i18n="Altura">Altura</span></li>
+                    <li> <span style="font-weight:bold" data-i18n="Negro">Negro</span> = <span data-i18n="Silencio (si activo)">Silencio (si activo)</span></li>
+                    <li> <span style="font-weight:bold" data-i18n="Blanco">Blanco</span> = <span data-i18n="Nota Larga (si activo)">Nota Larga (si activo)</span></li>
                 </ul>
              </div>
 
-             <div id="img-feedback" style="font-family: monospace; font-size: 10px; color: #4CAF50; margin-top: 5px; min-height: 12px; text-align: center;"></div>
+             <div id="img-feedback" style="font-family: monospace; font-size: 10px; color: #81c784; margin-top: 5px; min-height: 12px; text-align: center;"></div>
         `;
 
         // Attach Listeners
@@ -286,9 +290,10 @@
             if (slider) {
                 const measures = parseInt(slider.value);
                 const { durStr } = calcDuration(measures);
-                document.getElementById('img-width-val').textContent = `${measures} compases · ${durStr}`;
+                const lblCompases = (typeof t === 'function') ? t('compases') : 'compases';
+                document.getElementById('img-width-val').textContent = `${measures} ${lblCompases} · ${durStr}`;
                 const stats = document.getElementById('img-stats');
-                if (stats) stats.textContent = `${durStr} · ${measures} compases`;
+                if (stats) stats.textContent = `${durStr} · ${measures} ${lblCompases}`;
             }
         };
         if (globalBpm) globalBpm.addEventListener('input', refreshDuration);
@@ -299,7 +304,8 @@
                 const measures = parseInt(e.target.value);
                 const widthPx = measures * 8;
                 const { durStr } = calcDuration(measures);
-                document.getElementById('img-width-val').textContent = `${measures} compases · ${durStr}`;
+                const lblCompases = (typeof t === 'function') ? t('compases') : 'compases';
+                document.getElementById('img-width-val').textContent = `${measures} ${lblCompases} · ${durStr}`;
                 if (originalImage) {
                     processImageDimensions(originalImage, widthPx);
                 }
@@ -331,19 +337,22 @@
             const silSlider = document.getElementById('img-silence-threshold');
             const silVal = document.getElementById('img-silence-val');
             const desc = document.getElementById('img-sensible-desc');
+
+            const tf = (key, fallback) => (typeof t === 'function' ? t(key) : fallback);
+
             if (mode === 'arpegio') {
-                if (silLabel) silLabel.textContent = 'Int:';
-                if (desc) desc.textContent = 'Intervalo S→A / T→B (pasos de escala) y volumen base.';
+                if (silLabel) silLabel.textContent = tf('Int:', 'Int:');
+                if (desc) desc.textContent = tf('ImgMelodyDescArpegio', 'Intervalo S→A / T→B (pasos de escala) y volumen base.');
                 if (silSlider) { silSlider.min = 1; silSlider.max = 8; silSlider.step = 1; silSlider.value = 3; }
                 if (silVal) silVal.textContent = '3';
             } else if (mode === 'literal') {
-                if (silLabel) silLabel.textContent = 'Det:';
-                if (desc) desc.textContent = 'Controla la sensibilidad de detalle para agrupar colores (- detalle = acordes, + detalle = arpegios rápidos).';
+                if (silLabel) silLabel.textContent = tf('Det:', 'Det:');
+                if (desc) desc.textContent = tf('ImgMelodyDescLiteral', 'Controla la sensibilidad de detalle para agrupar colores (- detalle = acordes, + detalle = arpegios rápidos).');
                 if (silSlider) { silSlider.min = 0; silSlider.max = 100; silSlider.step = 5; silSlider.value = 20; }
                 if (silVal) silVal.textContent = '20';
             } else {
-                if (silLabel) silLabel.textContent = 'Sil:';
-                if (desc) desc.textContent = 'Define umbral de oscuridad (silencio) y base de volumen.';
+                if (silLabel) silLabel.textContent = tf('ImgMelodySil', 'Sil:');
+                if (desc) desc.textContent = tf('ImgMelodyDescSensible', 'Define umbral de oscuridad (silencio) y base de volumen.');
                 if (silSlider) { silSlider.min = 0; silSlider.max = 100; silSlider.step = 5; silSlider.value = 20; }
                 if (silVal) silVal.textContent = '20';
             }
@@ -377,6 +386,10 @@
             processImageDimensions(defaultImg, widthPx);
         };
         defaultImg.src = defaultImgBase64;
+
+        if (typeof applyTranslations === 'function') {
+            applyTranslations();
+        }
     }
 
     function handleImageUpload(e) {
@@ -418,11 +431,12 @@
         const stats = document.getElementById('img-stats');
         const totalMeasures = Math.ceil(w / 8);
         const { durStr } = calcDuration(totalMeasures);
+        const lblCompases = (typeof t === 'function') ? t('compases') : 'compases';
 
         const label = document.getElementById('img-width-val');
-        if (label) label.textContent = `${totalMeasures} compases · ${durStr}`;
+        if (label) label.textContent = `${totalMeasures} ${lblCompases} · ${durStr}`;
 
-        if (stats) stats.textContent = `${durStr} · ${totalMeasures} compases`;
+        if (stats) stats.textContent = `${durStr} · ${totalMeasures} ${lblCompases}`;
 
         const btn = document.getElementById('img-melody-process-btn');
         if (btn) {
@@ -1037,8 +1051,31 @@
                             const ppmRound = Math.round(PIXELS_PER_MEASURE);
                             dirLadder = globalSummary[vKey].notes.slice(m * ppmRound, (m + 1) * ppmRound);
                         } else {
-                            // Comportamiento normal (local al compás)
-                            dirLadder = (m === 0 || m % 2 === 0) ? ladder : [...ladder].reverse();
+                            // Comportamiento normal (local al compás) con ciclos de variedad
+                            const cycle = m % 4;
+                            if (ladder.length <= 2) {
+                                dirLadder = (cycle % 2 === 0) ? ladder : [...ladder].reverse();
+                            } else if (cycle === 0) {
+                                dirLadder = ladder; // 1. Subida directa
+                            } else if (cycle === 1) {
+                                dirLadder = [...ladder].reverse(); // 2. Bajada directa
+                            } else if (cycle === 2) {
+                                // 3. Saltos de tercera (ej. 1, 3, 5, 2, 4)
+                                dirLadder = [];
+                                for (let k = 0; k < ladder.length; k += 2) dirLadder.push(ladder[k]);
+                                for (let k = 1; k < ladder.length; k += 2) dirLadder.push(ladder[k]);
+                            } else if (cycle === 3) {
+                                // 4. Arpegio quebrado cruzado (ej. 1, 3, 2, 4...)
+                                dirLadder = [];
+                                for (let k = 0; k < ladder.length - 1; k++) {
+                                    dirLadder.push(ladder[k]);
+                                    if (k + 2 < ladder.length) {
+                                        dirLadder.push(ladder[k + 2]);
+                                    } else {
+                                        dirLadder.push(ladder[k + 1]);
+                                    }
+                                }
+                            }
 
                             if (useResolution && m >= totalMeasures - numCodaMeasures) {
                                 // --- CASO ESPECIAL: Final Proporcional (Coda) ---
@@ -1129,20 +1166,34 @@
                             return stepInScale(src.nimidi[midIdx], -intervalSteps, scaleIntervals, globalKeyIndex, range.min, range.max);
                         };
 
-                        // Helper para obtener un patrón exacto según el número deseado de notas
-                        const getExactTrilipi = (targetNotes) => {
-                            const timeSig = getGlobalTimeSignature();
-                            const tr = window.trilipi && window.trilipi[timeSig[0]] ? window.trilipi[timeSig[0]] : null;
-                            if (!tr) return null;
-                            const patterns = tr[targetNotes];
-                            if (patterns && patterns.length > 0) return patterns[0];
-                            return null;
+                        // Helper para rellenar exactamente un compás
+                        // pTotal = píxeles totales del compás (ej: 8 en 4/4, 6 en 3/4)
+                        const pTotal = Math.round(PIXELS_PER_MEASURE);
+                        const makeExactPattern = (type) => {
+                            const pat = [];
+                            let rem = pTotal;
+                            if (type === 'muylento') {
+                                // Redondas (8 corcheas), luego blancas (4)
+                                while (rem >= 8) { pat.push(1); rem -= 8; }
+                                while (rem >= 4) { pat.push(2); rem -= 4; }
+                                while (rem >= 2) { pat.push(3); rem -= 2; }
+                                while (rem > 0) { pat.push(4); rem--; }
+                            } else if (type === 'lento') {
+                                // Blancas (4 corcheas), luego negras (2)
+                                while (rem >= 4) { pat.push(2); rem -= 4; }
+                                while (rem >= 2) { pat.push(3); rem -= 2; }
+                                while (rem > 0) { pat.push(4); rem--; }
+                            } else {
+                                // Medio: Negras (2 corcheas)
+                                while (rem >= 2) { pat.push(3); rem -= 2; }
+                                while (rem > 0) { pat.push(4); rem--; }
+                            }
+                            return pat;
                         };
 
                         if (contrast < 28 && brightness > 165) {
-                            // === MUY LENTO (1 o 2 notas dependiendo del compás) ===
-                            const pattern = getExactTrilipi(1) || getExactTrilipi(2) || [(timeSig?.[0] === 3 ? [3, 3, 3] : [2, 2])];
-                            const p = Array.isArray(pattern) ? pattern : pattern[0] || [timeSig?.[0] === 3 ? 3 : 2];
+                            // === MUY LENTO ===
+                            const p = makeExactPattern('muylento');
 
                             p.forEach((t, idx) => {
                                 const segLen = src.nimidi.length / p.length;
@@ -1152,11 +1203,8 @@
                             });
 
                         } else if (contrast < 70) {
-                            // === LENTO (2 o 3 notas) ===
-                            const timeSig = getGlobalTimeSignature();
-                            const targetNotes = timeSig[0] === 3 ? 3 : 2; // Para 3/4 buscamos 3 negras o similar
-                            const pattern = getExactTrilipi(targetNotes) || getExactTrilipi(2) || [3, 3, 3];
-                            const p = Array.isArray(pattern) ? (Array.isArray(pattern[0]) ? pattern[0] : pattern) : [3, 3];
+                            // === LENTO ===
+                            const p = makeExactPattern('lento');
 
                             p.forEach((t, idx) => {
                                 const segLen = src.nimidi.length / p.length;
@@ -1166,12 +1214,8 @@
                             });
 
                         } else if (contrast < 140) {
-                            // === MEDIO (4 notas o lo más cercano) ===
-                            const timeSig = getGlobalTimeSignature();
-                            // En 3/4 no caben 4 negras. Así que buscamos el pattern para 4 notas (ej: 4 corcheas y 1 negra), o si no, el max
-                            let target = Math.min(4, Math.floor(PIXELS_PER_MEASURE));
-                            const pattern = getExactTrilipi(target) || getExactTrilipi(3) || [3, 3, 3, 3];
-                            const p = Array.isArray(pattern) ? (Array.isArray(pattern[0]) ? pattern[0] : pattern) : [3, 3, 3, 3];
+                            // === MEDIO ===
+                            const p = makeExactPattern('medio');
 
                             p.forEach((t, idx) => {
                                 const segLen = src.nimidi.length / p.length;
@@ -1695,7 +1739,7 @@
         if (typeof window.updateDetailedJSON === 'function') window.updateDetailedJSON();
 
         const feedback = document.getElementById('img-feedback');
-        if (feedback) feedback.textContent = `✅ Generado: ${finalMeasures.length} compases (Modo: ${rhythmMode})`;
+        if (feedback) feedback.textContent = ` Generado: ${finalMeasures.length} compases (Modo: ${rhythmMode})`;
     }
 
     window.initImageToMelody = initImageToMelody;

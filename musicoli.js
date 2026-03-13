@@ -2,7 +2,7 @@ var alfabeto = "a".split("");
 var keyin = "C C# D D# E F F# G G# A A# B".split(" ");
 var tonicain = "Do Do# Re Re# Mi Fa Fa# Sol Sol# La La# Si Si#".split(" ");
 var keyinselecti = 0;
-var escalas = ['mayor', 'menor', 'cromatica'];
+var escalas = ['mayor', 'menor', 'dorico', 'frigio', 'lidio', 'mixolidio', 'locrio', 'cromatica'];
 var scali = 0;//menor, cromatica
 
 var newInsti;
@@ -142,6 +142,15 @@ let paterni = 1
 window.selectedMeasureIndex = -1; // Global measure selection index
 let currentEditMode = 'composicion'; // 'ritmo', 'tonalidad', or 'lyrics'
 let voiceEditMode = 'dependent'; // 'dependent' | 'independent' - Mode for voice editing
+
+// Global Vocal Ranges (Tessituras)
+window.globalTessituras = {
+    's': { min: 60, max: 81 },
+    'a': { min: 55, max: 76 },
+    't': { min: 48, max: 69 },
+    'b': { min: 40, max: 64 }
+};
+
 // Check if trilipi is ready, otherwise default to a safe value
 let currentPattern = (typeof trilipi !== 'undefined' && trilipi[currentGroup]) ? trilipi[currentGroup][paterni] : [4, 4, 4, 4]; // Fallback if not ready
 let lastSelectedGrayMidi = null; // Store last selected gray tone MIDI for saturated buttons synchronization
@@ -152,7 +161,7 @@ window.isGlobalPercussionEnabled = false; // MUSICOLI: Global percussion overrid
 if (window.appPrefs && typeof window.appPrefs.apply === 'function') {
     window.appPrefs.apply();
 } else if (typeof setLanguage === 'function') {
-    setLanguage('es');
+    setLanguage('en');
 }
 
 // MIDI Editor Mode: 'measure' (default) or 'note'
@@ -163,9 +172,14 @@ let bdiHistory = [];
 let bdiHistoryIndex = -1;
 const MAX_HISTORY_SIZE = 50;
 const escalasNotas = {
-    mayor: [0, 2, 4, 5, 7, 9, 11],        // Do Mayor: C D E F G A B
-    menor: [0, 2, 3, 5, 7, 8, 10],        // Do Menor: C D Eb F G Ab Bb
-    cromatica: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  // Todas las notas
+    mayor: [0, 2, 4, 5, 7, 9, 11],       // Jónico:    C D E F G A B
+    menor: [0, 2, 3, 5, 7, 8, 10],       // Eólico:    C D Eb F G Ab Bb
+    dorico: [0, 2, 3, 5, 7, 9, 10],       // Dórico:    C D Eb F G A Bb  (jazz/folk)
+    frigio: [0, 1, 3, 5, 7, 8, 10],       // Frigio:    C Db Eb F G Ab Bb (flamenco)
+    lidio: [0, 2, 4, 6, 7, 9, 11],       // Lidio:     C D E F# G A B  (etéreo)
+    mixolidio: [0, 2, 4, 5, 7, 9, 10],       // Mixolidio: C D E F G A Bb  (rock/blues)
+    locrio: [0, 1, 3, 5, 6, 8, 10],       // Locrio:    C Db Eb F Gb Ab Bb (disonante)
+    cromatica: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  // Cromática: todas las notas
 };
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -765,7 +779,7 @@ function getMeasureVoiceColor(measureIndex, voiceKey) {
         }
     }
 
-    const tesituras = {
+    const tesituras = window.globalTessituras || {
         's': { min: 60, max: 81 },
         'a': { min: 55, max: 76 },
         't': { min: 48, max: 69 },
@@ -1278,7 +1292,7 @@ function renderVisualTracks() {
             });
 
             if (validNotesForColor.length > 0) {
-                const tesituras = {
+                const tesituras = window.globalTessituras || {
                     's': { min: 60, max: 81 },
                     'a': { min: 55, max: 76 },
                     't': { min: 48, max: 69 },
@@ -1508,17 +1522,7 @@ function updateAfterBdiChange() {
     // Update Notepad Coloring
     applyNotepadColoring();
 
-    // Update MIDI player with new data
-    if (typeof window.traki !== 'undefined' && window.traki.length > 0) {
-        window.escribi = new MidiWriter.Writer(window.traki[0]);
-        if (typeof window.playi !== 'undefined') {
-            window.playi.src = '';
-            setTimeout(() => {
-                const dataUri = window.escribi.dataUri();
-                window.playi.src = dataUri + '?t=' + Date.now();
-            }, 100);
-        }
-    }
+    // Update MIDI player with new data is now handled centrally by rebuildRecordi
 
     // Update visual track matrix
     setTimeout(renderVisualTracks, 50);
@@ -1843,10 +1847,11 @@ async function createTonalidadEditor(notepadInstance, containerId) {
     header.style.marginBottom = '15px';
 
     const title = document.createElement('h3');
-    title.textContent = 'Editor de Paleta de Tonalidades';
+    title.textContent = t('Editor de Paleta de Tonalidades');
+    title.setAttribute('data-i18n', 'Editor de Paleta de Tonalidades');
     title.style.margin = '0';
     title.style.fontFamily = 'monospace';
-
+    /*
     const modeSelector = document.createElement('select');
     modeSelector.style.padding = '5px 10px';
     modeSelector.style.fontFamily = 'monospace';
@@ -1854,7 +1859,6 @@ async function createTonalidadEditor(notepadInstance, containerId) {
     modeSelector.style.border = '1px solid #ccc';
     modeSelector.style.borderRadius = '4px';
     modeSelector.style.cursor = 'pointer';
-
     const modes = ['RGB', 'GREY_SCALE', 'HSB', 'CMYK', 'CMYKB'];
     modes.forEach(mode => {
         const option = document.createElement('option');
@@ -1862,9 +1866,10 @@ async function createTonalidadEditor(notepadInstance, containerId) {
         option.textContent = mode;
         modeSelector.appendChild(option);
     });
+    */
 
     header.appendChild(title);
-    header.appendChild(modeSelector);
+    //header.appendChild(modeSelector);
     container.innerHTML = '';
     container.appendChild(header);
 
@@ -1923,56 +1928,57 @@ async function createTonalidadEditor(notepadInstance, containerId) {
         colorValueLabel.style.marginBottom = '3px';
 
         // Function to update color value display
-        const updateColorValue = (hexColor) => {
-            const rgb = hexToRgb(hexColor);
-            if (rgb) {
-                const mode = modeSelector.value;
-                colorValueLabel.textContent = formatColorValue(rgb.r, rgb.g, rgb.b, mode);
-            }
-        };
-
-        // Initial color value
-        updateColorValue(colorInput.value);
-
-        // Color name label
-        const colorNameLabel = document.createElement('div');
-        colorNameLabel.style.fontSize = '10px';
-        colorNameLabel.style.textAlign = 'center';
-        colorNameLabel.style.color = '#666';
-        colorNameLabel.style.fontFamily = 'sans-serif';
-        colorNameLabel.style.minHeight = '24px';
-        colorNameLabel.style.lineHeight = '12px';
-        colorNameLabel.textContent = 'Cargando...';
-
-        // Function to update color name
-        const updateColorName = async (hexColor) => {
-            const rgb = hexToRgb(hexColor);
-            if (rgb) {
-                const colorInfo = await consulti(rgb.r, rgb.g, rgb.b);
-                if (colorInfo) {
-                    // Translate the color name to Spanish
-                    const translatedName = await traducirOnline(colorInfo.nombre);
-                    colorNameLabel.textContent = translatedName;
-                } else {
-                    colorNameLabel.textContent = 'Desconocido';
-                }
-            }
-        };
-
-        // Fetch initial color name
-        updateColorName(colorInput.value);
-
-        colorInput.addEventListener('change', async (e) => {
-            notepadInstance.setNoteColor(char, e.target.value);
-            await updateColorName(e.target.value);
-            updateColorValue(e.target.value);
-        });
-
-        itemDiv.appendChild(label);
-        itemDiv.appendChild(colorInput);
-        itemDiv.appendChild(colorValueLabel);
-        itemDiv.appendChild(colorNameLabel);
-        grid.appendChild(itemDiv);
+        /*  const updateColorValue = (hexColor) => {
+             const rgb = hexToRgb(hexColor);
+             if (rgb) {
+                 const mode = modeSelector.value;
+                 colorValueLabel.textContent = formatColorValue(rgb.r, rgb.g, rgb.b, mode);
+             }
+         }; 
+ 
+         // Initial color value
+         //updateColorValue(colorInput.value);
+ 
+         // Color name label
+         const colorNameLabel = document.createElement('div');
+         colorNameLabel.style.fontSize = '10px';
+         colorNameLabel.style.textAlign = 'center';
+         colorNameLabel.style.color = '#666';
+         colorNameLabel.style.fontFamily = 'sans-serif';
+         colorNameLabel.style.minHeight = '24px';
+         colorNameLabel.style.lineHeight = '12px';
+         colorNameLabel.textContent = 'Cargando...';
+ 
+         // Function to update color name
+         const updateColorName = async (hexColor) => {
+             const rgb = hexToRgb(hexColor);
+             if (rgb) {
+                 const colorInfo = await consulti(rgb.r, rgb.g, rgb.b);
+                 if (colorInfo) {
+                     // Translate the color name to Spanish
+                     const translatedName = await traducirOnline(colorInfo.nombre);
+                     colorNameLabel.textContent = translatedName;
+                 } else {
+                     colorNameLabel.textContent = 'Desconocido';
+                 }
+             }
+         };
+ 
+         // Fetch initial color name
+         updateColorName(colorInput.value);
+ 
+         colorInput.addEventListener('change', async (e) => {
+             notepadInstance.setNoteColor(char, e.target.value);
+             await updateColorName(e.target.value);
+             updateColorValue(e.target.value);
+         });
+ 
+         itemDiv.appendChild(label);
+         itemDiv.appendChild(colorInput);
+         itemDiv.appendChild(colorValueLabel);
+         itemDiv.appendChild(colorNameLabel);
+         grid.appendChild(itemDiv);
+         */
     }
 
     // --- INJECT HARMONIZATION & ONDA TOOL ---
@@ -1980,51 +1986,51 @@ async function createTonalidadEditor(notepadInstance, containerId) {
     toolsContainer.style.marginBottom = '20px'; // Spacing after tools, before palette
     toolsContainer.innerHTML = `
         <div id="harmonize-container" style="padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h4 style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
-                🎹 ZONA DE ARMONIZACIÓN
+            <h4 data-i18n="ZONA DE ARMONIZACIÓN" style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
+                 ${t('ZONA DE ARMONIZACIÓN')}
             </h4>
 
             <!-- PHRASE TOOLS (At Top, No Title) -->
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
+                    <label data-i18n="Cant:" style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">${t('Cant:')}</label>
                     <input type="number" id="transpose-amount" value="0" style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
                 </div>
 
                 <select id="transpose-unit" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                    <option value="scale">Escala</option>
-                    <option value="semitone">Semitonos</option>
+                    <option value="scale" data-i18n="Escala">${t('Escala')}</option>
+                    <option value="semitone" data-i18n="Semitonos">${t('Semitonos')}</option>
                 </select>
 
-                <button class="theme-btn" onclick="triggerTranspose(); return false;" 
+                <button class="theme-btn" data-i18n="Trasponer" onclick="triggerTranspose(); return false;" 
                     style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    Trasponer
+                    ${t('Trasponer')}
                 </button>
 
-                <button class="theme-btn" onclick="triggerDuplicate(); return false;" 
+                <button class="theme-btn" data-i18n="Duplicar" onclick="triggerDuplicate(); return false;" 
                     style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    Duplicar
+                    ${t('Duplicar')}
                 </button>
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <button id="harmonize-btn" class="theme-btn" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">
-                    ✨ Armonizar desde esta voz
+                <button id="harmonize-btn" class="theme-btn" data-i18n="Armonizar desde esta voz" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">
+                     ${t('Armonizar desde esta voz')}
                 </button>
-                <button id="harmonize-scale-btn" class="theme-btn" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">
-                    🎼 Ajustar a escala
+                <button id="harmonize-scale-btn" class="theme-btn" data-i18n="Ajustar a escala" style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">
+                     ${t('Ajustar a escala')}
                 </button>
             </div>
 
             <!-- ONDA TOOL (Integrated) -->
             <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
-            <h4 style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
-                🌊 Onda (Modulación)
+            <h4 data-i18n="Onda (Modulación)" style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
+                 ${t('Onda (Modulación)')}
             </h4>
             
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="Amplitud máxima en pasos de escala">Amp (Max):</label>
+                <label data-i18n="Amp (Max):" data-i18n-title="OndaAmpTitle" style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="${t('OndaAmpTitle')}">${t('Amp (Max):')}</label>
                 <select id="onda-amp" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -2039,20 +2045,20 @@ async function createTonalidadEditor(notepadInstance, containerId) {
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 5px;">
-                <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="Longitud de ciclo en notas">Ciclo (Notas):</label>
+                <label data-i18n="Ciclo (Notas):" data-i18n-title="OndaCycleTitle" style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;" title="${t('OndaCycleTitle')}">${t('Ciclo (Notas):')}</label>
                 <select id="onda-freq" style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                    <option value="4">4 notas</option>
-                    <option value="8" selected>8 notas</option>
-                    <option value="12">12 notas</option>
-                    <option value="16">16 notas</option>
-                    <option value="24">24 notas</option>
-                    <option value="32">32 notas</option>
+                    <option value="4">${t('n-notas').replace('{n}', 4)}</option>
+                    <option value="8" selected>${t('n-notas').replace('{n}', 8)}</option>
+                    <option value="12">${t('n-notas').replace('{n}', 12)}</option>
+                    <option value="16">${t('n-notas').replace('{n}', 16)}</option>
+                    <option value="24">${t('n-notas').replace('{n}', 24)}</option>
+                    <option value="32">${t('n-notas').replace('{n}', 32)}</option>
                 </select>
                 </div>
 
-                <button id="onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
+                <button id="onda-btn" class="theme-btn" data-i18n="Aplicar" onclick="applyOndaFromUI(); return false;"
                 style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                🌊 Aplicar
+                 ${t('Aplicar')}
                 </button>
             </div>
         </div>
@@ -2162,7 +2168,8 @@ function addMonochromaticIntervalsToLadder() {
 
     // Add Label
     const label = document.createElement('span');
-    label.textContent = 'Notas: ';
+    label.textContent = t('Notas:');
+    label.setAttribute('data-i18n', 'Notas:');
     label.style.fontWeight = 'bold';
     label.style.fontSize = '12px';
     label.style.marginRight = '5px';
@@ -2177,7 +2184,9 @@ function addMonochromaticIntervalsToLadder() {
 
             const btn = document.createElement('span');
             btn.textContent = i.toString();
-            btn.title = `Seleccionar ${i} nota(s)`;
+            btn.title = t('Seleccionar {n} nota(s)').replace('{n}', i);
+            btn.setAttribute('data-i18n-title', 'Seleccionar {n} nota(s)'); // Wait, this one is dynamic. applyTranslations doesn't handle placeholders.
+            // But let's keep it consistent.
             btn.style.display = 'inline-block';
             btn.style.width = '20px';
             btn.style.height = '20px';
@@ -2214,7 +2223,8 @@ function addMonochromaticIntervalsToLadder() {
         const btnS = document.createElement('span');
         btnS.id = 'silence-variations-btn';
         btnS.textContent = '\uD834\uDD3D'; // Quarter rest symbol (𝄽)
-        btnS.title = 'Ver variaciones de silencios para 8 notas';
+        btnS.title = t('Ver variaciones de silencios para 8 notas');
+        btnS.setAttribute('data-i18n-title', 'Ver variaciones de silencios para 8 notas');
         btnS.style.display = currentGroup === 8 ? 'inline-block' : 'none';
         btnS.style.width = '20px'; // Matched to other note selectors
         btnS.style.height = '20px';
@@ -2280,7 +2290,7 @@ function addMonochromaticIntervalsToLadder() {
                 const newItem = {
                     "idi": Date.now(),
                     "numi": 0,
-                    "nami": "Rest",
+                    "nami": t("Rest"),
                     "col": colorVal,
                     "coli": [128, 128, 128, 255],
                     "hexi": colorVal,
@@ -2338,7 +2348,8 @@ function addMonochromaticIntervalsToLadder() {
         btnRestRedonda.style.color = '#ffffff'; // White symbol
         btnRestRedonda.style.fontFamily = 'Bravura';
         btnRestRedonda.style.fontSize = '20px';
-        btnRestRedonda.title = 'Silencio de Redonda';
+        btnRestRedonda.title = t('Silencio de Redonda');
+        btnRestRedonda.setAttribute('data-i18n-title', 'Silencio de Redonda');
 
         btnRestRedonda.onmouseenter = () => { btnRestRedonda.style.backgroundColor = '#333'; };
         btnRestRedonda.onmouseleave = () => { btnRestRedonda.style.backgroundColor = '#000'; };
@@ -4274,13 +4285,13 @@ function makeladi(hexi = '#ff0000') {
     selectorContainer.id = 'note-count-selector';
     selectorContainer.style.display = 'block';
     selectorContainer.style.marginBottom = '5px';
-    selectorContainer.title = 'Número de notas del compás';
+    selectorContainer.title = 'Number of notes per measure';
     selectorContainer.style.padding = '5px';
     selectorContainer.style.borderRadius = '6px';
 
     // Add Label
     const label = document.createElement('span');
-    label.textContent = 'Notas: ';
+    label.textContent = 'Notes/measure: ';
     label.style.fontWeight = 'bold';
     label.style.fontSize = '12px';
     label.style.marginRight = '5px';
@@ -4293,7 +4304,7 @@ function makeladi(hexi = '#ff0000') {
             if (!trilipi[i]) continue;
             const btn = document.createElement('span');
             btn.textContent = i.toString();
-            btn.title = `Seleccionar ${i} nota(s)`;
+            btn.title = `Select ${i} note(s)`;
             btn.style.display = 'inline-block';
             btn.style.width = '20px';
             btn.style.height = '20px';
@@ -4350,6 +4361,7 @@ function makeladi(hexi = '#ff0000') {
     rhythmSlot.style.width = '100%';
     rhythmSlot.style.marginTop = '2px';
     rhythmSlot.style.marginBottom = '5px';
+    rhythmSlot.style.maxHeight = '100px';      // MUSICOLI: Limit height so patterns don't push content down
 
     // Check if rhythm content already exists and re-attach (persistence fix)
     if (window.rhythmEditorContent) {
@@ -4358,6 +4370,24 @@ function makeladi(hexi = '#ff0000') {
     if (mode !== 'tonalidad') {
         ladderElement.appendChild(rhythmSlot);
     }
+
+    // MUSICOLI: ResizeObserver — add .is-scrollable only when content truly overflows 120px
+    const rhythmSlotObserver = new ResizeObserver(() => {
+        const inner = rhythmSlot.firstElementChild;
+        if (inner && inner.scrollHeight > 100) {
+            rhythmSlot.classList.add('is-scrollable');
+        } else if (rhythmSlot.scrollHeight > 100) {
+            rhythmSlot.classList.add('is-scrollable');
+        } else {
+            rhythmSlot.classList.remove('is-scrollable');
+        }
+    });
+    rhythmSlotObserver.observe(rhythmSlot);
+    // Also observe the inner content div when it exists
+    if (window.rhythmEditorContent) {
+        rhythmSlotObserver.observe(window.rhythmEditorContent);
+    }
+
 
     // Show scales only in 'Melodía' (tonalidad) mode or 'Ritmo' mode with Percussion
     let scalesVisible = false;
@@ -6029,10 +6059,6 @@ function createRitmoEditor(containerId) {
     if (!container) return;
 
     document.getElementById('nnoti').innerHTML = currentGroup;
-    // Header
-    const header = document.createElement('div');
-    header.style.marginBottom = '2px';
-
 
     const compisi = document.getElementById('compas-select');
     if (compisi) {
@@ -6050,10 +6076,11 @@ function createRitmoEditor(containerId) {
 
     // Color A info and control
     const colorInfoDiv = document.createElement('div');
-    colorInfoDiv.id = 'rhythm-color-info-div'; // ✅ Added ID
+    colorInfoDiv.id = 'rhythm-color-info-div'; //  Added ID
     colorInfoDiv.style.display = 'flex';
-    colorInfoDiv.style.alignItems = 'center';
-    colorInfoDiv.style.gap = '1px';
+    colorInfoDiv.style.flexDirection = 'column'; // MUSICOLI: Two-row layout
+    colorInfoDiv.style.alignItems = 'flex-start';
+    colorInfoDiv.style.gap = '2px';
     colorInfoDiv.style.margin = '0px';
     colorInfoDiv.style.fontSize = '11px';
     colorInfoDiv.style.fontFamily = 'monospace';
@@ -6062,6 +6089,22 @@ function createRitmoEditor(containerId) {
     colorInfoDiv.style.borderRadius = '4px';
     colorInfoDiv.style.border = 'none';
 
+    // MUSICOLI: Row 1 holds colorPreview + colorMelodi + notationContainer
+    const colorInfoRow1 = document.createElement('div');
+    colorInfoRow1.id = 'rhythm-color-info-row1';
+    colorInfoRow1.style.display = 'flex';
+    colorInfoRow1.style.alignItems = 'center';
+    colorInfoRow1.style.gap = '1px';
+    colorInfoRow1.style.flexWrap = 'wrap';
+
+    // MUSICOLI: Row 2 holds percToggleContainer + aplicarRitmoBtn
+    const colorInfoRow2 = document.createElement('div');
+    colorInfoRow2.id = 'rhythm-color-info-row2';
+    colorInfoRow2.style.display = 'flex';
+    colorInfoRow2.style.alignItems = 'center';
+    colorInfoRow2.style.gap = '4px';
+    colorInfoRow2.style.flexWrap = 'wrap';
+
     // Part 1: Rhythm Color Preview (Visible only in Ritmo)
     const rhythmColorPreview = document.createElement('div');
     rhythmColorPreview.id = 'rhythm-color-preview';
@@ -6069,36 +6112,52 @@ function createRitmoEditor(containerId) {
     rhythmColorPreview.style.alignItems = 'center';
     rhythmColorPreview.style.gap = '1px';
 
-    // Part 2: Color Melodi (Visible only in Melodía)
+    // Part 2: Color Melodi (Visible only in Melodía) — HIDDEN: color-based composition not in use
     const colorMelodi = document.createElement('div');
     colorMelodi.id = 'colormelodi';
-    colorMelodi.style.display = 'flex';
+    colorMelodi.style.display = 'none'; // Hidden: color composition feature not implemented
     colorMelodi.style.alignItems = 'center';
     colorMelodi.style.gap = '1px';
 
-    colorInfoDiv.appendChild(rhythmColorPreview);
-    colorInfoDiv.appendChild(colorMelodi);
+    colorInfoRow1.appendChild(rhythmColorPreview);
+    colorInfoRow1.appendChild(colorMelodi);
+    colorInfoDiv.appendChild(colorInfoRow1);
+    colorInfoDiv.appendChild(colorInfoRow2);
 
     // Global function to update visibility
     window.updateRhythmColorInfoVisibility = function () {
         const preview = document.getElementById('rhythm-color-preview');
         const melodi = document.getElementById('colormelodi');
         const displiritmi = document.getElementById('displiritmi');
+        const percToggle = document.getElementById('global-percussion-toggle-container');
+        const aplicarRitmo = document.getElementById('aplicar-ritmo-btn');
+        const row2 = document.getElementById('rhythm-color-info-row2');
 
         if (typeof currentEditMode !== 'undefined') {
             if (currentEditMode === 'tonalidad') { // Melodía
                 if (preview) preview.style.display = 'flex';
                 if (melodi) melodi.style.display = 'flex';
                 if (displiritmi) displiritmi.style.display = 'none';
+                // Ocultar percusión y Aplicar Ritmo en modo melodía
+                if (percToggle) percToggle.style.display = 'none';
+                if (aplicarRitmo) aplicarRitmo.style.display = 'none';
+                if (row2) row2.style.display = 'none';
             } else if (currentEditMode === 'ritmo') { // Ritmo
                 if (preview) preview.style.display = 'none';
                 if (melodi) melodi.style.display = 'none';
                 if (displiritmi) displiritmi.style.display = 'inline-flex';
+                // Restaurar visibilidad en modo ritmo
+                if (percToggle) percToggle.style.display = '';
+                if (aplicarRitmo) aplicarRitmo.style.display = '';
+                if (row2) row2.style.display = 'flex';
             } else {
                 // Hide both in other modes
                 if (preview) preview.style.display = 'none';
                 if (melodi) melodi.style.display = 'none';
                 if (displiritmi) displiritmi.style.display = 'none';
+                if (percToggle) percToggle.style.display = 'none';
+                if (aplicarRitmo) aplicarRitmo.style.display = 'none';
+                if (row2) row2.style.display = 'none';
             }
         }
     };
@@ -6116,7 +6175,7 @@ function createRitmoEditor(containerId) {
     });
 
     const charSelector = document.createElement('select');
-    charSelector.id = 'rhythm-char-selector'; // ✅ Added ID
+    charSelector.id = 'rhythm-char-selector'; //  Added ID
     charSelector.style.display = 'none'; // HIDDEN: currently unused
     charSelector.style.width = '30px';
     charSelector.style.height = '30px';
@@ -6129,7 +6188,7 @@ function createRitmoEditor(containerId) {
     charSelector.style.background = 'transparent'; // Will be set dynamically
 
     const colorInput = document.createElement('input');
-    colorInput.id = 'rhythm-color-input'; // ✅ Added ID
+    colorInput.id = 'rhythm-color-input'; //  Added ID
     colorInput.type = 'color';
     colorInput.textContent = 'a';
     colorInput.style.width = '30px';
@@ -6542,7 +6601,7 @@ function createRitmoEditor(containerId) {
 
     percInput.addEventListener('change', (e) => {
         window.isGlobalPercussionEnabled = e.target.checked;
-        console.log("🥁 Global Percussion Mode:", window.isGlobalPercussionEnabled ? "ON" : "OFF");
+        console.log(" Global Percussion Mode:", window.isGlobalPercussionEnabled ? "ON" : "OFF");
 
         // Show/hide the ritmización selector
         const ritmoModeSelector = document.getElementById('perc-ritmo-mode-wrapper');
@@ -6573,7 +6632,7 @@ function createRitmoEditor(containerId) {
     ritmoModeWrapper.style.display = window.isGlobalPercussionEnabled ? 'inline-flex' : 'none';
 
     const ritmoModeLabel = document.createElement('span');
-    ritmoModeLabel.textContent = '♩';
+    ritmoModeLabel.textContent = '';
     ritmoModeLabel.title = 'Modo de ritmización';
     ritmoModeLabel.style.fontSize = '12px';
     ritmoModeLabel.style.color = '#fff';
@@ -6812,7 +6871,7 @@ function createRitmoEditor(containerId) {
     rhythmMultiplierSelect.style.fontSize = '11px';
     rhythmMultiplierSelect.style.fontFamily = 'monospace';
     rhythmMultiplierSelect.style.display = 'none'; // Hidden by default
-    for (let i = 1; i <= 16; i++) {
+    for (let i = 16; i >= 1; i--) {
         const opt = document.createElement('option');
         opt.value = i;
         opt.textContent = i + 'x';
@@ -6822,7 +6881,7 @@ function createRitmoEditor(containerId) {
 
     // Accept button for single rhythm selection
     const acceptBtn = document.createElement('button');
-    acceptBtn.textContent = 'Aceptar';
+    acceptBtn.textContent = 'Accept';
     acceptBtn.id = 'rhythm-notation-button';
     acceptBtn.style.padding = '4px 12px';
     acceptBtn.style.fontSize = '11px';
@@ -7241,10 +7300,10 @@ function createRitmoEditor(containerId) {
             if (typeof renderVisualTracks === 'function') renderVisualTracks();
             if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
 
-            acceptBtn.textContent = '✓';
+            acceptBtn.textContent = '';
             acceptBtn.style.background = '#45a049';
             setTimeout(() => {
-                acceptBtn.textContent = 'Aceptar';
+                acceptBtn.textContent = 'Accept';
                 acceptBtn.style.background = '#4CAF50';
             }, 1000);
         }
@@ -7458,7 +7517,7 @@ function createRitmoEditor(containerId) {
     notationContainer.appendChild(notationDisplay);
     notationContainer.appendChild(rhythmMultiplierSelect);
     notationContainer.appendChild(acceptBtn);
-    notationContainer.appendChild(percToggleContainer); // MUSICOLI: Add toggle to the visible Ritmo container
+    // MUSICOLI: percToggleContainer moves to row2 (below), not inside notationContainer
 
     // ── Aplicar Ritmo button ──────────────────────────────────────────────────
     // Bakes the current ritmización transforms permanently into bdi.bar:
@@ -7466,7 +7525,7 @@ function createRitmoEditor(containerId) {
     // so tracks play melodically with the new rhythm.
     const aplicarRitmoBtn = document.createElement('button');
     aplicarRitmoBtn.id = 'aplicar-ritmo-btn';
-    aplicarRitmoBtn.textContent = '⬇ Aplicar Ritmo';
+    aplicarRitmoBtn.textContent = '⬇ Apply Rhythm';
     aplicarRitmoBtn.title = 'Escribe los efectos de ritmización en la partitura y desactiva PERC para reproducción melódica';
     aplicarRitmoBtn.style.cssText = `
         display: inline-flex;
@@ -7545,27 +7604,24 @@ function createRitmoEditor(containerId) {
         if (typeof applyTextLayer === 'function') applyTextLayer();
 
         // Visual confirmation
-        aplicarRitmoBtn.textContent = '✓ Aplicado';
+        aplicarRitmoBtn.textContent = ' Applied';
         aplicarRitmoBtn.style.background = 'linear-gradient(135deg, #1a7540, #56ab2f)';
         setTimeout(() => {
-            aplicarRitmoBtn.textContent = '⬇ Aplicar Ritmo';
+            aplicarRitmoBtn.textContent = '⬇ Apply Rhythm';
             aplicarRitmoBtn.style.background = 'linear-gradient(135deg, #e65c00, #f9d423)';
         }, 2000);
     });
 
-    notationContainer.appendChild(aplicarRitmoBtn);
+    // MUSICOLI: aplicarRitmoBtn moves to row2 together with percToggleContainer
 
     // controlRow.appendChild(groupSelector); // Removed per user request (relocated to monocromati)
     // controlRow.appendChild(notationContainer); // RELOCATED to colorInfoDiv per user request
     // header.appendChild(controlRow); // MUSICOLI: Removed empty row to avoid gap
 
-    // MUSICOLI: Move Rhythm Notation group to the end of Rhythm Color info div
-    if (colorInfoDiv) {
-        colorInfoDiv.appendChild(notationContainer);
-    }
-
-    container.innerHTML = '';
-    container.appendChild(header);
+    // MUSICOLI: Row 1 gets the notationContainer; Row 2 gets perc toggle + aplicar ritmo
+    colorInfoRow1.appendChild(notationContainer);
+    colorInfoRow2.appendChild(percToggleContainer);
+    colorInfoRow2.appendChild(aplicarRitmoBtn);
 
     // Content area (rhythm pattern palette)
     const content = document.createElement('div');
@@ -9057,14 +9113,18 @@ async function tarareoAritmo() {
 
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const rootOffset = noteNames.indexOf(root) >= 0 ? noteNames.indexOf(root) : 0;
-        const isMinor = (mode === 'Minor');
+        // Tercia de la tónica según el modo elegido:
+        // Mayor/Lidio/Mixolidio → 3ª mayor (+4 st)
+        // Menor/Dórico/Frigio/Locrio → 3ª menor (+3 st)
+        const modalThirdOffset = (mode === 'Minor' || mode === 'Dorico' || mode === 'Frigio' || mode === 'Locrio')
+            ? 3   // 3ª menor
+            : 4;  // 3ª mayor (Major, Lidio, Mixolidio)
 
         // Base C Major (C4=60, E4=64, G4=67, C5=72)
         // SATB Defaults relative to C4+Offset
         let s = 72 + rootOffset;
         let a = 67 + rootOffset;
-        let t = 64 + rootOffset; // Major 3rd
-        if (isMinor) t = 63 + rootOffset; // Minor 3rd
+        let t = (60 + rootOffset) + modalThirdOffset; // 3ª modal correcta
         let b = 60 + rootOffset;
 
         // Wrap Logic to keep in reasonable range
@@ -10114,7 +10174,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Debug: Check originalEvent
             if (originalEvent) {
-                // consolex.log('🔍 Debug - shiftKey:', originalEvent.shiftKey);
+                // consolex.log(' Debug - shiftKey:', originalEvent.shiftKey);
             }
 
             // MODO RITMO & MELODÍA: Click SEEKS player AND opens editor
@@ -11195,28 +11255,28 @@ ${notepadCss}
 <body>
   <div class="section">
     <div class="meta-bar">
-      <div>🎵 <span>${titleMeta}</span></div>
+      <div> <span>${titleMeta}</span></div>
       <div>BPM: <span>${bpmMeta}</span></div>
       <div>Compás: <span>${timeSig}</span></div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">🎼 Partitura (Notepad)</div>
+    <div class="section-title"> Partitura (Notepad)</div>
     ${tracksHTML}
   </div>
 
   <div class="section">
-    <div class="section-title">🎹 Player MIDI</div>
+    <div class="section-title"> Player MIDI</div>
     ${playeti}
     ${expiti}
   </div>
 
   <div class="section">
-    <div class="section-title">📋 Datos BDI (JSON)
-      <button id="copy-btn" onclick="(function(){var t=document.getElementById('json-data');navigator.clipboard.writeText(t.textContent).then(function(){var b=document.getElementById('copy-btn');b.textContent='✅ ¡Copiado!';b.style.background='#2a7';setTimeout(function(){b.textContent='📋 Copiar código';b.style.background='#08c';},2000);});})(); return false;"
+    <div class="section-title"> Datos BDI (JSON)
+      <button id="copy-btn" onclick="(function(){var t=document.getElementById('json-data');navigator.clipboard.writeText(t.textContent).then(function(){var b=document.getElementById('copy-btn');b.textContent=' ¡Copiado!';b.style.background='#2a7';setTimeout(function(){b.textContent=' Copiar código';b.style.background='#08c';},2000);});})(); return false;"
         style="margin-left:10px;padding:3px 10px;background:#08c;color:#fff;border:none;border-radius:4px;font-family:monospace;font-size:11px;cursor:pointer;font-weight:bold;">
-        📋 Copiar código
+         Copiar código
       </button>
     </div>
     <div class="json-box" id="json-data">${codigo[0].replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
@@ -11436,7 +11496,9 @@ ${notepadCss}
         );
 
         const jsi = JSON.stringify(enrichedJSON, null, 2);
-        document.getElementById('vari').innerHTML = `<pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;">${jsi}</pre>`;
+        const variEl = document.getElementById('vari');
+        if (!variEl) return;
+        variEl.innerHTML = `<pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;">${jsi}</pre>`;
     }
 
     updateDetailedJSON();
@@ -12028,6 +12090,70 @@ ${notepadCss}
         });
     }
 
+    // ========== MEASURE SELECTION BUTTONS (All, +, -) ==========
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const expandSelectionBtn = document.getElementById('expand-selection-btn');
+    const shrinkSelectionBtn = document.getElementById('shrink-selection-btn');
+
+    function _initSelectionRangeIfEmpty(total) {
+        if (!window.selectionRange || window.selectionRange.start === -1) {
+            let start = (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0)
+                ? window.selectedMeasureIndex
+                : 0;
+            if (start >= total) start = Math.max(0, total - 1);
+            if (!window.selectionRange) window.selectionRange = { start: -1, end: -1 };
+            window.selectionRange.start = start;
+            window.selectionRange.end = start;
+            return true;
+        }
+        return false;
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            const total = (window.bdi && window.bdi.bar) ? window.bdi.bar.length : 0;
+            if (total === 0) return;
+
+            if (!window.selectionRange) window.selectionRange = { start: -1, end: -1 };
+            window.selectionRange.start = 0;
+            window.selectionRange.end = total - 1;
+
+            if (typeof window.updateRulerVisuals === 'function') window.updateRulerVisuals();
+        });
+    }
+
+    if (expandSelectionBtn) {
+        expandSelectionBtn.addEventListener('click', () => {
+            const total = (window.bdi && window.bdi.bar) ? window.bdi.bar.length : 0;
+            if (total === 0) return;
+
+            const wasEmpty = _initSelectionRangeIfEmpty(total);
+            if (!wasEmpty) {
+                window.selectionRange.end = Math.min(window.selectionRange.end + 1, total - 1);
+            } else {
+                // First click sets the base selection (length 1), subsequent clicks will increment
+                // But typically users might expect + to immediately grab the next measure
+                window.selectionRange.end = Math.min(window.selectionRange.end + 1, total - 1);
+            }
+
+            if (typeof window.updateRulerVisuals === 'function') window.updateRulerVisuals();
+        });
+    }
+
+    if (shrinkSelectionBtn) {
+        shrinkSelectionBtn.addEventListener('click', () => {
+            const total = (window.bdi && window.bdi.bar) ? window.bdi.bar.length : 0;
+            if (total === 0) return;
+
+            const wasEmpty = _initSelectionRangeIfEmpty(total);
+            if (!wasEmpty) {
+                window.selectionRange.end = Math.max(window.selectionRange.start, window.selectionRange.end - 1);
+            }
+
+            if (typeof window.updateRulerVisuals === 'function') window.updateRulerVisuals();
+        });
+    }
+
     // Delete selected measure button logic
     // ========== DELETE MEASURES BUTTON ==========
     const deleteMeasuresBtn = document.getElementById('delete-measures-btn');
@@ -12178,7 +12304,7 @@ ${notepadCss}
         });
     }
 
-    // Update BDI Button Logic - Moved to ensure it attaches correctly
+
     const updateBdiBtn = document.getElementById('update-bdi-btn');
     if (updateBdiBtn) {
         updateBdiBtn.addEventListener('click', () => {
@@ -12195,56 +12321,53 @@ ${notepadCss}
 
                 const newBdi = JSON.parse(jsonContent);
 
+                let newMeasures = null;
+                let newMetadata = null;
+
                 if (Array.isArray(newBdi)) {
+                    // Old format: direct array of measures
+                    newMeasures = newBdi;
+                } else if (newBdi && typeof newBdi === 'object' && Array.isArray(newBdi.bar)) {
+                    // New format: full .musicoli window.bdi object
+                    newMeasures = newBdi.bar;
+                    if (newBdi.metadata) {
+                        newMetadata = newBdi.metadata;
+                    }
+                }
+
+                if (newMeasures) {
                     // Save state before replacing all measures
                     saveBdiState();
 
-                    // Update global BDI
+                    // Update global BDI metadata unconditionally if present
+                    if (newMetadata && window.bdi) {
+                        window.bdi.metadata = JSON.parse(JSON.stringify(newMetadata));
+                    }
+
+                    // Update global BDI measures
                     if (typeof window.bdi.bar !== 'undefined') {
                         window.bdi.bar.length = 0; // Clear existing array
-                        window.bdi.bar.push(...newBdi); // Copy new items
+                        window.bdi.bar.push(...newMeasures); // Copy new items
                     } else {
                         return;
                     }
 
-                    // Rebuild MIDI track
-                    if (typeof window.initraki === 'function') {
-                        window.initraki(window.tempi, 4); // Reinitialize track
+                    // Reliably rebuild the entire MIDI data, tracks, UI elements and player content using the central function
+                    if (typeof window.rebuildRecordi === 'function') {
+                        window.rebuildRecordi();
                     }
 
-                    // Rebuild MIDI events by calling recordi for each entry
-                    if (typeof window.recordi === 'function') {
-                        for (let s = 0; s < window.bdi.bar.length; s++) {
-                            window.recordi(window.bdi.bar, s);
-                        }
-                    } else {
+                    // Update visual layers based on new data
+                    if (typeof window.applyTextLayer === 'function') {
+                        window.applyTextLayer();
                     }
 
-                    // Update visual layers
-                    if (typeof applyTextLayer === 'function') {
-                        applyTextLayer();
-                    }
-
-                    // Update MIDI player with new data
-                    if (typeof window.traki !== 'undefined' && window.traki.length > 0) {
-                        window.escribi = new MidiWriter.Writer(window.traki[0]);
-                        if (typeof window.playi !== 'undefined') {
-                            window.playi.src = '';
-                            setTimeout(() => {
-                                const dataUri = window.escribi.dataUri();
-                                window.playi.src = dataUri + '?t=' + Date.now();
-                            }, 100);
-
-                            // Update download link
-                            let titi = 'Metr_' + window.bpmValue + '_' + '4' + '_4';
-                            let anchor = document.getElementById("expi");
-                            if (anchor) {
-                                anchor.setAttribute('href', window.escribi.dataUri());
-                                anchor.setAttribute('download', titi + '.mid');
-                                anchor.innerHTML = titi + '.mid';
-                            }
-
-                        }
+                    // Immediately reflect new title in inputs if it came with metadata
+                    if (newMetadata && newMetadata.title) {
+                        const titleInput = document.getElementById('title-input');
+                        const lyricsTitleInput = document.getElementById('lyrics-title-input');
+                        if (titleInput) titleInput.value = newMetadata.title;
+                        if (lyricsTitleInput) lyricsTitleInput.value = newMetadata.title;
                     }
 
                     // Visual feedback
@@ -12258,7 +12381,7 @@ ${notepadCss}
                     }, 1500);
 
                 } else {
-                    alert('El JSON debe ser un array (lista) de objetos.');
+                    alert('El JSON debe ser un array de objetos o un proyecto .musicoli válido.');
                 }
             } catch (e) {
                 alert('Error en el formato JSON. Revisa la consola para más detalles.');
@@ -12333,11 +12456,11 @@ ${notepadCss}
 
             if (isLooping) {
                 player15.setAttribute('loop', '');
-                loopBtn.textContent = '🔁 Loop ON';
+                loopBtn.textContent = ' Loop ON';
                 loopBtn.style.background = '#4CAF50';
             } else {
                 player15.removeAttribute('loop');
-                loopBtn.textContent = '🔁 Loop OFF';
+                loopBtn.textContent = ' Loop OFF';
                 loopBtn.style.background = '#666';
             }
 
@@ -12460,6 +12583,10 @@ ${notepadCss}
             const harmonizeContainer = document.getElementById('harmonize-container');
             if (harmonizeContainer) harmonizeContainer.style.display = 'none';
 
+            // Restaurar fila PERC + Aplicar Ritmo en modo ritmo
+            const percRitmoRow = document.getElementById('rhythm-color-info-row2');
+            if (percRitmoRow) percRitmoRow.style.display = 'flex';
+
             if (typeof updateAfterBdiChange === 'function') updateAfterBdiChange();
         });
     }
@@ -12506,6 +12633,10 @@ ${notepadCss}
             // Show harmonize button
             const harmonizeContainer = document.getElementById('harmonize-container');
             if (harmonizeContainer) harmonizeContainer.style.display = 'block';
+
+            // Ocultar fila PERC + Aplicar Ritmo en modo melodía
+            const percRitmoRow = document.getElementById('rhythm-color-info-row2');
+            if (percRitmoRow) percRitmoRow.style.display = 'none';
 
             if (typeof updateAfterBdiChange === 'function') updateAfterBdiChange();
 
@@ -12853,21 +12984,21 @@ ${notepadCss}
         if (header) {
             const voiceSelector = document.getElementById('voice-selector');
             const voiceCode = voiceSelector ? voiceSelector.value : 's';
-            const voiceNames = { 's': 'Soprano', 'a': 'Contralto', 't': 'Tenor', 'b': 'Bajo' };
-            const voiceName = voiceNames[voiceCode] || 'Compás';
+            const voiceNames = { 's': t('Soprano'), 'a': t('Contralto'), 't': t('Tenor'), 'b': t('Bajo') };
+            const voiceName = voiceNames[voiceCode] || t('CompasMidi');
 
             // Determine button style based on current mode
             const isIndependent = (typeof voiceEditMode !== 'undefined' && voiceEditMode === 'independent');
             const btnColor = isIndependent ? '#FF9800' : '#4CAF50';
-            const btnIcon = isIndependent ? '🔓' : '🔗';
-            const btnTitle = isIndependent ? 'Modo: Independiente' : 'Modo: Dependiente';
+            const btnIcon = isIndependent ? 'IND' : 'DEP';
+            const btnTitle = isIndependent ? t('MIDIIndependent') : t('MIDIDependent');
 
             // Create inner HTML with button and title
             header.innerHTML = `
                 <button id="modal-mode-toggle" style="background: ${btnColor}; border: none; border-radius: 50%; width: 24px; height: 24px; color: white; margin-right: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;" title="${btnTitle}">
                     ${btnIcon}
                 </button>
-                ${voiceName} ${noteIndex >= 0 ? `<span style="color:#2196F3"> (Nota ${noteIndex + 1})</span>` : ''} <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
+                ${voiceName} ${noteIndex >= 0 ? `<span style="color:#2196F3"> (${t('NotaMidi')} ${noteIndex + 1})</span>` : ''} <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
             `;
 
             // Add click listener to the new button
@@ -12884,8 +13015,8 @@ ${notepadCss}
                         setTimeout(() => {
                             const isInd = (typeof voiceEditMode !== 'undefined' && voiceEditMode === 'independent');
                             modalToggle.style.backgroundColor = isInd ? '#FF9800' : '#4CAF50';
-                            modalToggle.innerHTML = isInd ? '🔓' : '🔗';
-                            modalToggle.title = isInd ? 'Modo: Independiente' : 'Modo: Dependiente';
+                            modalToggle.innerHTML = isInd ? 'IND' : 'DEP';
+                            modalToggle.title = isInd ? (isInd ? t('MIDIIndependent') : t('MIDIDependent')) : t('MIDIDependent');
                         }, 50);
                     }
                 };
@@ -12991,7 +13122,8 @@ ${notepadCss}
                 color: #333;
                 margin-left: 10px; 
             `;
-            duplicateBtn.title = "Duplicar compás";
+            duplicateBtn.title = t("DuplicateMeasure");
+            duplicateBtn.setAttribute('data-i18n-title', 'DuplicateMeasure');
             duplicateBtn.onclick = () => {
                 // To avoid unwanted auto-harmonization in dependent mode,
                 // we'll duplicate the CURRENT state of the BDI without accepting modal edits.
@@ -13025,7 +13157,8 @@ ${notepadCss}
                 color: #333;
                 margin-left: 5px; 
             `;
-            splitBtn.title = "Separar voces en 4 compases";
+            splitBtn.title = t("SplitVoices");
+            splitBtn.setAttribute('data-i18n-title', 'SplitVoices');
             splitBtn.onclick = () => {
                 // To avoid auto-harmonizing the other voices before splitting,
                 // we tell the accept handler to skip harmony if such flag exists.
@@ -13042,7 +13175,7 @@ ${notepadCss}
 
                     // Check if measure has multi-voice structure
                     if (!currentMeasure.voci || !Array.isArray(currentMeasure.voci)) {
-                        alert('Este compás no tiene estructura de múltiples voces');
+                        alert(t('NoMultiVoice'));
                         return;
                     }
 
@@ -13125,7 +13258,7 @@ ${notepadCss}
             };
             measureNumSpan.appendChild(splitBtn);
 
-            // Silence All Notes Button (🔇)
+            // Silence All Notes Button ()
             // Silence Column Container (Vertical stack of 4 buttons)
             const silenceCol = document.createElement('div');
             // Background dark #666 to contrast white lines. 
@@ -13188,7 +13321,7 @@ ${notepadCss}
                         btn.style.backgroundColor = 'black'; // Explicit black for silence
                         btn.style.boxShadow = 'none';
                     }
-                    btn.title = `${isActive ? 'Silenciar' : 'Activar'} ${vKey.toUpperCase()}`;
+                    btn.title = (isActive ? t('MuteVoice') : t('ActivateVoice')).replace('{v}', vKey.toUpperCase());
 
                     btn.onmousedown = (e) => {
                         e.stopPropagation();
@@ -13349,7 +13482,8 @@ ${notepadCss}
                 color: #333; 
                 margin-left: 5px; 
             `;
-            deleteBtn.title = "Eliminar compás";
+            deleteBtn.title = t("DeleteMeasure");
+            deleteBtn.setAttribute('data-i18n-title', 'DeleteMeasure');
             deleteBtn.onclick = () => {
 
                 // Use mode-aware deletion
@@ -13826,7 +13960,7 @@ ${notepadCss}
         // Invert Selection Button (Fixed Top-Right)
         const invertSelBtn = document.createElement('button');
         invertSelBtn.textContent = 'Sel ⇄';
-        invertSelBtn.title = "Invertir Selección";
+        invertSelBtn.title = t("InvertSelection");
         invertSelBtn.style.cssText = `
             position: absolute; top: 4px; right: 4px; z-index: 100;
             background: rgba(0, 0, 0, 0.1); color: #333;
@@ -13950,8 +14084,8 @@ ${notepadCss}
         const shapesConfig = [
             { label: '< cresc', type: 'cresc', sym: '\uE53E' },
             { label: '> dim', type: 'dim', sym: '\uE540' },
-            { label: '∧ cima', type: 'cima', sym: '' },
-            { label: '∨ valle', type: 'valle', sym: '' }
+            { label: `∧ ${t('PeakMidi')}`, type: 'cima', sym: '' },
+            { label: `∨ ${t('ValleyMidi')}`, type: 'valle', sym: '' }
         ];
 
         shapesConfig.forEach((shape, i) => {
@@ -14021,7 +14155,7 @@ ${notepadCss}
         // x2 Button
         const x2Btn = document.createElement('button');
         x2Btn.textContent = 'x2';
-        x2Btn.title = "Duplicar notas seleccionadas y reducir duración a la mitad";
+        x2Btn.title = t("TooltipX2");
         x2Btn.style.cssText = 'background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 11px; font-weight: bold; height: 24px; margin-right: 4px;';
 
         // Helper function for calculating next duration (halving)
@@ -14131,7 +14265,7 @@ ${notepadCss}
         // /2 Button
         const div2Btn = document.createElement('button');
         div2Btn.textContent = '/2';
-        div2Btn.title = "Combinar notas seleccionadas (reducir cantidad)";
+        div2Btn.title = t("TooltipDiv2");
         div2Btn.style.cssText = 'background: #2196F3; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 11px; font-weight: bold; height: 24px; margin-right: 4px;';
 
         div2Btn.onclick = () => {
@@ -14266,7 +14400,7 @@ ${notepadCss}
         // Rotate Button (Rotar notas seleccionadas)
         const rotateBtn = document.createElement('button');
         rotateBtn.textContent = '↻';
-        rotateBtn.title = "Rotar notas seleccionadas (Pitch + Duración)";
+        rotateBtn.title = t("TooltipRotate");
         rotateBtn.style.cssText = 'background: #FF9800; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 14px; font-weight: bold; height: 24px; margin-right: 4px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;';
 
         rotateBtn.onclick = () => {
@@ -14365,8 +14499,10 @@ ${notepadCss}
         // 1. Revert
         const revertBtn = document.createElement('button');
         revertBtn.id = 'midi-editor-revert-dynamic';
-        revertBtn.textContent = 'Revertir';
-        revertBtn.title = 'Deshacer cambios en este compás';
+        revertBtn.textContent = t('Revert');
+        revertBtn.setAttribute('data-i18n', 'Revert');
+        revertBtn.title = t('DeshacerCambios');
+        revertBtn.setAttribute('data-i18n-title', 'DeshacerCambios');
         revertBtn.style.cssText = 'background: #FF9800; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; height: 24px;';
 
         revertBtn.onclick = () => {
@@ -14431,7 +14567,8 @@ ${notepadCss}
         if (addBtn) {
             addBtn.style.display = 'none';
             addBtn.style.alignItems = 'center';
-            addBtn.textContent = 'Añadir';
+            addBtn.textContent = t('AddMidi');
+            addBtn.setAttribute('data-i18n', 'AddMidi');
             addBtn.style.fontSize = '11px';
             addBtn.style.padding = '4px 8px';
             addBtn.style.background = '#2196F3';
@@ -14447,7 +14584,8 @@ ${notepadCss}
         if (acceptBtn) {
             acceptBtn.style.display = 'none';
             acceptBtn.style.alignItems = 'center';
-            acceptBtn.textContent = 'Aplicar';
+            acceptBtn.textContent = t('ApplyMidi');
+            acceptBtn.setAttribute('data-i18n', 'ApplyMidi');
             acceptBtn.style.fontSize = '11px';
             acceptBtn.style.padding = '4px 8px';
             acceptBtn.style.background = '#4CAF50';
@@ -14649,6 +14787,10 @@ ${notepadCss}
                 if (!window.bdi.bar) window.bdi.bar = [];
                 window.bdi.bar.splice(targetIndex, 0, newMeasure);
 
+                const newCursorPos = targetIndex + 1;
+                window.selectedMeasureIndex = newCursorPos;
+                if (window.np6) window.np6.cursorPos = newCursorPos;
+
                 // 7. Save and Refresh System
                 if (typeof saveBdiState === 'function') saveBdiState();
                 if (typeof rebuildRecordi === 'function') rebuildRecordi();
@@ -14657,8 +14799,11 @@ ${notepadCss}
                 if (typeof renderVisualTracks === 'function') renderVisualTracks();
                 if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
 
-                if (typeof window.highlightMeasure === 'function') window.highlightMeasure(targetIndex);
-                window.openMidiEditor(targetIndex);
+                if (typeof window.highlightMeasure === 'function') window.highlightMeasure(newCursorPos);
+                // Keep the editor open for the newly added measure or the next one? 
+                // Since they want the cursor at the end, we open it at newCursorPos so they can type the next one.
+                window.openMidiEditor(newCursorPos);
+
 
             };
         }
@@ -14863,11 +15008,16 @@ ${notepadCss}
                 // Update BDI
                 if (!window.bdi.bar) window.bdi.bar = [];
                 const updateIndex = window.currentEditingMeasureIndex;
+                let finalIndex = updateIndex;
+
                 if (updateIndex >= 0 && updateIndex < window.bdi.bar.length) {
                     window.bdi.bar[updateIndex] = newMeasure;
                 } else {
                     if (typeof targetIndex !== 'undefined') {
                         window.bdi.bar.splice(targetIndex, 0, newMeasure);
+                        finalIndex = targetIndex + 1;
+                        window.selectedMeasureIndex = finalIndex;
+                        if (window.np6) window.np6.cursorPos = finalIndex;
                     }
                 }
 
@@ -14877,8 +15027,8 @@ ${notepadCss}
                 if (typeof renderVisualTracks === 'function') renderVisualTracks();
                 if (typeof applyNotepadColoring === 'function') applyNotepadColoring();
 
-                if (typeof window.highlightMeasure === 'function') window.highlightMeasure(updateIndex);
-                window.openMidiEditor(updateIndex);
+                if (typeof window.highlightMeasure === 'function') window.highlightMeasure(finalIndex);
+                window.openMidiEditor(finalIndex);
             };
         }
 
@@ -15094,9 +15244,7 @@ ${notepadCss}
         // === RHYTHM MOD CONFIGURATION (Moved below staff) ===
 
         // === BOTTOM ROW (Color Controls) ===
-        const bottomRow = document.createElement('div');
-        bottomRow.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 10px;';
-        midiInputsContainer.appendChild(bottomRow);
+
 
         // === SHARED HELPERS ===
         const updateInputAndRecalc = (newNotes) => {
@@ -15130,8 +15278,7 @@ ${notepadCss}
             // LIVE PREVIEW ON SCORE (Disabled: changes only in modal until applied)
 
 
-            const recalcBtn = bottomRow.querySelector('button[title="Recalcular color basado en notas"]');
-            if (recalcBtn) recalcBtn.click();
+
 
             // Playback (tuci)
             // Playback (Preview) using playMeasureFast
@@ -15534,7 +15681,7 @@ ${notepadCss}
 
         // New Buttons
         genControls.appendChild(createHeaderBtn('⇄', 'Invertir Orden (Retrogradación)', () => applyReverseGen()));
-        genControls.appendChild(createHeaderBtn('🎵↕', 'Invertir Melodía (Espejo)', () => applyInvertGen()));
+        genControls.appendChild(createHeaderBtn('↕', 'Invertir Melodía (Espejo)', () => applyInvertGen()));
         genControls.appendChild(createHeaderBtn('↻P', 'Rotar Tono (Mantiene Ritmo)', () => applyRotatePitchGen()));
 
         const applySawtoothGen = () => {
@@ -15660,74 +15807,17 @@ ${notepadCss}
             updateInputAndRecalc(newNotes);
         };
 
-        genControls.appendChild(createHeaderBtn('📈', 'Línea Ascendente (Lineal)', () => applyLineGen('asc')));
-        genControls.appendChild(createHeaderBtn('📉', 'Línea Descendente (Lineal)', () => applyLineGen('desc')));
+        genControls.appendChild(createHeaderBtn('', 'Línea Ascendente (Lineal)', () => applyLineGen('asc')));
+        genControls.appendChild(createHeaderBtn('', 'Línea Descendente (Lineal)', () => applyLineGen('desc')));
         genControls.appendChild(createHeaderBtn('⤴', 'Curva Exp. Ascendente (Gradual)', () => applyCurveGen('asc')));
         genControls.appendChild(createHeaderBtn('⤵', 'Curva Exp. Descendente (Gradual)', () => applyCurveGen('desc')));
 
         controlsContainer.appendChild(genControls);
 
         // --- COLOR LOGIC (In Bottom Row) ---
-        const notepadContainer = document.getElementById('notepi6');
-        let bgColor = '#eee';
-        let bgImage = 'none';
-        let borderRadius = '4px';
 
-        if (notepadContainer) {
-            const spans = Array.from(notepadContainer.querySelectorAll('span[data-is-word-block="true"]'));
-            const sourceSpan = spans[measureIndex];
-            if (sourceSpan) {
-                const compStyle = window.getComputedStyle(sourceSpan);
-                bgColor = compStyle.backgroundColor;
-                bgImage = compStyle.backgroundImage;
-                borderRadius = compStyle.borderRadius;
-            }
-        }
 
-        const recalcBtn = document.createElement('button');
-        recalcBtn.textContent = 'Recalcular Color ↕';
-        recalcBtn.title = 'Recalcular color basado en notas';
-        recalcBtn.style.cssText = 'cursor: pointer; padding: 5px 10px; border: 1px solid #999; border-radius: 4px; background: #eee; font-size: 12px;';
 
-        recalcBtn.onclick = () => {
-            const singleInput = document.getElementById('midi-single-input');
-            if (!singleInput) return;
-
-            const notes = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v) && v > 0);
-
-            let colorResult = '#cccccc'; // Default
-
-            if (notes.length > 0) {
-                if (typeof window.midiNotesToColor === 'function') {
-                    colorResult = window.midiNotesToColor(notes);
-                } else {
-                }
-            }
-
-            const colorSwatch = bottomRow.querySelector('.color-swatch-box');
-            if (colorSwatch) {
-                // Reset both properties to ensure clean state
-                colorSwatch.style.backgroundImage = 'none';
-                colorSwatch.style.backgroundColor = 'transparent';
-
-                // Apply new style (works for both solid colors and gradients)
-                colorSwatch.style.background = colorResult;
-            }
-
-            // Save the color string (can be hex, rgb, hsl, or gradient)
-            measure.hexi = colorResult;
-
-            // Legacy support: set coli to grey as fallback since we rely on hexi now
-            measure.coli = [128, 128, 128, 255];
-        };
-
-        const colorSwatch = document.createElement('div');
-        colorSwatch.className = 'color-swatch-box';
-        colorSwatch.style.cssText = `
-            display: block; flex-grow: 1; height: 28px;
-            background-color: ${bgColor}; background-image: ${bgImage};
-            border: 1px solid #999; border-radius: 4px; box-sizing: border-box; 
-        `;
 
         // CORRECT PLACEMENT: Show buttons when editor opens
         const midiAddBtn = document.getElementById('midi-editor-add');
@@ -15739,8 +15829,7 @@ ${notepadCss}
             midiAcceptBtn.style.visibility = 'visible';
         }
 
-        bottomRow.appendChild(recalcBtn);
-        bottomRow.appendChild(colorSwatch);
+
 
         // Old logic disabled
         if (false && (measure.hexi || measure.coli)) {
@@ -16052,14 +16141,14 @@ ${notepadCss}
         // Sync header-1 select
         const scaleModeSelect = document.getElementById('scale-mode');
         if (scaleModeSelect) {
-            const modeMap = ['Major', 'Minor', 'Chromatic'];
+            const modeMap = ['Major', 'Minor', 'Dorico', 'Frigio', 'Lidio', 'Mixolidio', 'Locrio', 'Chromatic'];
             scaleModeSelect.value = modeMap[index] || 'Major';
         }
 
-        // Sync key selector visibility
+        // Ocultar selector de raíz solo en escala cromática (índice 7)
         const keyWrapper = document.getElementById('key-selector-wrapper');
         if (keyWrapper) {
-            keyWrapper.style.visibility = (index === 2) ? 'hidden' : 'visible';
+            keyWrapper.style.visibility = (index === 7) ? 'hidden' : 'visible';
         }
     }
 
@@ -16080,7 +16169,11 @@ ${notepadCss}
     const scaleModeSelect = document.getElementById('scale-mode');
     if (scaleModeSelect) {
         scaleModeSelect.addEventListener('change', (e) => {
-            const modeMap = { 'Major': 0, 'Minor': 1, 'Chromatic': 2 };
+            const modeMap = {
+                'Major': 0, 'Minor': 1,
+                'Dorico': 2, 'Frigio': 3, 'Lidio': 4, 'Mixolidio': 5, 'Locrio': 6,
+                'Chromatic': 7
+            };
             setActiveScale(modeMap[e.target.value] ?? 0);
         });
     }
@@ -16091,11 +16184,11 @@ ${notepadCss}
             scaleRootSelect.value = noteNames12[keyinselecti];
         }
         if (scaleModeSelect) {
-            const modeMap = ['Major', 'Minor', 'Chromatic'];
+            const modeMap = ['Major', 'Minor', 'Dorico', 'Frigio', 'Lidio', 'Mixolidio', 'Locrio', 'Chromatic'];
             scaleModeSelect.value = modeMap[scali] || 'Major';
             const keyWrapper = document.getElementById('key-selector-wrapper');
             if (keyWrapper) {
-                keyWrapper.style.visibility = (scali === 2) ? 'hidden' : 'visible';
+                keyWrapper.style.visibility = (scali === 7) ? 'hidden' : 'visible';
             }
         }
     }, 150);
@@ -16140,12 +16233,12 @@ ${notepadCss}
         const updateUI = () => {
             const isInd = (voiceEditMode === 'independent');
             if (isInd) {
-                if (modeIcon) modeIcon.textContent = '🔓';
+                if (modeIcon) modeIcon.textContent = 'IND';
                 editModeToggle.classList.add('independent');
                 editModeToggle.classList.remove('dependent');
                 editModeToggle.title = 'Modo: Independiente (solo voz seleccionada). Click para cambiar a Dependiente';
             } else {
-                if (modeIcon) modeIcon.textContent = '🔗';
+                if (modeIcon) modeIcon.textContent = 'DEP';
                 editModeToggle.classList.add('dependent');
                 editModeToggle.classList.remove('independent');
                 editModeToggle.title = 'Modo: Dependiente (armonía automática). Click para cambiar a Independiente';
@@ -16155,7 +16248,7 @@ ${notepadCss}
             const modalToggle = document.getElementById('modal-mode-toggle');
             if (modalToggle) {
                 modalToggle.style.backgroundColor = isInd ? '#FF9800' : '#4CAF50';
-                modalToggle.innerHTML = isInd ? '🔓' : '🔗';
+                modalToggle.innerHTML = isInd ? 'IND' : 'DEP';
                 modalToggle.title = isInd ? 'Modo: Independiente' : 'Modo: Dependiente';
             }
 
@@ -16617,11 +16710,12 @@ ${notepadCss}
     const titleDisplay = document.getElementById('title-display');
     const titleInput = document.getElementById('title-input');
     const lyricsTitleInput = document.getElementById('lyrics-title-input');
+    const lyricsMidLink = document.getElementById('lyrics-mid-link');
     const downloadLink = document.getElementById('expi');
 
     // Function to update title in all places
     function updateTitle(newTitle) {
-        if (!newTitle || newTitle.trim() === '') {
+        if (!newTitle) {
             newTitle = 'emotion'; // Default title
         }
 
@@ -16630,9 +16724,9 @@ ${notepadCss}
             window.bdi.metadata.title = newTitle;
         }
 
-        // Update display with .mid extension
+        // Update display download attribute (do NOT change textContent to avoid removing .mid)
         if (titleDisplay) {
-            titleDisplay.textContent = newTitle + '.mid';
+            titleDisplay.setAttribute('download', newTitle + '.mid');
         }
 
         // Update input value (without extension)
@@ -16654,6 +16748,9 @@ ${notepadCss}
         if (titleDisplay) {
             titleDisplay.setAttribute('download', newTitle + '.mid');
         }
+        if (lyricsMidLink) {
+            lyricsMidLink.setAttribute('download', newTitle + '.mid');
+        }
 
     }
 
@@ -16662,56 +16759,28 @@ ${notepadCss}
         updateTitle(window.bdi.metadata.title);
     }
 
-    // Click speed detection: fast click = download, slow/double click = edit
-    if (titleDisplay && titleInput) {
-        const titleExtension = document.getElementById('title-extension');
-        let clickTimer = null;
-        let lastClickTime = 0;
-        const DOUBLE_CLICK_SPEED = 300; // ms for double click detection
-
-        // Simplified interaction: Link click downloads (native), double click REMOVED
-
-
-        function enterEditMode() {
-            titleDisplay.style.display = 'none';
-            titleInput.style.display = 'inline-block';
-            if (titleExtension) titleExtension.style.display = 'inline';
-            titleInput.focus();
-            titleInput.select();
-        }
-
-        // Deselect when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!titleDisplay.contains(e.target) && !titleInput.contains(e.target)) {
-                if (titleInput.style.display !== 'none') {
-                    // If clicking outside while editing, save
-                    saveTitle();
-                }
+    // Update title instantly as user types in the main title input
+    if (titleInput) {
+        titleInput.addEventListener('input', (e) => {
+            const newTitle = e.target.value.trim();
+            if (window.bdi && window.bdi.metadata) {
+                window.bdi.metadata.title = newTitle;
+            }
+            if (lyricsTitleInput && lyricsTitleInput.value !== newTitle) {
+                lyricsTitleInput.value = newTitle;
+            }
+            if (downloadLink) {
+                downloadLink.setAttribute('download', newTitle + '.mid');
+            }
+            if (titleDisplay) {
+                titleDisplay.setAttribute('download', newTitle + '.mid');
+            }
+            if (lyricsMidLink) {
+                lyricsMidLink.setAttribute('download', newTitle + '.mid');
             }
         });
 
-        // Save on Enter or blur
-        function saveTitle() {
-            const newTitle = titleInput.value.trim();
-            updateTitle(newTitle);
-            titleInput.style.display = 'none';
-            if (titleExtension) titleExtension.style.display = 'none';
-            titleDisplay.style.display = 'inline';
-        }
-
-        titleInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                saveTitle();
-            } else if (e.key === 'Escape') {
-                // Cancel editing
-                titleInput.value = titleDisplay.textContent.replace('.mid', '');
-                titleInput.style.display = 'none';
-                if (titleExtension) titleExtension.style.display = 'none';
-                titleDisplay.style.display = 'inline';
-            }
-        });
-
-        titleInput.addEventListener('blur', saveTitle);
+        // Removed blur handler because we don't force 'emotion' default anymore
     }
 
     // Listener for lyrics title input
@@ -16724,10 +16793,12 @@ ${notepadCss}
                 window.bdi.metadata.title = newTitle;
             }
             if (titleDisplay) {
-                titleDisplay.textContent = newTitle + '.mid';
                 titleDisplay.setAttribute('download', newTitle + '.mid');
             }
-            if (titleInput) {
+            if (lyricsMidLink) {
+                lyricsMidLink.setAttribute('download', newTitle + '.mid');
+            }
+            if (titleInput && titleInput.value !== newTitle) {
                 titleInput.value = newTitle;
             }
             if (downloadLink) {
@@ -16748,6 +16819,10 @@ ${notepadCss}
                 titleDisplay.setAttribute('href', currentHref);
                 titleDisplay.setAttribute('download', title + '.mid');
             }
+            if (lyricsMidLink && currentHref) {
+                lyricsMidLink.setAttribute('href', currentHref);
+                lyricsMidLink.setAttribute('download', title + '.mid');
+            }
         }
     };
 
@@ -16765,6 +16840,38 @@ ${notepadCss}
             attributes: true,
             attributeFilter: ['href']
         });
+    }
+
+    // ========== DOWNLOAD .musicoli ==========
+    function handleMusicoliDownload() {
+        if (!window.bdi || !window.bdi.bar) {
+            alert('No hay ninguna composición actual para descargar.');
+            return;
+        }
+
+        // Descargar el contenido de window.bdi completo para no perder metadatos
+        const compositionData = JSON.stringify(window.bdi, null, 2);
+        const blob = new Blob([compositionData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        const title = (window.bdi.metadata && window.bdi.metadata.title) ? window.bdi.metadata.title : 'emotion';
+        a.download = title + '.musicoli';
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    const downloadMusicoliBtn = document.getElementById('download-musicoli-btn');
+    if (downloadMusicoliBtn) {
+        downloadMusicoliBtn.addEventListener('click', handleMusicoliDownload);
+    }
+    const lyricsMusicoliBtn = document.getElementById('lyrics-musicoli-btn');
+    if (lyricsMusicoliBtn) {
+        lyricsMusicoliBtn.addEventListener('click', handleMusicoliDownload);
     }
 
     // END EDITABLE TITLE SYSTEM
@@ -16819,24 +16926,46 @@ ${notepadCss}
         }
     }
 
-    // Función para guardar el estado actual como frase
+    // Función para guardar los compases seleccionados como frase
     function saveCurrentFrase() {
+        // Determinar qué compases están seleccionados (misma lógica que Copiar)
+        let startIdx = -1;
+        let endIdx = -1;
+
+        if (window.selectionRange && window.selectionRange.start !== -1) {
+            startIdx = window.selectionRange.start;
+            endIdx = window.selectionRange.end;
+        } else if (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0) {
+            startIdx = window.selectedMeasureIndex;
+            endIdx = window.selectedMeasureIndex;
+        }
+
+        if (startIdx === -1) {
+            alert('No hay compases seleccionados para guardar como frase.');
+            return false;
+        }
+
+        const realTotal = window.bdi && window.bdi.bar ? window.bdi.bar.length : 0;
+        const validStart = Math.max(0, startIdx);
+        const validEnd = Math.min(endIdx, realTotal - 1);
+
+        if (validStart >= realTotal) {
+            return false;
+        }
+
+        // Obtener solo la porción seleccionada
+        const bdiSlice = window.bdi.bar.slice(validStart, validEnd + 1);
+
         // Capturar el estado actual
         const fraseData = {
-            bdi: typeof window.bdi.bar !== 'undefined' ? JSON.parse(JSON.stringify(window.bdi.bar)) : [],
-            notepadContent: typeof np6 !== 'undefined' && np6 ? np6.letterNodes.map(node => ({
-                text: node.textContent || '',
-                color: node.style.backgroundColor || node.dataset.color || '',
-                dataset: { ...node.dataset }
-            })) : [],
+            bdi: JSON.parse(JSON.stringify(bdiSlice)),
+            // No guardamos np6.letterNodes completo porque solo copiamos el bdi
+            notepadContent: [],
             timestamp: new Date().toLocaleString()
         };
 
         // Guardar la frase
         if (saveFrase(fraseData)) {
-            // Vaciar todo después de guardar
-            clearAllComposition();
-
             // Actualizar los botones de frases
             renderFrasesButtons();
 
@@ -16844,7 +16973,7 @@ ${notepadCss}
             const fraseBtn = document.getElementById('frase-btn');
             if (fraseBtn) {
                 const originalText = fraseBtn.textContent;
-                fraseBtn.textContent = '✓ Guardada';
+                fraseBtn.textContent = ' Guardada';
                 fraseBtn.style.background = 'var(--theme-primary)';
                 setTimeout(() => {
                     fraseBtn.textContent = originalText;
@@ -16854,7 +16983,7 @@ ${notepadCss}
 
             return true;
         } else {
-            alert('❌ Error al guardar la frase');
+            alert(' Error al guardar la frase');
             return false;
         }
     }
@@ -16958,10 +17087,27 @@ ${notepadCss}
 
                     // Insertar al final (en la posición del cursor)
                     const newBdi = JSON.parse(JSON.stringify(measuresToRestore));
+
+                    // Solo pegar en pistas audibles (el resto se silencia)
+                    const playbackSelector = document.getElementById('playback-selector');
+                    let activeStr = playbackSelector ? playbackSelector.value : 'audible';
+                    const activeVoices = (activeStr === 'audible' || activeStr === 's,a,t,b') ? ['s', 'a', 't', 'b'] : activeStr.split(',');
+
                     // Ajustar numi para que sean consecutivos
                     const startNumi = window.bdi.bar.length;
                     newBdi.forEach((item, idx) => {
                         item.numi = startNumi + idx;
+                        if (item.voci) {
+                            item.voci.forEach(voice => {
+                                if (!activeVoices.includes(voice.nami)) {
+                                    // Silenciar la pista no audible
+                                    if (voice.nimidi) voice.nimidi = voice.nimidi.map(() => 0);
+                                    if (voice.tipis) voice.tipis = voice.tipis.map(t => -Math.abs(t));
+                                    voice.tarari = '';
+                                    voice.letra = '';
+                                }
+                            });
+                        }
                     });
                     //-->window.bdi.push(...newBdi);
                     // Use designated splicing position or default to end if -1
@@ -17059,7 +17205,7 @@ ${notepadCss}
         // Botón para borrar todas las frases si hay alguna
         if (frases.length > 0) {
             const clearAllBtn = document.createElement('button');
-            clearAllBtn.textContent = '🗑️ Borrar Todo';
+            clearAllBtn.textContent = '️ Borrar Todo';
             clearAllBtn.title = 'Eliminar todas las frases guardadas';
             clearAllBtn.style.cssText = 'background: #d32f2f; color: white; border: none; padding: 4px 10px; border-radius: 3px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; margin-left: 10px;';
             clearAllBtn.addEventListener('click', () => {
@@ -17077,18 +17223,7 @@ ${notepadCss}
     const fraseBtn = document.getElementById('frase-btn');
     if (fraseBtn) {
         fraseBtn.addEventListener('click', () => {
-            // Verificar si hay contenido para guardar
-            const hasContent = (typeof window.bdi.bar !== 'undefined' && window.bdi.bar.length > 0) ||
-                (typeof np6 !== 'undefined' && np6 && np6.letterNodes.length > 0);
-
-            if (hasContent) {
-                // Guardar la frase actual y vaciar
-                if (confirm('¿Guardar la frase actual y empezar de nuevo?\n\nSe guardará el estado actual y se vaciará todo para continuar componiendo.')) {
-                    saveCurrentFrase();
-                }
-            } else {
-                alert('No hay contenido para guardar. Crea una composición primero.');
-            }
+            saveCurrentFrase();
         });
     }
 
@@ -17407,8 +17542,9 @@ ${notepadCss}
                     applyTextLayer();
                 }
 
-                const voiceNames = { 's': 'Soprano', 'a': 'Contralto', 't': 'Tenor', 'b': 'Bajo' };
-                alert(`✅ Armonizado: ${updatedCount} compases actualizados desde ${voiceNames[sourceVoiceCode]}`);
+                const voiceNames = { 's': t('Soprano'), 'a': t('Contralto'), 't': t('Tenor'), 'b': t('Bajo') };
+                const alertTemplate = t("AlertHarmonize");
+                alert(alertTemplate.replace('{n}', updatedCount).replace('{v}', voiceNames[sourceVoiceCode]));
             });
         }
 
@@ -17428,7 +17564,7 @@ ${notepadCss}
                 const currentKey = keyinselecti; // 0-11 (C to B)
 
                 if (currentScale === 'cromatica') {
-                    alert('⚠️ La escala cromática ya incluye todas las notas. No es necesario ajustar.');
+                    alert(t("AlertChromatic"));
                     return;
                 }
 
@@ -17501,11 +17637,17 @@ ${notepadCss}
                     applyTextLayer();
                 }
 
-                const voiceNames = { 's': 'Soprano', 'a': 'Contralto', 't': 'Tenor', 'b': 'Bajo' };
-                const scaleName = currentScale.charAt(0).toUpperCase() + currentScale.slice(1);
+                const voiceNames = { 's': t('Soprano'), 'a': t('Contralto'), 't': t('Tenor'), 'b': t('Bajo') };
+                const scaleName = t(currentScale.charAt(0).toUpperCase() + currentScale.slice(1));
                 const keyName = keyin[currentKey];
 
-                alert(`✅ Ajustado a escala: ${notesAdjusted} notas ajustadas en ${updatedCount} compases\nVoz: ${voiceNames[selectedVoice]}\nEscala: ${keyName} ${scaleName}`);
+                const alertTemplate = t("AlertScaleAdjust");
+                alert(alertTemplate
+                    .replace('{n}', notesAdjusted)
+                    .replace('{m}', updatedCount)
+                    .replace('{v}', voiceNames[selectedVoice])
+                    .replace('{k}', keyName)
+                    .replace('{s}', scaleName));
             });
         }
     }
@@ -17721,6 +17863,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // MUSICOLI: Manage Partes Section Visibility
+        // Show in both Ritmo and Composicion modes
+        const partesSection = document.getElementById('comp-partes-section');
+        if (partesSection) {
+            partesSection.style.display = (mode === 'composicion' || mode === 'ritmo') ? 'block' : 'none';
+        }
+
         // Mode-specific logic
 
         // Harmonize container: Only in Tonalidad
@@ -17745,7 +17894,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     newItem.innerHTML = `
                         <h4 style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
-                          🎹 ZONA DE ARMONIZACIÓN
+                           ZONA DE ARMONIZACIÓN
                         </h4>
                         
                         <!-- PHRASE TOOLS (At Top, No Title) -->
@@ -17773,11 +17922,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
                             <button id="harmonize-btn" class="theme-btn"
                               style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white;">
-                              ✨ Armonizar
+                               Armonizar
                             </button>
                             <button id="harmonize-scale-btn" class="theme-btn"
                               style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">
-                              🎼 Escala
+                               Escala
                             </button>
                         </div>
                     `;
@@ -17808,17 +17957,19 @@ document.addEventListener('DOMContentLoaded', () => {
             tonalidadLadder.style.display = (mode === 'ritmo' || mode === 'tonalidad') ? 'inline' : 'none';
         }
 
-        // Lyrics Title Input: Only in Lyrics mode
+        // Lyrics Title Container: Only in Lyrics mode
+        const lyricsTitleContainer = document.getElementById('lyrics-title-container');
+        if (lyricsTitleContainer) {
+            lyricsTitleContainer.style.display = (mode === 'lyrics') ? 'inline-flex' : 'none';
+        }
+
         const lyricsTitleInput = document.getElementById('lyrics-title-input');
         if (lyricsTitleInput) {
-            lyricsTitleInput.style.display = (mode === 'lyrics') ? 'inline-block' : 'none';
-            // Sync value if becoming visible
+            // Sync value if becoming visible (container handles visibility)
             if (mode === 'lyrics' && typeof window.bdi !== 'undefined' && window.bdi.metadata && window.bdi.metadata.title) {
                 lyricsTitleInput.value = window.bdi.metadata.title;
             }
         }
-
-
 
         // Instrumentation Panel: Only in Instrumentación mode
         const panelModoInstrumentacion = document.getElementById('panel-modo-instrumentacion');
@@ -17958,6 +18109,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 window.bdi.bar = newMeasures;
 
+                // Reset selection to beginning
+                window.selectedMeasureIndex = 0;
+                if (typeof window.np6 !== 'undefined' && window.np6) {
+                    window.np6.cursorPos = 0;
+                }
+
                 // Restore lyrics if needed
                 if (typeof window.ensureLyricsField === 'function') window.ensureLyricsField();
 
@@ -17972,7 +18129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (bdiDisplay) bdiDisplay.value = JSON.stringify(window.bdi.bar, null, 2);
                 }
 
-                alert('✅ Composición generada exitosamente.');
+                alert(' Composición generada exitosamente.');
             }
         });
     }
@@ -18219,7 +18376,7 @@ setTimeout(() => {
         midiInputsContainer.innerHTML = `
             <div style="text-align: center; padding: 20px;">
                 <p style="color: #666; font-family: monospace; margin-bottom: 15px;">
-                    Selecciona un patrón rítmico y haz clic en una escala para comenzar
+                    Select a rhythm pattern, then click <strong>Accept</strong> to add it to the score
                 </p>
                
             </div>
@@ -18308,7 +18465,7 @@ function saveTracksConfig() {
     }
 
     // Show confirmation
-    alert('✅ Configuración guardada correctamente');
+    alert(' Configuración guardada correctamente');
 }
 
 /**
@@ -18387,10 +18544,10 @@ function updateTrackLabels() {
             // MUSICOLI: Show drum names in global percussion mode
             if (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) {
                 const percNames = {
-                    's': '🥁 Snare',
-                    'a': '🥁 Hi-Hat',
-                    't': '🥁 Tom',
-                    'b': '🥁 Kick'
+                    's': ' Snare',
+                    'a': ' Hi-Hat',
+                    't': ' Tom',
+                    'b': ' Kick'
                 };
                 labelElement.textContent = percNames[track.key];
             } else {
@@ -18455,7 +18612,7 @@ setTimeout(() => {
             let instrumentName = selectedOption.text;
             if (instrumentName.includes(' - ')) {
                 instrumentName = instrumentName.split(' - ')[1];
-            } else if (instrumentName.includes('🥁 ')) {
+            } else if (instrumentName.includes(' ')) {
                 instrumentName = "Percussion";
             }
 
@@ -18719,7 +18876,7 @@ window.updateColorDebugInfo = function () {
 
     const voices = ['s', 'a', 't', 'b'];
     const voiceNames = { 's': 'Soprano', 'a': 'Alto', 't': 'Tenor', 'b': 'Bajo' };
-    const tesituras = {
+    const tesituras = window.globalTessituras || {
         's': { min: 60, max: 81 },
         'a': { min: 55, max: 76 },
         't': { min: 48, max: 69 },
@@ -18824,7 +18981,7 @@ window.updateColorDebugInfo = function () {
             // Only report problems (WCAG AA failures)
             if (!wcagAA) {
                 problemCount++;
-                report += `⚠️  PROBLEMA DE CONTRASTE DETECTADO\n`;
+                report += `️  PROBLEMA DE CONTRASTE DETECTADO\n`;
                 report += `───────────────────────────────────────────────────────────\n`;
                 report += `Compás: ${measureIndex + 1} | Voz: ${voiceNames[voiceKey]} (${voiceKey.toUpperCase()})\n`;
                 report += `MIDI: ${nimidi.join(', ')}\n`;
@@ -18836,7 +18993,7 @@ window.updateColorDebugInfo = function () {
                 }
                 report += `Texto: ${colorResult.color}\n`;
                 report += `Contraste (peor caso): ${worstContrast.toFixed(2)}:1\n`;
-                report += `WCAG AA: ${wcagAA ? '✓ PASS' : '✗ FAIL'} | AAA: ${wcagAAA ? '✓ PASS' : '✗ FAIL'}\n`;
+                report += `WCAG AA: ${wcagAA ? ' PASS' : ' FAIL'} | AAA: ${wcagAAA ? ' PASS' : ' FAIL'}\n`;
                 report += `\n`;
             }
         });
@@ -18851,9 +19008,9 @@ window.updateColorDebugInfo = function () {
     report += '═══════════════════════════════════════════════════════════\n';
 
     if (problemCount === 0) {
-        report += '\n✅ ¡Excelente! Todos los compases cumplen con WCAG AA.\n';
+        report += '\n ¡Excelente! Todos los compases cumplen con WCAG AA.\n';
     } else {
-        report += `\n⚠️  Se encontraron ${problemCount} compases con problemas de legibilidad.\n`;
+        report += `\n️  Se encontraron ${problemCount} compases con problemas de legibilidad.\n`;
         report += 'Revisa los detalles arriba para identificar qué ajustar.\n';
     }
 

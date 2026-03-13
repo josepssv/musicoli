@@ -3,7 +3,7 @@
     const voiceSelector = document.getElementById('voice-selector');
     if (voiceSelector) {
         voiceSelector.addEventListener('change', function () {
-            console.log('🔄 Voice selector changed to:', this.value);
+            console.log(' Voice selector changed to:', this.value);
 
             // Update the visual tracks to reflect the new selected voice
             if (typeof renderVisualTracks === 'function') {
@@ -13,7 +13,7 @@
             // Update Notepad coloring to reflect the new voice's MIDI notes
             if (typeof applyNotepadColoring === 'function') {
                 applyNotepadColoring();
-                console.log('🎨 Applied Notepad coloring for voice:', this.value);
+                console.log(' Applied Notepad coloring for voice:', this.value);
             }
 
             // Update voiceline display
@@ -28,8 +28,8 @@
                 voiceline.textContent = voiceNames[this.value] || this.value;
             }
         });
-        console.log('✅ Voice selector change listener attached');
+        console.log(' Voice selector change listener attached');
     } else {
-        console.warn('⚠️ Voice selector not found');
+        console.warn('️ Voice selector not found');
     }
 })();

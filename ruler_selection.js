@@ -52,7 +52,7 @@
         // Listen for clicks on the scroll viewport (black empty space)
         scrollViewport.addEventListener('mousedown', handleViewportClick);
 
-        console.log('📏 Ruler Selection initialized (Pixel Sync Mode)');
+        console.log(' Ruler Selection initialized (Pixel Sync Mode)');
         updateVisuals();
     }
 

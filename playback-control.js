@@ -1,12 +1,12 @@
 // Playback Control: Link Voice Labels to Playback Selector
 
 (function () {
-    // console.log('🎵 Initializing Playback Control...');
+    // console.log(' Initializing Playback Control...');
 
     // Self-healing: Create selector if it doesn't exist
     let selector = document.getElementById('playback-selector');
     if (!selector) {
-        console.warn('⚠️ Playback selector not found in DOM, creating it dynamically...');
+        console.warn('️ Playback selector not found in DOM, creating it dynamically...');
         selector = document.createElement('select');
         selector.id = 'playback-selector';
         selector.style.display = 'none';
@@ -18,7 +18,7 @@
         selector.appendChild(allOption);
 
         document.body.appendChild(selector);
-        console.log('✅ Created temporary playback-selector');
+        console.log(' Created temporary playback-selector');
     }
 
     const voiceLabels = {
@@ -34,7 +34,7 @@
         const selectedValue = selector.value;
         const activeVoices = selectedValue.split(',');
 
-        // console.log('🎛️ Playback active voices:', activeVoices);
+        // console.log('️ Playback active voices:', activeVoices);
 
         Object.keys(voiceLabels).forEach(key => {
             const label = voiceLabels[key];
@@ -102,7 +102,7 @@
             label.onclick = function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                // console.log(`🖱️ Clicked voice label: ${key}`);
+                // console.log(`️ Clicked voice label: ${key}`);
                 toggleVoice(key);
             };
             // Initial style setup
@@ -113,5 +113,5 @@
     // Initial run
     updateLabelStyles();
 
-    // console.log('✅ Playback Control initialized.');
+    // console.log(' Playback Control initialized.');
 })();

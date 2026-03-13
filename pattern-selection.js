@@ -187,10 +187,10 @@ const ACTIVE_PATTERN_STRATEGY = 'random'; // Options: 'random', 'phonetic', 'hyb
 function setPatternStrategy(strategy) {
     if (PatternSelectionStrategies[strategy]) {
         window.ACTIVE_PATTERN_STRATEGY = strategy;
-        console.log(`✓ Pattern selection strategy changed to: ${strategy}`);
+        console.log(` Pattern selection strategy changed to: ${strategy}`);
         return true;
     }
-    console.error(`✗ Unknown strategy: ${strategy}`);
+    console.error(` Unknown strategy: ${strategy}`);
     return false;
 }
 

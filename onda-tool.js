@@ -143,7 +143,7 @@ window.applyOndaFromUI = function () {
     startIdx = Math.max(0, Math.min(startIdx, total - 1));
     endIdx = Math.max(0, Math.min(endIdx, total - 1));
 
-    console.log(`🌊 Applying Onda to range [${startIdx}, ${endIdx}] for voices: ${targetVoiceKeys.join(', ')}`);
+    console.log(` Applying Onda to range [${startIdx}, ${endIdx}] for voices: ${targetVoiceKeys.join(', ')}`);
 
     targetVoiceKeys.forEach((selectedVoiceKey, voiceIdx) => {
         const range = tessitura[selectedVoiceKey] || { min: 0, max: 127 };
@@ -538,7 +538,7 @@ window.applyDynamicShapeFromUI = function () {
     startIdx = Math.max(0, Math.min(startIdx, total - 1));
     endIdx = Math.max(0, Math.min(endIdx, total - 1));
 
-    console.log(`🌊 Applying Dynamic Shape Modeling to range [${startIdx}, ${endIdx}]`);
+    console.log(` Applying Dynamic Shape Modeling to range [${startIdx}, ${endIdx}]`);
 
     // Helper: Get duration in beats (Quarter = 1) from Tipi code
     const getDurationInBeats = (tipi) => {
@@ -699,10 +699,93 @@ window.applyDynamicShapeFromUI = function () {
     console.log(`Dynamic shape ${shapeType} applied to voices: ${voiceKeys.join(', ')}`);
 };
 
+// 4.5 DYNAMIC LIMITER
+window.applyDynamicLimitFromUI = function () {
+    console.log("Applying Dynamic Limit...");
+
+    const minEl = getPrefixedElement('dynamic-limit-min');
+    const maxEl = getPrefixedElement('dynamic-limit-max');
+    if (!minEl || !maxEl) return;
+    
+    // Ensure we parse logic correctly as limits
+    let minVal = parseInt(minEl.value);
+    let maxVal = parseInt(maxEl.value);
+    
+    // Safety swap if min > max
+    if (minVal > maxVal) {
+        const temp = minVal;
+        minVal = maxVal;
+        maxVal = temp;
+        minEl.value = minVal;
+        maxEl.value = maxVal;
+    }
+
+    // 1. Identify Target Voices
+    const voiceKeys = getTargetVoiceKeys();
+
+    if (typeof window.bdi === 'undefined' || !window.bdi.bar || window.bdi.bar.length === 0) {
+        alert("No hay compases cargados.");
+        return;
+    }
+
+    // Determine Index Range
+    let startIdx = 0;
+    let endIdx = window.bdi.bar.length - 1;
+
+    if (window.selectionRange && window.selectionRange.start !== -1) {
+        startIdx = window.selectionRange.start;
+        endIdx = window.selectionRange.end;
+    }
+
+    // Clamp
+    const total = window.bdi.bar.length;
+    startIdx = Math.max(0, Math.min(startIdx, total - 1));
+    endIdx = Math.max(0, Math.min(endIdx, total - 1));
+
+    console.log(`Applying Dynamic Limit to range [${startIdx}, ${endIdx}]`);
+
+    voiceKeys.forEach(voiceKey => {
+        for (let i = startIdx; i <= endIdx; i++) {
+            const measure = window.bdi.bar[i];
+            const targetVoice = (measure.voci && Array.isArray(measure.voci)) ?
+                measure.voci.find(v => v.nami === voiceKey) :
+                (measure.voci ? measure.voci[voiceKey] : null);
+
+            if (!targetVoice || !targetVoice.dinami) continue;
+
+            for (let n = 0; n < targetVoice.dinami.length; n++) {
+                // Apply max limit AND min limit
+                let val = targetVoice.dinami[n];
+                val = Math.max(minVal, Math.min(val, maxVal));
+                targetVoice.dinami[n] = val;
+            }
+
+            const metaVoice = (window.bdi && window.bdi.metadata && window.bdi.metadata.voici) ? window.bdi.metadata.voici : 's';
+            if (voiceKey === metaVoice) {
+                // we have to update the root measure dinami because it renders from there
+                measure.dinami = [...targetVoice.dinami];
+            }
+        }
+    });
+
+    // Finalize Changes
+    if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
+    if (typeof window.rebuildRecordi === 'function') {
+        window.rebuildRecordi();
+    }
+
+    // Save state for undo
+    if (typeof window.saveBdiState === 'function') {
+        window.saveBdiState();
+    }
+
+    console.log(`Dynamic limit ${maxVal} applied to voices: ${voiceKeys.join(', ')}`);
+};
+
 
 // 5. COMBINED ONDA (Rhythm + Pitch)
 window.applyOndaCompletaFromUI = function () {
-    console.log("🌊 Applying Combined Onda (Rhythm + Pitch)...");
+    console.log(" Applying Combined Onda (Rhythm + Pitch)...");
 
     // 1. Identify Target Voice and Current State
     const voiceSelector = document.getElementById('voice-selector');
@@ -750,7 +833,7 @@ window.applyOndaCompletaFromUI = function () {
     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
     if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
 
-    console.log("✅ Combined Onda finalized.");
+    console.log(" Combined Onda finalized.");
 };
 
 // UI Listener for Shape Type

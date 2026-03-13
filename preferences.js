@@ -14,7 +14,7 @@
         nomenclature: 'english',
         // UI language: 'es' = Español, 'en' = English
         language: 'en',
-        // Enable smart diatonic harmony auto-fill
+        // Diatonic harmony always enabled (no UI toggle)
         smartDiatonic: true,
         // Whether the user has seen the welcome screen at least once
         welcomed: false,
@@ -39,6 +39,11 @@
                 if (raw) {
                     const saved = JSON.parse(raw);
                     this.values = Object.assign({}, DEFAULTS, saved);
+                    // Migrate: if language was previously saved as 'es' (old default),
+                    // reset to 'en' so English is now the application default
+                    if (this.values.language === 'es') {
+                        this.values.language = 'en';
+                    }
                     return true;
                 }
             } catch (e) {
@@ -92,6 +97,9 @@
             // --- Key Root ---
             this._applyKeyRoot();
 
+            // --- Smart Diatonic Harmony (always on) ---
+            this.values.smartDiatonic = true;
+
             // --- Scale Mode ---
             this._applyScaleMode();
         },
@@ -100,22 +108,36 @@
             const useLatin = this.get('nomenclature') === 'latin';
             const english = (typeof keyin !== 'undefined') ? keyin
                 : ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-            const latin = (typeof tonicain !== 'undefined') ? tonicain
-                : ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si', 'Si#'];
+            // Trim the typical Latin array if someone provided 13 by accident to perfectly match 12 English keys
+            let rawLatin = (typeof tonicain !== 'undefined') ? tonicain
+                : ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+            if (rawLatin.length > 12) {
+                rawLatin = rawLatin.slice(0, 12);
+            }
+            const latin = rawLatin;
             const names = useLatin ? latin : english;
 
             const updateSelector = (id) => {
                 const el = document.getElementById(id);
                 if (!el) return;
-                const currentVal = el.value;
-                el.innerHTML = '';
+                // Capture the current selected value
+                let currentVal = el.value;
+                el.options.length = 0; // Safest cross-browser wipe
                 names.forEach((name, i) => {
+                    const val = english[i] || name;
                     const opt = document.createElement('option');
-                    opt.value = english[i] || name;
+                    opt.value = val;
                     opt.textContent = name;
-                    if (opt.value === currentVal) opt.selected = true;
+                    if (val === currentVal) {
+                        opt.selected = true; // Set directly to prevent visual glitches
+                    }
                     el.appendChild(opt);
                 });
+                
+                // Forcibly restore the value for edge cases
+                if (currentVal) {
+                    el.value = currentVal;
+                }
             };
 
             updateSelector('scale-root');

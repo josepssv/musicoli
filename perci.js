@@ -226,7 +226,7 @@ function getActiveTrili() {
             const voiceMeta = window.bdi.metadata.voices[selectedVoice];
 
             if (voiceMeta && voiceMeta.percussion === true) {
-                console.log('🥁 Usando patrones de percusión (triliPerci)');
+                console.log(' Usando patrones de percusión (triliPerci)');
                 return triliPerci;
             }
         }

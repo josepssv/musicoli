@@ -1,5 +1,8 @@
 # Future Improvements & Technical Debt
 
+## Aesthetics & UI
+- **No Emojis**: Do not use emojis anywhere in the user interface or code (labels, buttons, logs, etc.). Ensure the project maintains a formal text/icon based aesthetic without emojis.
+
 ## Ruler Selection
 - **Click Behavior (Start of Bar)**: The user reported inconsistent cursor updates when clicking directly on the selection bar (red bar) without dragging.
 - **Goal**: Ensure that a simple click on the bar always updates the app's cursor and selected measure to the start of the bar. (Current implementation attempts this but might need refinement).

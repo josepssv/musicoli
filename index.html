@@ -20,7 +20,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/soundfont-player/0.12.0/soundfont-player.min.js"></script>
 
   <script src="silaba.js"></script>
-  <script src="languages.js"></script>
+  <script src="languages.js?v=3"></script>
   <script src="metrica.js"></script>
   <script src="perci.js"></script>
   <script src="pattern-selection.js"></script>
@@ -29,8 +29,8 @@
     src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0">
     </script>
   <script src="tarareo-melodic.js"></script> <!-- Melodic Tarareo Logic -->
-  <script src="preferences.js"></script>
-  <script src="musicoli.js"></script>
+  <script src="preferences.js?v=3"></script>
+  <script src="musicoli.js?v=3"></script>
 
 
 
@@ -387,7 +387,7 @@
     <header class="theme-header"
       style="padding: 4px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-family: monospace; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-        <div style="font-size: 16px; font-weight: bold;">Musicoli</div>
+        <div style="font-size: 16px; font-weight: bold; cursor: pointer;" onclick="if(window.openWelcomePanel) window.openWelcomePanel();" title="Abrir panel inicial">Musicoli</div>
         <button id="mode-ritmo" class="mode-btn mode-btn-ritmo active" data-i18n="Ritmo"
           style="padding: 3px 8px; font-size: 11px;">Ritmo</button>
         <button id="mode-tarareo"
@@ -408,7 +408,7 @@
       </div>
       <div style="display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap;">
         <span data-i18n="BPM">BPM</span>:
-        <input type="number" id="bpm-custom-input" min="40" max="240" value="120"
+        <input type="number" id="bpm-custom-input" min="10" max="440" value="120"
           style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
         <span><span data-i18n="Compás">Compás</span>: <select id="compas-select">
             <option value="[4,4]">4/4</option>
@@ -436,11 +436,31 @@
             style="background: #444; color: white; border: 1px solid #666; padding: 4px; border-radius: 3px; font-family: monospace;">
             <option value="Major" data-i18n="Mayor" selected>Mayor</option>
             <option value="Minor" data-i18n="Menor">Menor</option>
+            <option value="Dorico" data-i18n="Dórico">Dórico</option>
+            <option value="Frigio" data-i18n="Frigio">Frigio</option>
+            <option value="Lidio" data-i18n="Lidio">Lidio</option>
+            <option value="Mixolidio" data-i18n="Mixolidio">Mixolidio</option>
+            <option value="Locrio" data-i18n="Locrio">Locrio</option>
             <option value="Chromatic" data-i18n="Cromática">Cromática</option>
           </select></span>
-        <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
-          data-i18n-placeholder="Título de la composición"
-          style="display: none; margin-left: 20px; padding: 5px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+        <span id="lyrics-title-container" style="display: none; align-items: center; gap: 2px; margin-left: 20px;">
+          <input type="text" id="lyrics-title-input" placeholder="Título de la composición"
+            data-i18n-placeholder="Título de la composición" value="emotion"
+            style="color:#bbb; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid transparent; border-radius: 3px; background: rgba(0,0,0,0.2); width: 100px; outline: none; transition: border 0.2s;"
+            onfocus="this.style.border='1px solid #555'" onblur="this.style.border='1px solid transparent'">
+          <a id="lyrics-mid-link"
+            style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
+            data-i18n-title="Descargar composición en formato .mid" download=".mid">.mid</a>
+          <span id="lyrics-musicoli-btn" style="display:inline-block;
+                      cursor:pointer;
+                      margin-left: 5px;
+                      text-decoration:underline;
+                      color:#ddd;
+                      font-family: monospace;
+                      font-size: 14px;" title="Descargar composición en formato .musicoli">
+            .musicoli
+          </span>
+        </span>
         <!-- Hidden voice selector for state management -->
         <select id="voice-selector" style="display: none;">
           <option value="s" data-i18n="Soprano" selected>Soprano</option>
@@ -459,17 +479,267 @@
         Frase
       </button>
       <button id="copy-measures-btn" class="theme-btn" data-i18n="Copiar"
-        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        data-i18n-title="Copiar compases seleccionados">
         Copiar
       </button>
+
       <button id="paste-measures-btn" class="theme-btn" data-i18n="Pegar"
-        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        data-i18n-title="Pegar compases copiados">
         Pegar
       </button>
-      <button id="delete-measures-btn" class="theme-btn theme-btn-danger"
+      <button id="duplicate-measures-btn" class="theme-btn" data-i18n="Duplicar"
         style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        data-i18n-title="Duplicar compases seleccionados">
+        Duplicar
+      </button>
+      <!-- Contenedor del Botón de Variaciones y su Modal Integrado -->
+      <div style="position: relative; display: inline-block;">
+        <div style="display: flex; gap: 2px;">
+          <button id="variation-measures-btn" class="theme-btn" data-i18n="Variaciones"
+            style="border: none; padding: 4px 10px; border-radius: 4px 0 0 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; border-right: 1px solid rgba(0,0,0,0.2);"
+            data-i18n-title="Generar variaciones de los compases seleccionados con la intensidad actual"
+            title="Generate variations of selected measures with current intensity">
+            Variations
+          </button>
+          <button id="variation-settings-btn" class="theme-btn"
+            style="border: none; padding: 4px 6px; border-radius: 0 4px 4px 0; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+            data-i18n-title="Configurar opciones de variación" title="Configure variation options"
+            onclick="const panel = document.getElementById('variation-intensity-panel'); panel.style.display = panel.style.display === 'none' ? 'block' : 'none';">
+            ⚙️
+          </button>
+        </div>
+
+        <!-- Panel de Configuración de Intensidad (Tooltip flotante) -->
+        <div id="variation-intensity-panel"
+          style="display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #333; border: 1px solid #777; border-radius: 6px; padding: 12px; width: 800px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000;">
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #555; padding-bottom: 5px; margin-bottom: 12px;">
+            <h4 style="margin: 0; color: #fff; font-size: 13px; font-family: monospace;"
+              data-i18n="🔥 Opciones de Variación">🔥 Variation Options</h4>
+            <button onclick="document.getElementById('variation-intensity-panel').style.display='none';"
+              style="background: none; border: none; color: #aaa; cursor: pointer; font-family: monospace; font-size: 14px; font-weight: bold;">✕</button>
+          </div>
+
+          <div style="display: flex; gap: 20px;">
+            <!-- Tonales Column -->
+            <div style="flex: 1;">
+              <div style="font-family: monospace; font-size: 12px; font-weight: bold; color: #ccc; margin-bottom: 8px;"
+                data-i18n="▶ Variaciones Tonales (Notas)">▶ Tonal Variations (Pitches)</div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-tonal" value="none" onchange="window.variationTonal = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #ccc;" data-i18n="Ninguna:">None:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Las notas musicales originales se mantienen intactas.">Original musical notes are kept
+                      intact.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-tonal" value="subtle" onchange="window.variationTonal = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #4CAF50;" data-i18n="Sutil (Baladas / Coros):">Subtle
+                      (Ballads/Choirs):</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Movimientos de +/- 1 grado. Notas muy cerca de la original.">+/- 1 scale degree
+                      movements. Very close to the original.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-tonal" value="normal" onchange="window.variationTonal = this.value;"
+                    checked style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #2196F3;" data-i18n="Normal (Estándar):">Normal (Standard):</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Saltos intermedios (1 a 3 grados). Familiaridad y sorpresa.">Intermediate jumps (1 to 3
+                      degrees). Balance of familiarity and surprise.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-tonal" value="aggressive" onchange="window.variationTonal = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #FF9800;" data-i18n="Agresivo (Arpegios / Solos):">Aggressive
+                      (Arpeggios/Solos):</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Saltos extensos (4 a 5 grados). Transforma la melodía.">Wide jumps (4 to 5 degrees).
+                      Significantly transforms the melody.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-tonal" value="final" onchange="window.variationTonal = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #9C27B0;" data-i18n="Final (Resolutiva):">Final (Resolving):</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Obliga a que la melodía termine (resuelva) en la nota tónica.">Forces the melody to
+                      finish resolving on the root (tonic) note.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Vertical Divider -->
+            <div style="width: 1px; background: #555;"></div>
+
+            <!-- Dynamic Column -->
+            <div style="flex: 1;">
+              <div style="font-family: monospace; font-size: 12px; font-weight: bold; color: #ccc; margin-bottom: 8px;"
+                data-i18n="▶ Variaciones Dinámicas (Volumen)">▶ Dynamic Variations (Velocity)</div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-dynamic" value="none" onchange="window.variationDynamic = this.value;"
+                    checked style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #ccc;" data-i18n="Ninguna:">None:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="El volumen (dinámica) original se mantiene intacto.">Original volume (dynamics) is kept
+                      intact.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-dynamic" value="humanize"
+                    onchange="window.variationDynamic = this.value;" style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #00BCD4;" data-i18n="Humanizar:">Humanize:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Pequeñas variaciones aleatorias para dar un toque humano.">Small random variations to
+                      give a human interpretation touch.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-dynamic" value="crescendo"
+                    onchange="window.variationDynamic = this.value;" style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #00BCD4;" data-i18n="Crescendo:">Crescendo:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Aumenta progresivamente el volumen desde el principio al fin.">Progressively increases
+                      volume from start to finish.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-dynamic" value="diminuendo"
+                    onchange="window.variationDynamic = this.value;" style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #00BCD4;" data-i18n="Diminuendo:">Diminuendo:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Disminuye progresivamente el volumen desde el principio al fin.">Progressively
+                      decreases volume from start to finish.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-dynamic" value="accent" onchange="window.variationDynamic = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #00BCD4;" data-i18n="Acentuación (Golpe):">Accent (Punch):</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Marca con un volumen muy fuerte los inicios de cada compás.">Marks the start of each
+                      measure with a very strong volume hit.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Vertical Divider -->
+            <div style="width: 1px; background: #555;"></div>
+
+            <!-- Tiempo Column -->
+            <div style="flex: 1;">
+              <div style="font-family: monospace; font-size: 12px; font-weight: bold; color: #ccc; margin-bottom: 8px;"
+                data-i18n="▶ Variaciones de Tiempo (Duración)">▶ Time Variations (Duration)</div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-time" value="none" onchange="window.variationTime = this.value;" checked
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #ccc;" data-i18n="Ninguna:">None:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="El ritmo original se mantiene intacto.">Original rhythm is kept intact.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-time" value="rotation" onchange="window.variationTime = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #F44336;" data-i18n="Rotación:">Rotation:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;" data-i18n="Desplaza la secuencia de duraciones.">Shifts
+                      the sequence of durations.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-time" value="permutation" onchange="window.variationTime = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #F44336;" data-i18n="Permutación:">Permutation:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Reordena aleatoriamente las duraciones dentro del compás.">Randomly reorders note
+                      durations inside the measure.</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-time" value="multiply" onchange="window.variationTime = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #FFEB3B;" data-i18n="Duración x2:">Duration x2:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Multiplica la duración (doble de lentas).">Multiplies the duration (twice as
+                      slow).</span>
+                  </div>
+                </label>
+
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="var-time" value="divide" onchange="window.variationTime = this.value;"
+                    style="margin-top: 2px;">
+                  <div style="font-family: monospace; font-size: 11px;">
+                    <strong style="color: #FFEB3B;" data-i18n="Duración /2:">Duration /2:</strong><br>
+                    <span style="color: #aaa; font-size: 10px;"
+                      data-i18n="Divide la duración (doble de rápidas).">Divides the duration (twice as fast).</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button id="select-all-btn" class="theme-btn" data-i18n="Todo"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #666; color: white;"
+        data-i18n-title="Seleccionar todos los compases">
+        Todo
+      </button>
+      <button id="expand-selection-btn" class="theme-btn"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #666; color: white;"
+        data-i18n-title="Añadir un compás a la selección">
+        +
+      </button>
+      <button id="shrink-selection-btn" class="theme-btn"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #666; color: white;"
+        data-i18n-title="Eliminar un compás de la selección">
+        -
+      </button>
+      <button id="cut-measures-btn" class="theme-btn" data-i18n="Cortar"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;"
+        data-i18n-title="Cortar compases seleccionados">
+        Cut
+      </button>
+      <button id="delete-measures-btn" class="theme-btn theme-btn-danger" data-i18n="Borrar compás"
+        style="border: none; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #e53935; color: white;"
         data-i18n-title="Borrar compás o compases seleccionados">
-        🗑️
+        Del
       </button>
       <div id="status-indicators"
         style="display: flex; gap: 8px; margin-left: auto; color: #ddd; font-size: 10px; padding-right: 15px; border-right: 1px solid #666; margin-right: 8px;">
@@ -496,7 +766,7 @@
       <button id="html-mode-toggle" class="mode-btn"
         style="padding: 3px; font-size: 14px; font-family: monospace; border: none; border-radius: 20px; background: #4CAF50; color: white; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 28px; height: 28px;"
         data-i18n-title="Modo: Dependiente (armonía diatónica)">
-        <span id="html-mode-icon">🔗</span>
+        <span id="html-mode-icon"></span>
       </button>
 
     </div>
@@ -646,19 +916,16 @@
               <div style="display: flex; align-items: center; gap: 10px; margin-left: 10px; flex-wrap: wrap;">
                 <button id="loop-btn" class="theme-btn"
                   style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
-                  🔁 Loop OFF
+                  Loop OFF
                 </button>
-                <span id="title-container" style="display:inline-flex; align-items: center; gap: 5px;">
+                <span id="title-container" style="display:inline-flex; align-items: center; gap: 2px;">
+                  <input id="title-input" type="text"
+                    style="color:#bbb; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid transparent; border-radius: 3px; background: rgba(0,0,0,0.2); width: 100px; outline: none; transition: border 0.2s;"
+                    placeholder="Emotion" value="" onfocus="this.style.border='1px solid #555'"
+                    onblur="this.style.border='1px solid transparent'">
                   <a id="title-display"
                     style="color:#ddd; font-family: monospace; font-size: 14px; cursor: pointer; text-decoration: underline;"
-                    data-i18n-title="Clic para descargar, doble clic para editar" download="emotion.mid">emotion.mid</a>
-                  <span style="display:inline-flex; align-items: center; gap: 2px;">
-                    <input id="title-input" type="text"
-                      style="display:none; color:#333; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid #4CAF50; border-radius: 3px; background: #fff;"
-                      data-i18n-placeholder="Título de la composición" value="emotion">
-                    <span id="title-extension"
-                      style="display:none; color:#ddd; font-family: monospace; font-size: 14px;">.mid</span>
-                  </span>
+                    data-i18n-title="Descargar composición en formato .mid" download=".mid">.mid</a>
                   <a id="expi" style="display:none;"></a>
                 </span>
                 <span id="descargarBtn" onclick="saveti(); return false;" style="display:inline-block;
@@ -668,6 +935,14 @@
                             font-family: monospace;
                             font-size: 14px;" data-i18n="Resumen" data-listener-attached="true">
                   Resumen
+                </span>
+                <span id="download-musicoli-btn" style="display:inline-block;
+                            cursor:pointer;
+                            text-decoration:underline;
+                            color:#ddd;
+                            font-family: monospace;
+                            font-size: 14px;" title="Descargar composición en formato .musicoli">
+                  .musicoli
                 </span>
               </div>
             </section>
@@ -698,160 +973,264 @@
                   style="margin-top: 10px; padding: 15px; background: #e0f7fa; border: 2px solid #00acc1; border-radius: 8px;">
                   <h4
                     style="margin: 0 0 10px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                    🌊 Onda Ritmo
+                    Rhythm Wave
                   </h4>
                   <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Modo:</label>
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Mode:</label>
                       <select id="ritmo-onda-ritmo-mode"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="random">Aleatorio</option>
-                        <option value="cyclic">Cíclico (A-B-A-B...)</option>
-                        <option value="structure" selected>Estructura</option>
+                        <option value="random">Random</option>
+                        <option value="cyclic">Cyclic (A-B-A-B...)</option>
+                        <option value="structure" selected>Structure</option>
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Bloque:</label>
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Block:</label>
                       <select id="ritmo-onda-ritmo-block"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="1">1 Compás</option>
-                        <option value="2">2 Compases</option>
-                        <option value="4">4 Compases</option>
-                        <option value="8">8 Compases</option>
-                        <option value="all" selected>Todo</option>
+                        <option value="1">1 Measure</option>
+                        <option value="2">2 Measures</option>
+                        <option value="4">4 Measures</option>
+                        <option value="8">8 Measures</option>
+                        <option value="all" selected>All</option>
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Acción:</label>
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Action:</label>
                       <select id="ritmo-onda-ritmo-action"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="modify" selected>Modificar</option>
-                        <option value="generate">Generar</option>
+                        <option value="modify" selected>Modify</option>
+                        <option value="generate">Generate</option>
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Cant:</label>
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #00838f;">Count:</label>
                       <input type="number" id="ritmo-onda-ritmo-count" value="4" min="1" max="100"
                         style="width: 35px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
                     </div>
                     <button id="ritmo-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      🎲 Onda Ritmo
+                      Rhythm Wave
                     </button>
                   </div>
                 </div>
               </div>
 
 
+              <!-- PARTES SECTION (Composicion mode) -->
+              <div id="comp-partes-section"
+                style="display: none; margin-bottom: 15px; padding: 15px; background: #333333; border: 2px solid #555555; border-radius: 8px;">
+                <h4
+                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                  <span data-i18n="Partes">Partes</span>
+                  <span style="font-weight: normal; font-size: 11px; color: #cccccc;" data-i18n="PartesDesc">— Ritmos
+                    diferenciados por
+                    sección</span>
+                </h4>
+
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;"
+                      data-i18n="PartesLabel">Partes:</label>
+                    <input type="text" id="partes-input" value="234" maxlength="12"
+                      style="width: 90px; font-family: monospace; font-size: 14px; font-weight: bold; padding: 5px 8px; border: 1px solid #555555; border-radius: 4px; background: #222222; color: #eeeeee; text-align: center; letter-spacing: 4px;"
+                      placeholder="234" data-i18n-title="PartesTitle"
+                      title="Cada dígito = número de compases de esa parte (ej: 234 → Parte A: 2 compases, Parte B: 3, Parte C: 4)">
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;"
+                      data-i18n="Densidad:">Densidad:</label>
+                    <select id="partes-density-mode"
+                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;"
+                      data-i18n-title="DensidadTitle" title="Cómo variar el número de notas entre partes">
+                      <option value="alternado" selected data-i18n="Alternado (2↔4↔6…)">Alternado (2↔4↔6…)</option>
+                      <option value="ascendente" data-i18n="Ascendente (2→4→6…)">Ascendente (2→4→6…)</option>
+                      <option value="descendente" data-i18n="Descendente (6→4→2…)">Descendente (6→4→2…)</option>
+                      <option value="auto" data-i18n="Auto (compás actual)">Auto (compás actual)</option>
+                    </select>
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;"
+                      data-i18n="Voces:">Voces:</label>
+                    <select id="partes-voice-mode"
+                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;"
+                      data-i18n-title="VocesTitle" title="Rotación de voces silenciadas por parte">
+                      <option value="all" data-i18n="Todas suenan">Todas suenan</option>
+                      <option value="mute2" selected data-i18n="2 calladas (rotar)">2 calladas (rotar)</option>
+                      <option value="mute1" data-i18n="1 callada (rotar)">1 callada (rotar)</option>
+                      <option value="mute3" data-i18n="Solo (3 calladas)">Solo (3 calladas)</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;"
+                      data-i18n="Generación:">Generación:</label>
+                    <select id="partes-color-mode"
+                      style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;"
+                      data-i18n-title="GeneracionTitle"
+                      title="Elige si generar solo ritmo, añadir melodía o también dinámica">
+                      <option value="ritmo" data-i18n="Solo Ritmo">Solo Ritmo</option>
+                      <option value="melodia" selected data-i18n="Ritmo y Melodía">Ritmo y Melodía</option>
+                      <option value="dinamica" data-i18n="+ Dinamismo">+ Dinamismo</option>
+                    </select>
+                  </div>
+                  <button id="partes-apply-btn" onclick="applyPartesFromUI(); return false;" data-i18n="Aplicar"
+                    style="border: none; padding: 6px 14px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #555555; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                    Aplicar
+                  </button>
+                  <button id="partes-reshuffle-btn" onclick="reshufflePartesFromUI(); return false;"
+                    style="border: none; padding: 6px 10px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #444444; color: white;"
+                    data-i18n="Rand" data-i18n-title="PartesReshuffleTitle"
+                    title="Elegir nuevos patrones aleatorios manteniendo la estructura">
+                    Rand
+                  </button>
+                </div>
+
+                <!-- Preview display (auto-updates on input) -->
+                <div id="partes-preview-display"
+                  style="min-height: 48px; display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; padding: 6px; background: #222222; border-radius: 6px; border: 1px dashed #555555;">
+                  <span
+                    style="font-family: monospace; font-size: 11px; color: #999999; align-self: center; padding: 4px;"
+                    data-i18n="PartesPreviewDefault">
+                    Escribe un número (ej: 234) para ver la previsualización
+                  </span>
+                </div>
+
+                <div id="partes-info"
+                  style="margin-top: 6px; font-family: monospace; font-size: 10px; color: #388e3c; min-height: 14px;">
+                </div>
+              </div>
+
               <!-- TARAREO SECTION (Shared: Ritmo + Composicion) -->
               <div id="comp-tarareo-section"
-                style="display: none; margin-bottom: 15px; padding: 15px; background: #f3e5f5; border: 2px solid #ab47bc; border-radius: 8px;">
+                style="display: none; margin-bottom: 15px; padding: 15px; background: #333333; border: 2px solid #555555; border-radius: 8px;">
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #7b1fa2; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                  🎤 Tarareo (Ritmo)
+                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                  <span data-i18n="Hum (Rhythm)"> Hum (Rhythm)</span>
                   <button id="tarareo-info-btn"
-                    style="background: #7b1fa2; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
-                    title="Información sobre el algoritmo">ℹ</button>
+                    style="background: #555555; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
+                    data-i18n-title="Algorithm information" title="Algorithm information">ℹ</button>
                 </h4>
 
                 <!-- Tooltip de información (oculto por defecto) -->
                 <div id="tarareo-info-tooltip"
-                  style="display: none; margin-bottom: 10px; padding: 10px; background: #fff; border: 2px solid #7b1fa2; border-radius: 6px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); color: #333;">
+                  style="display: none; margin-bottom: 10px; padding: 10px; background: #2a2a2a; border: 2px solid #555555; border-radius: 6px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5); color: #dddddd;">
                   <div
-                    style="font-weight: bold; color: #4a148c; margin-bottom: 8px; border-bottom: 1px solid #7b1fa2; padding-bottom: 4px;">
-                    🎯 Algoritmo de Selección de
-                    Patrones</div>
+                    style="font-weight: bold; color: #ffffff; margin-bottom: 8px; border-bottom: 1px solid #555555; padding-bottom: 4px;"
+                    data-i18n="Pattern Selection Algorithm">
+                    Pattern Selection Algorithm</div>
 
                   <div style="margin-bottom: 8px;">
-                    <strong style="color: #000;">Voz actual:</strong> <span id="current-voice-display"
-                      style="color: #6a1b9a; font-family: monospace; font-weight: bold;">S (Soprano)</span>
+                    <strong style="color: #ffffff;" data-i18n="Current voice:">Current voice:</strong> <span
+                      id="current-voice-display" style="color: #aaaaaa; font-family: monospace; font-weight: bold;">S
+                      (Soprano)</span>
                   </div>
 
                   <div
-                    style="background: #f3e5f5; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #e1bee7;">
-                    <strong style="color: #4a148c;">📋 Configuración por Voz:</strong>
-                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #000;">
-                      <li><strong style="color: #1565C0;">S (Soprano):</strong> Random, tiempo normal</li>
-                      <li><strong style="color: #2E7D32;">A (Alto):</strong> Random, <em>descenso de tiempos (×0.5)</em>
+                    style="background: #333333; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #555555;">
+                    <strong style="color: #ffffff;" data-i18n="Voice Configuration:"> Voice Configuration:</strong>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #cccccc;">
+                      <li><strong style="color: #8bb4e6;">S (Soprano):</strong> <span
+                          data-i18n="Random, normal time">Random, normal time</span></li>
+                      <li><strong style="color: #81c784;">A (Alto):</strong> <span data-i18n="Random,">Random,</span>
+                        <em data-i18n="time descent (×0.5)">time descent (×0.5)</em>
                       </li>
-                      <li><strong style="color: #E65100;">T (Tenor):</strong> Phonetic, tiempo normal</li>
-                      <li><strong style="color: #C62828;">B (Bajo):</strong> Phonetic, <em>descenso de tiempos
+                      <li><strong style="color: #ffb74d;">T (Tenor):</strong> <span
+                          data-i18n="Phonetic, normal time">Phonetic, normal time</span></li>
+                      <li><strong style="color: #e57373;">B (Bass):</strong> <span
+                          data-i18n="Phonetic,">Phonetic,</span> <em data-i18n="time descent (×0.5)">time descent
                           (×0.5)</em></li>
                     </ul>
                   </div>
 
                   <div style="margin-bottom: 8px;">
-                    <strong style="color: #000;">📝 Random (Aleatoria):</strong> <span style="color: #333;">Selección
-                      completamente al azar. Máxima variedad.</span>
+                    <strong style="color: #ffffff;" data-i18n="Random:"> Random:</strong> <span style="color: #cccccc;"
+                      data-i18n="Completely random selection. Maximum variety.">Completely random selection. Maximum
+                      variety.</span>
                   </div>
 
                   <div style="margin-bottom: 8px;">
-                    <strong style="color: #000;">🧬 Phonetic (Fonética):</strong> <span style="color: #333;">Analiza
-                      cada
-                      sílaba:</span>
-                    <ul style="margin: 4px 0 0 20px; padding: 0; color: #333;">
-                      <li>Consonantes largas → notas largas</li>
-                      <li>Vocales largas/diptongos → notas largas</li>
-                      <li>Sílabas simples → notas cortas</li>
+                    <strong style="color: #ffffff;" data-i18n="Phonetic:"> Phonetic:</strong> <span
+                      style="color: #cccccc;" data-i18n="Analyzes each syllable:">Analyzes each syllable:</span>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; color: #cccccc;">
+                      <li data-i18n="Long consonants → long notes">Long consonants → long notes</li>
+                      <li data-i18n="Long vowels/diphthongs → long notes">Long vowels/diphthongs → long notes</li>
+                      <li data-i18n="Simple syllables → short notes">Simple syllables → short notes</li>
                     </ul>
                   </div>
 
                   <div style="margin-bottom: 8px;">
-                    <strong style="color: #000;">⏱️ Descenso de tiempos:</strong> <span style="color: #333;">Las
-                      duraciones se reducen a la mitad (negra → corchea, etc.)</span>
+                    <strong style="color: #ffffff;" data-i18n="⏱️ Time descent:">⏱️ Time descent:</strong> <span
+                      style="color: #cccccc;" data-i18n="Durations are halved (quarter → eighth, etc.)">Durations are
+                      halved (quarter → eighth, etc.)</span>
                   </div>
 
                   <div
-                    style="margin-bottom: 8px; background: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9;">
-                    <strong style="color: #1b5e20;">🎵 Nueva Opción: Generar Melodía</strong>
-                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #333;">
-                      <li>Calcula el movimiento melódico según las consonantes.</li>
-                      <li><strong>Consonantes post-vocal:</strong> Sube el tono (ej. "trans" ↑).</li>
-                      <li><strong>Consonantes pre-vocal:</strong> Baja el tono (ej. "bla" ↓).</li>
-                      <li><strong>Diptongos:</strong> Amplifican el movimiento.</li>
+                    style="margin-bottom: 8px; background: #3a4a3a; padding: 8px; border-radius: 4px; border: 1px solid #4caf50;">
+                    <strong style="color: #a5d6a7;" data-i18n=" New Option: Generate Melody"> New Option: Generate
+                      Melody</strong>
+                    <ul style="margin: 4px 0 0 20px; padding: 0; font-size: 11px; color: #dddddd;">
+                      <li data-i18n="Calculates melodic movement according to consonants.">Calculates melodic movement
+                        according to consonants.</li>
+                      <li><strong data-i18n="Post-vowel consonants:">Post-vowel consonants:</strong> <span
+                          data-i18n="Raises pitch (e.g. 'trans' ↑).">Raises pitch (e.g. "trans" ↑).</span></li>
+                      <li><strong data-i18n="Pre-vowel consonants:">Pre-vowel consonants:</strong> <span
+                          data-i18n="Lowers pitch (e.g. 'bla' ↓).">Lowers pitch (e.g. "bla" ↓).</span></li>
+                      <li><strong data-i18n="Diphthongs:">Diphthongs:</strong> <span
+                          data-i18n="Amplify the movement.">Amplify the movement.</span></li>
                     </ul>
                   </div>
 
                   <div
-                    style="background: #fff3e0; padding: 8px; border-radius: 4px; margin-top: 10px; border-left: 3px solid #ff9800; color: #333;">
-                    <strong>💡 Automático:</strong> El algoritmo cambia automáticamente según la voz activa.
+                    style="background: #4a3a2a; padding: 8px; border-radius: 4px; margin-top: 10px; border-left: 3px solid #ff9800; color: #dddddd;">
+                    <strong data-i18n=" Automatic:"> Automatic:</strong> <span
+                      data-i18n="Algorithm changes automatically according to active voice.">Algorithm changes
+                      automatically according to active voice.</span>
                   </div>
                 </div>
                 <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <label
-                    style="font-family: monospace; font-size: 12px; font-weight: bold; color: #7b1fa2;">Estrategia:</label>
+                  <label data-i18n="Strategy:"
+                    style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Strategy:</label>
                   <select id="tarareo-strategy"
-                    style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ab47bc; border-radius: 4px; background: white; color: #333; flex-grow: 1;">
-                    <option value="syllabic-strict">1. Silábica Estricta (Random)</option>
-                    <option value="syllabic-grouped" selected>2. Silábica Agrupada (Random)</option>
-                    <option value="phonetic-smart">3. Fonética Inteligente (Agrupada)</option>
-                    <option value="syllabic-strict-smart">4. Estricta Inteligente (No Agrupada)</option>
-                    <option value="grouped-double-random">5. Doble Random (S ≠ T)</option>
+                    style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee; flex-grow: 1;">
+                    <option value="syllabic-strict" data-i18n="1. Strict Syllabic (Random)">1. Strict Syllabic (Random)
+                    </option>
+                    <option value="syllabic-grouped" selected data-i18n="2. Grouped Syllabic (Random)">2. Grouped
+                      Syllabic (Random)</option>
+                    <option value="phonetic-smart" data-i18n="3. Smart Phonetic (Grouped)">3. Smart Phonetic (Grouped)
+                    </option>
+                    <option value="syllabic-strict-smart" data-i18n="4. Smart Strict (Ungrouped)">4. Smart Strict
+                      (Ungrouped)</option>
+                    <option value="grouped-double-random" data-i18n="5. Double Random (S ≠ T)">5. Double Random (S ≠ T)
+                    </option>
                   </select>
 
                   <div
-                    style="display: flex; align-items: center; gap: 5px; background: #e1bee7; padding: 4px 8px; border-radius: 4px;">
+                    style="display: flex; align-items: center; gap: 5px; background: #444444; padding: 4px 8px; border-radius: 4px;">
                     <input type="checkbox" id="tarareo-melodic-mode" style="cursor: pointer;">
-                    <label for="tarareo-melodic-mode"
-                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #4a148c; cursor: pointer;">Generar
-                      Melodía (Consonantes)</label>
+                    <label for="tarareo-melodic-mode" data-i18n="Generate Melody (Consonants)"
+                      style="font-family: monospace; font-size: 11px; font-weight: bold; color: #cccccc; cursor: pointer;">Generate
+                      Melody (Consonants)</label>
                   </div>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
                   <textarea id="tarareo-input" rows="3"
-                    style="flex-grow: 1; font-family: monospace; font-size: 14px; padding: 8px; border: 1px solid #ce93d8; border-radius: 4px; resize: vertical;"
-                    placeholder="Escribe tu ritmo... (ej: ta ta ta ta)"></textarea>
+                    style="flex-grow: 1; font-family: monospace; font-size: 14px; padding: 8px; border: 1px solid #555555; border-radius: 4px; resize: vertical; background: #222222; color: #eeeeee;"
+                    placeholder="Type your rhythm... (e.g. ta ta ta ta)"
+                    data-i18n-placeholder="Type your rhythm... (e.g. ta ta ta ta)"></textarea>
                   <button id="tarareo-submit" class="theme-btn" onclick="tarareoAritmo(); return false;"
-                    style="border: none; padding: 10px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; background: #ab47bc; color: white; display: flex; align-items: center; justify-content: center; height: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">→</button>
+                    style="border: none; padding: 10px 14px; border-radius: 4px; font-family: monospace; font-size: 18px; font-weight: bold; cursor: pointer; background: #555555; color: white; display: flex; align-items: center; justify-content: center; height: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">→</button>
                 </div>
                 <div id="rhythm-notation-display" style="margin-top: 10px; display: flex; gap: 5px; min-height: 10px;">
                 </div>
                 <div id="tarareo-scale-info"
-                  style="margin-top: 10px; padding: 8px; background: #ffffff; border: 1px solid #e1bee7; border-radius: 4px; font-family: monospace; font-size: 11px; color: #4a148c; min-height: 20px; display: none;">
+                  style="margin-top: 10px; padding: 8px; background: #333333; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 11px; color: #eeeeee; min-height: 20px; display: none;">
                   <!-- Scale info will appear here -->
                 </div>
               </div>
@@ -860,63 +1239,65 @@
               <div id="editor-tonalidad" class="mode-panel mode-editor editor-tonalidad" style="display: none;">
                 <!-- Content preserved -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                  <h3 class="mode-editor-title" data-i18n="Editor de Paleta de Tonalidades">Editor de Paleta de
-                    Tonalidades</h3>
-                  <select
-                    style="padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
+                  <h3 class="mode-editor-title">Tonality Palette
+                    Editor</h3>
+                  <!--
+                    <select
+                    style="display:none; padding: 5px 10px; font-family: monospace; font-size: 14px; border: 1px solid rgb(204, 204, 204); border-radius: 4px; cursor: pointer;">
                     <option value="RGB">RGB</option>
                     <option value="GREY_SCALE">GREY_SCALE</option>
                     <option value="HSB">HSB</option>
                     <option value="CMYK">CMYK</option>
                     <option value="CMYKB">CMYKB</option>
                   </select>
+                -->
                 </div>
                 <div id="harmonize-container"
                   style="margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                  <h4 data-i18n="ZONA DE ARMONIZACIÓN"
+                  <h4
                     style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
-                    🎹 ZONA DE ARMONIZACIÓN</h4>
+                    HARMONIZATION ZONE</h4>
 
                   <!-- PHRASE TOOLS (At Top, No Title) -->
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
-                      <label data-i18n="Cant:"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Cant:</label>
+                      <label
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Amt:</label>
                       <input type="number" id="transpose-amount" value="0"
                         style="width: 50px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; text-align: center;">
                     </div>
 
                     <select id="transpose-unit"
                       style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                      <option value="scale" data-i18n="Escala">Escala</option>
-                      <option value="semitone" data-i18n="Semitonos">Semitonos</option>
+                      <option value="scale">Scale</option>
+                      <option value="semitone">Semitones</option>
                     </select>
 
-                    <button class="theme-btn" data-i18n="Trasponer" onclick="triggerTranspose(); return false;"
+                    <button class="theme-btn" onclick="triggerTranspose(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      Trasponer
+                      Transpose
                     </button>
 
-                    <button class="theme-btn" data-i18n="Duplicar" onclick="triggerDuplicate(); return false;"
+                    <button class="theme-btn" onclick="triggerDuplicate(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      Duplicar
+                      Duplicate
                     </button>
                   </div>
 
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <button id="harmonize-btn" class="theme-btn" data-i18n="Armonizar desde esta voz"
-                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">✨
-                      Armonizar desde esta voz</button>
-                    <button id="harmonize-scale-btn" class="theme-btn" data-i18n="Ajustar a escala"
-                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">🎼
-                      Ajustar a escala</button>
+                    <button id="harmonize-btn" class="theme-btn"
+                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white; display: inline-block; margin-right: 10px;">
+                      Harmonize from this voice</button>
+                    <button id="harmonize-scale-btn" class="theme-btn"
+                      style="padding: 10px 20px; font-size: 15px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white; display: inline-block;">
+                      Fit to scale</button>
                   </div>
 
                   <!-- ONDA TOOL (Integrated) -->
                   <hr style="border: 0; border-top: 1px dashed #ffb74d; margin: 15px 0;">
-                  <h4 data-i18n="🌊 Onda (Modulación)"
+                  <h4
                     style="margin: 0 0 10px 0; font-family: monospace; color: #e65100; font-size: 14px; font-weight: bold;">
-                    🌊 Onda (Modulación)</h4>
+                    Wave (Modulation)</h4>
 
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
@@ -941,18 +1322,18 @@
                         style="font-family: monospace; font-size: 12px; font-weight: bold; color: #e65100;">Freq:</label>
                       <select id="onda-freq"
                         style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #ffb74d; border-radius: 4px; background: white; color: #333;">
-                        <option value="0.02">Muy Lento</option>
-                        <option value="0.05">Lento</option>
-                        <option value="0.1">Medio</option>
+                        <option value="0.02">Very Slow</option>
+                        <option value="0.05">Slow</option>
+                        <option value="0.1">Medium</option>
                         <option value="0.15" selected>Normal</option>
-                        <option value="0.25">Rápido</option>
-                        <option value="0.4">Muy Rápido</option>
+                        <option value="0.25">Fast</option>
+                        <option value="0.4">Very Fast</option>
                       </select>
                     </div>
 
                     <button id="onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #fb8c00; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      🌊 Aplicar
+                      Apply
                     </button>
                   </div>
                 </div>
@@ -966,19 +1347,19 @@
                   style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border: 2px solid #90caf9; border-radius: 8px;">
                   <h4
                     style="margin: 0 0 10px 0; font-family: monospace; color: #1565c0; font-size: 14px; font-weight: bold;">
-                    🌊 Modelado de Dinámica (Volumen/Velocity)
+                    Dynamic Modeling (Volume/Velocity)
                   </h4>
                   <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Forma:</label>
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Shape:</label>
                       <select id="dynamic-shape-type"
                         style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px; background: white; color: #333;">
                         <option value="crescendo" selected>Crescendo</option>
                         <option value="diminuendo">Diminuendo</option>
                         <option value="pico">Pico (Peak)</option>
                         <option value="valle">Valle (Valley)</option>
-                        <option value="uniforme">Uniforme + Acento</option>
+                        <option value="uniforme">Uniform + Accent</option>
                         <option value="ondas">Ondas (Wave)</option>
                       </select>
                     </div>
@@ -1000,7 +1381,7 @@
 
                     <div id="dynamic-params-extra" style="display: none; align-items: center; gap: 5px;">
                       <label id="dynamic-extra-label"
-                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Nota
+                        style="font-family: monospace; font-size: 11px; font-weight: bold; color: #1565c0;">Note
                         N:</label>
                       <input type="number" id="dynamic-extra-val" value="1" min="1" max="100" step="0.1"
                         style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #90caf9; border-radius: 4px;">
@@ -1020,18 +1401,18 @@
 
                     <button id="dynamic-apply-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
                       style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; background: #2196f3; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      ✨ Aplicar
+                      Apply
                     </button>
                   </div>
                 </div>
 
-                <h3 style="margin-top: 5px; margin-bottom: 20px; font-family: monospace; color: #333;">🎚️ Mezclador de
-                  Volúmenes</h3>
+                <h3 style="margin-top: 5px; margin-bottom: 20px; font-family: monospace; color: #333;">️ Volume
+                  Mixer</h3>
                 <div
                   style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #90caf9; margin-bottom: 20px;">
                   <label for="master-volume"
-                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 10px; color: #1565c0; font-size: 14px;">🔊
-                    Volumen General</label>
+                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 10px; color: #1565c0; font-size: 14px;">
+                    Master Volume</label>
                   <div style="display: flex; align-items: center; gap: 15px;">
                     <span style="font-family: monospace; font-size: 12px; color: #666;">Min</span>
                     <input type="range" id="master-volume" min="0" max="100" value="50"
@@ -1042,8 +1423,8 @@
                 </div>
                 <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
                   <label
-                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 15px; color: #e65100; font-size: 14px;">🎛️
-                    Mezcla por Pistas</label>
+                    style="font-family: monospace; font-weight: bold; display: block; margin-bottom: 15px; color: #e65100; font-size: 14px;">️
+                    Track Mix</label>
                   <div style="display: flex; justify-content: space-around; text-align: center;">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
                       <input type="range" orient="vertical" min="0" max="127" value="100"
@@ -1059,7 +1440,7 @@
                         style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
                       <span
                         style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">A</span><span
-                        style="font-family: monospace; color: #666; font-size: 10px;">Contralto</span>
+                        style="font-family: monospace; color: #666; font-size: 10px;">Alto</span>
                     </div>
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
                       <input type="range" orient="vertical" min="0" max="127" value="100"
@@ -1075,31 +1456,54 @@
                         style="writing-mode: bt-rl; appearance: slider-vertical; width: 8px; height: 100px; cursor: pointer;">
                       <span
                         style="font-family: monospace; font-weight: bold; color: #333; font-size: 12px;">B</span><span
-                        style="font-family: monospace; color: #666; font-size: 10px;">Bajo</span>
+                        style="font-family: monospace; color: #666; font-size: 10px;">Bass</span>
                     </div>
                   </div>
                 </div>
+
+                <!-- NEW: SOUND LIMITER -->
+                <div id="dynamic-limiter-container"
+                  style="margin-top: 20px; padding: 15px; background: #ffebee; border: 2px solid #ef9a9a; border-radius: 8px;">
+                  <h4 style="margin: 0 0 10px 0; font-family: monospace; color: #c62828; font-size: 14px; font-weight: bold;" data-i18n="Limitador de Volumen">
+                    Limitador de Volumen
+                  </h4>
+                  <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label style="font-family: monospace; font-size: 11px; font-weight: bold; color: #c62828;" data-i18n="Mínimo:">Mínimo:</label>
+                      <input type="number" id="dynamic-limit-min" value="0" min="0" max="127"
+                        style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #ef9a9a; border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                      <label style="font-family: monospace; font-size: 11px; font-weight: bold; color: #c62828;" data-i18n="Máximo:">Máximo:</label>
+                      <input type="number" id="dynamic-limit-max" value="100" min="0" max="127"
+                        style="width: 45px; font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #ef9a9a; border-radius: 4px;">
+                    </div>
+                    <button id="dynamic-limit-btn" class="theme-btn" onclick="applyDynamicLimitFromUI(); return false;"
+                      style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; background: #e53935; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" data-i18n="Aplicar Límite">
+                      Aplicar Límite
+                    </button>
+                  </div>
+                </div>
+
               </div>
 
               <!-- 6. INSTRUMENTATION PANEL -->
               <div id="panel-modo-instrumentacion" class="mode-panel"
                 style="display: none; flex-direction: column; gap: 10px; padding: 10px; background: #f5f5f5; border-radius: 8px; margin-top: 10px;">
 
-                <h3 style="margin: 0 0 15px 0; font-family: monospace; color: #333; font-size: 16px;">🎺 Configuración
-                  de
-                  Instrumentos</h3>
+                <h3 style="margin: 0 0 15px 0; font-family: monospace; color: #333; font-size: 16px;" data-i18n="Configuración de Instrumentos"> Instrument Configuration</h3>
 
                 <!-- Selector general para cambiar todos los instrumentos -->
                 <div
                   style="background: #fff; padding: 15px; border-radius: 4px; border: 2px solid #2196F3; margin-bottom: 15px;">
                   <label
-                    style="font-family: monospace; font-weight: bold; color: #333; font-size: 13px; display: block; margin-bottom: 8px;">
-                    🎹 Instrumento General (aplica a todas las voces):
+                    style="font-family: monospace; font-weight: bold; color: #333; font-size: 13px; display: block; margin-bottom: 8px;" data-i18n="Instrumento General (aplica a todas las voces):">
+                    General Instrument (applies to all voices):
                   </label>
                   <select id="instrument-selector"
                     style="width: 100%; padding: 8px 12px; font-family: monospace; font-size: 14px; border: 2px solid #333; border-radius: 4px; background: #fff; cursor: pointer; font-weight: bold;">
                     <optgroup label="Percussion">
-                      <option value="perc">🥁 Percussion (Channel 10)</option>
+                      <option value="perc"> Percussion (Channel 10)</option>
                     </optgroup>
                     <optgroup label="Piano">
                       <option value="1" selected>1 - Acoustic Grand Piano</option>
@@ -1174,12 +1578,12 @@
                   <thead>
                     <tr style="background: #333; color: white;">
                       <th
-                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
-                        Voz</th>
+                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;" data-i18n="Voz">
+                        Voice</th>
                       <th
-                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;">
-                        Nombre</th>
-                      <th style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px;">Instrumento
+                        style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px; border-right: 1px solid #555;" data-i18n="Nombre">
+                        Name</th>
+                      <th style="padding: 10px; text-align: left; font-family: monospace; font-size: 13px;" data-i18n="Instrumento">Instrument
                       </th>
                     </tr>
                   </thead>
@@ -1190,14 +1594,14 @@
                         style="padding: 10px; font-family: monospace; font-weight: bold; color: #2196F3; border-right: 1px solid #ddd;">
                         S</td>
                       <td style="padding: 10px; border-right: 1px solid #ddd;">
-                        <input type="text" id="track-name-s" placeholder="Nombre de pista"
+                        <input type="text" id="track-name-s" placeholder="Track name" data-i18n-placeholder="Nombre de pista"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
                       </td>
                       <td style="padding: 10px;">
                         <select id="track-instrument-s"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
                           <optgroup label="Percussion">
-                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                            <option value="perc"> Percussion (Channel 10)</option>
                           </optgroup>
                           <optgroup label="Piano">
                             <option value="1" selected>1 - Acoustic Grand Piano</option>
@@ -1273,14 +1677,14 @@
                         style="padding: 10px; font-family: monospace; font-weight: bold; color: #4CAF50; border-right: 1px solid #ddd;">
                         A</td>
                       <td style="padding: 10px; border-right: 1px solid #ddd;">
-                        <input type="text" id="track-name-a" placeholder="Nombre de pista"
+                        <input type="text" id="track-name-a" placeholder="Track name" data-i18n-placeholder="Nombre de pista"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
                       </td>
                       <td style="padding: 10px;">
                         <select id="track-instrument-a"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
                           <optgroup label="Percussion">
-                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                            <option value="perc"> Percussion (Channel 10)</option>
                           </optgroup>
                           <optgroup label="Piano">
                             <option value="1" selected>1 - Acoustic Grand Piano</option>
@@ -1356,14 +1760,14 @@
                         style="padding: 10px; font-family: monospace; font-weight: bold; color: #FF9800; border-right: 1px solid #ddd;">
                         T</td>
                       <td style="padding: 10px; border-right: 1px solid #ddd;">
-                        <input type="text" id="track-name-t" placeholder="Nombre de pista"
+                        <input type="text" id="track-name-t" placeholder="Track name" data-i18n-placeholder="Nombre de pista"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
                       </td>
                       <td style="padding: 10px;">
                         <select id="track-instrument-t"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
                           <optgroup label="Percussion">
-                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                            <option value="perc"> Percussion (Channel 10)</option>
                           </optgroup>
                           <optgroup label="Piano">
                             <option value="1" selected>1 - Acoustic Grand Piano</option>
@@ -1439,14 +1843,14 @@
                         style="padding: 10px; font-family: monospace; font-weight: bold; color: #F44336; border-right: 1px solid #ddd;">
                         B</td>
                       <td style="padding: 10px; border-right: 1px solid #ddd;">
-                        <input type="text" id="track-name-b" placeholder="Nombre de pista"
+                        <input type="text" id="track-name-b" placeholder="Track name" data-i18n-placeholder="Nombre de pista"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px;">
                       </td>
                       <td style="padding: 10px;">
                         <select id="track-instrument-b"
                           style="width: 100%; padding: 6px; font-family: monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
                           <optgroup label="Percussion">
-                            <option value="perc">🥁 Percussion (Channel 10)</option>
+                            <option value="perc"> Percussion (Channel 10)</option>
                           </optgroup>
                           <optgroup label="Piano">
                             <option value="1" selected>1 - Acoustic Grand Piano</option>
@@ -1527,56 +1931,56 @@
 
               <!-- 7. COMPOSITION EDITOR (LEFT PART: ONDA TOOLS) -->
               <div id="editor-composicion-left" class="mode-panel mode-editor editor-composicion"
-                style="display: none;">
+                style="display: none; padding: 0; border: none; background: transparent;">
                 <div id="comp-onda-tools-section"
-                  style="margin-bottom: 10px; padding: 10px; background: #e0faff; border: 2px solid #00acc1; border-radius: 8px;">
+                  style="padding: 15px; background: #333333; border: 2px solid #555555; border-radius: 8px; box-sizing: border-box; width: 100%;">
 
                   <!-- TOP CONTROLS: TARGET, ACTION, MAIN BUTTON -->
-                  <div
-                    style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto;">
+                  <div style="margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                      <!-- Apply To -->
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <label data-i18n="Aplicar"
+                          style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc; white-space: nowrap;">Aplicar
+                          a:</label>
+                        <select id="comp-onda-target"
+                          style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee; max-width: 150px;">
+                          <option value="selected" data-i18n="Solo Selecc.">Solo Selecc.</option>
+                          <option value="audible" data-i18n="Todas Audibles" selected>Todas Audibles</option>
+                        </select>
+                      </div>
 
-                    <!-- Apply To -->
-                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label data-i18n="Aplicar"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f; white-space: nowrap;">Aplicar
-                        a:</label>
-                      <select id="comp-onda-target"
-                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333; max-width: 150px;">
-                        <option value="selected" data-i18n="Solo Selecc.">Solo Selecc.</option>
-                        <option value="audible" data-i18n="Todas Audibles" selected>Todas Audibles</option>
-                      </select>
-                    </div>
-
-                    <!-- Action -->
-                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label data-i18n="Acc:"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Acc:</label>
-                      <select id="comp-onda-ritmo-action"
-                        style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
-                        <option value="modify" data-i18n="Modif">Modif</option>
-                        <option value="generate" data-i18n="Generar" selected>Generar</option>
-                      </select>
+                      <!-- Action -->
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <label data-i18n="Acc:"
+                          style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Acc:</label>
+                        <select id="comp-onda-ritmo-action"
+                          style="font-family: monospace; font-size: 11px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
+                          <option value="modify" data-i18n="Modif">Modif</option>
+                          <option value="generate" data-i18n="Generar" selected>Generar</option>
+                        </select>
+                      </div>
                     </div>
 
                     <!-- Button -->
                     <button id="comp-onda-total-btn" onclick="applyOndaCompletaFromUI(); return false;"
                       class="theme-btn"
-                      style="flex-grow: 1; border: none; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: linear-gradient(135deg, #00acc1 0%, #007c91 100%); color: white; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap;">
-                      🌊 🎲 ONDA TOTAL
+                      style="width: 100%; border: none; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 13px; background: linear-gradient(135deg, #555555 0%, #444444 100%); color: white; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.5); white-space: nowrap;">
+                      ONDA TOTAL
                     </button>
                   </div>
 
                   <!-- ONDA RITMO PART -->
                   <h4
-                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                    🌊 Onda Ritmo
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #eeeeee; font-size: 13px; font-weight: bold;">
+                    Onda Ritmo
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label data-i18n="Modo:"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Modo:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Modo:</label>
                       <select id="comp-onda-ritmo-mode"
-                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                         <option value="random" data-i18n="Aleatorio">Aleatorio</option>
                         <option value="cyclic" data-i18n="Cíclico">Cíclico</option>
                         <option value="structure" data-i18n="Estructura" selected>Estructura</option>
@@ -1584,9 +1988,9 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Bio:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Bio:</label>
                       <select id="comp-onda-ritmo-block"
-                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                         <option value="1">1 Compás</option>
                         <option value="2">2 Compases</option>
                         <option value="4">4 Compases</option>
@@ -1595,30 +1999,30 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Cnt:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Cnt:</label>
                       <input type="number" id="comp-onda-ritmo-count" value="4" min="1" max="100"
-                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                     </div>
 
                     <button id="comp-onda-ritmo-btn" onclick="applyOndaRitmoFromUI(); return false;" class="theme-btn"
-                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      🎲 Onda
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #555555; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                      Onda
                     </button>
                   </div>
 
-                  <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+                  <hr style="border: 0; border-top: 1px dashed #666666; margin: 8px 0;">
 
                   <!-- ONDA MODULACIÓN PART -->
                   <h4
-                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                    🌊 Onda (Modulación)
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #eeeeee; font-size: 13px; font-weight: bold;">
+                    Onda (Modulación)
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label data-i18n="Amp:"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Amp:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Amp:</label>
                       <select id="comp-onda-amp"
-                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="3" selected>3</option>
@@ -1628,33 +2032,33 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label data-i18n="Freq:"
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Freq:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Freq:</label>
                       <select id="comp-onda-freq"
-                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                         <option value="0.05" data-i18n="Lento">Lento</option>
                         <option value="0.15" data-i18n="Normal" selected>Normal</option>
                         <option value="0.3" data-i18n="Rápido">Rápido</option>
                       </select>
                     </div>
                     <button id="comp-onda-btn" class="theme-btn" onclick="applyOndaFromUI(); return false;"
-                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      🌊 Onda
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #555555; color: white; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                      Onda
                     </button>
                   </div>
 
-                  <hr style="border: 0; border-top: 1px dashed #00acc1; margin: 8px 0;">
+                  <hr style="border: 0; border-top: 1px dashed #666666; margin: 8px 0;">
 
                   <!-- DINÁMICA PART -->
                   <h4
-                    style="margin: 0 0 5px 0; font-family: monospace; color: #00838f; font-size: 13px; font-weight: bold;">
-                    ✨ Dinámica (Volumen)
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #eeeeee; font-size: 13px; font-weight: bold;">
+                    Dinámica (Volumen)
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Fma:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Fma:</label>
                       <select id="comp-dynamic-shape-type"
-                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px; background: white; color: #333;">
+                        style="font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                         <option value="crescendo" selected>Cresc</option>
                         <option value="diminuendo">Dim</option>
                         <option value="pico">Pico</option>
@@ -1665,19 +2069,19 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mn:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Mn:</label>
                       <input type="number" id="comp-dynamic-min" value="40" min="0" max="127"
-                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px;">
                       <label
-                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #00838f;">Mx:</label>
+                        style="font-family: monospace; font-size: 12px; font-weight: bold; color: #cccccc;">Mx:</label>
                       <input type="number" id="comp-dynamic-max" value="110" min="0" max="127"
-                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #00acc1; border-radius: 4px;">
+                        style="width: 35px; font-family: monospace; font-size: 12px; padding: 4px; border: 1px solid #555555; border-radius: 4px; background: #444444; color: #eeeeee;">
                     </div>
                     <button id="comp-dynamic-btn" class="theme-btn" onclick="applyDynamicShapeFromUI(); return false;"
-                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #00acc1; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      ✨
+                      style="border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px; background: #555555; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+
                     </button>
                   </div>
                 </div>
@@ -1692,7 +2096,7 @@
               style="width: 90px; background: #f5f5f5; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
               <h4
                 style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #666; font-weight: bold;">
-                Variaciones</h4>
+                Variations</h4>
               <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;"></div>
             </div>
 
@@ -1708,23 +2112,24 @@
           <div id="editor-composicion" class="mode-panel mode-editor editor-composicion"
             style="display: none; padding: 10px;">
             <div style="margin-bottom: 10px;">
-              <h3 class="mode-editor-title" data-i18n="🧩 Compositor de Estructuras"
-                style="font-size: 14px; margin-bottom: 5px;">🧩 Compositor de Estructuras
+              <h3 class="mode-editor-title" data-i18n=" Compositor de Estructuras"
+                style="font-size: 14px; margin-bottom: 5px; color: #eeeeee;"> Compositor de Estructuras
               </h3>
             </div>
-            <div style="padding: 10px; background: #e8f5e9; border-radius: 8px; border: 2px solid #4CAF50;">
+            <div style="padding: 10px; background: #333333; border-radius: 8px; border: 2px solid #555555;">
               <p data-i18n="Define la estructura (letras A, B, C...)"
-                style="font-family: monospace; color: #333; margin-bottom: 10px; font-size: 12px;">Define la estructura
+                style="font-family: monospace; color: #eeeeee; margin-bottom: 10px; font-size: 12px;">Define la
+                estructura
                 (letras A, B, C...)</p>
               <div
-                style="display: flex; gap: 5px; align-items: center; background: white; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9;">
+                style="display: flex; gap: 5px; align-items: center; background: #222222; padding: 8px; border-radius: 4px; border: 1px solid #555555;">
                 <input type="text" id="composition-structure" placeholder="Ej: ABBC" data-i18n-placeholder="Ej: ABBC"
-                  style="flex-grow: 1; padding: 8px; font-family: monospace; font-size: 14px; border: 1px solid #4CAF50; border-radius: 4px; text-transform: uppercase;">
+                  style="flex-grow: 1; padding: 8px; font-family: monospace; font-size: 14px; border: 1px solid #555555; border-radius: 4px; text-transform: uppercase; background: #222222; color: #eeeeee;">
                 <button id="generate-composition-btn" class="theme-btn" data-i18n="Generar"
-                  style="padding: 8px 12px; font-size: 12px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">🚀
+                  style="padding: 8px 12px; font-size: 12px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #555555; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
                   Generar</button>
               </div>
-              <div style="margin-top: 10px; font-family: monospace; font-size: 11px; color: #666;">
+              <div style="margin-top: 10px; font-family: monospace; font-size: 11px; color: #999999;">
                 <strong>Frases Disponibles:</strong>
                 <div id="available-phrases-list" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
                 </div>
@@ -1736,8 +2141,8 @@
           <div id="editor-lyrics" class="mode-panel mode-editor editor-lyrics"
             style="display: none; padding: 10px; background: #fff5f8; border-radius: 8px; border: 2px solid #e91e63; margin-bottom: 15px;">
             <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <h3 class="mode-editor-title" data-i18n="🎵 Editor de Letras"
-                style="font-size: 14px; margin: 0; color: #c2185b;">🎵 Editor de Letras
+              <h3 class="mode-editor-title" data-i18n=" Editor de Letras"
+                style="font-size: 14px; margin: 0; color: #c2185b;"> Editor de Letras
                 (Compás <span id="lyrics-measure-num" style="font-weight: bold; color: #e91e63;">-</span>)</h3>
             </div>
             <div>
@@ -1749,7 +2154,7 @@
                 data-i18n-placeholder="Ej: La la la..."
                 style="width: 100%; padding: 10px; border: 1px solid #e91e63; border-radius: 4px; font-family: monospace; font-size: 16px; margin-bottom: 10px; box-sizing: border-box;">
               <div style="display: flex; justify-content: flex-end;">
-                <button id="lyrics-editor-accept" class="theme-btn"
+                <button id="lyrics-editor-accept" class="theme-btn" data-i18n="SaveLyrics"
                   style="background: #e91e63; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                   Guardar Letra
                 </button>
@@ -1763,9 +2168,9 @@
             <div id="midi-editor-content" style="display: flex; flex-direction: column; width: 100%;">
               <div
                 style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f5f5f5; border-radius: 8px 8px 0 0;">
-                <h3 id="midi-editor-header"
+                <h3 id="midi-editor-header" data-i18n="Edit MIDI"
                   style="margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; flex: 1; font-size: 14px;">
-                  📝 Editar MIDI <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
+                  Edit MIDI <span id="midi-editor-measure-num" style="color: #FF9800; font-weight: bold;"></span>
                 </h3>
               </div>
               <div style="padding: 10px;">
@@ -1774,9 +2179,9 @@
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
                   <button id="midi-editor-add"
-                    style="display: none; background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Añadir</button>
+                    style="display: none; background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Add</button>
                   <button id="midi-editor-accept"
-                    style="display: none; visibility:hidden; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Aplicar</button>
+                    style="display: none; visibility:hidden; background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer;">Apply</button>
                 </div>
               </div>
             </div>
@@ -1797,7 +2202,7 @@
           style="display: flex; gap: 8px; align-items: flex-start; width: 100%; box-sizing: border-box; overflow: hidden;">
           <textarea id="bdi-display"
             style="flex: 1; min-width: 0; width: 0; height: 100px; font-family: monospace; font-size: 11px; padding: 5px; border: 2px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box;"></textarea>
-          <button id="update-bdi-btn"
+          <button id="update-bdi-btn" data-i18n="UpdateDBI"
             style="flex-shrink: 0; width: 90px; padding: 8px 6px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; height: 40px;">
             Actualizar
           </button>
@@ -1825,6 +2230,7 @@
   <script src="ruler_selection.js"></script>
   <script src="clipboard_tool.js"></script>
   <script src="onda-tool.js"></script>
+  <script src="partes-tool.js"></script> <!-- Panel Partes Logic -->
   <script src="mode-toggle-listener.js"></script>
   <script src="voice-selector-listener.js"></script>
   <script src="playback-control.js"></script>
@@ -1910,67 +2316,64 @@
       <!-- Preferences -->
       <div id="welcome-prefs" style="gap: 12px; margin-bottom: 24px;">
 
-        <!-- Composition Title -->
-        <div class="pref-section" style="margin-bottom: 12px; padding: 10px 14px;">
-          <span class="pref-label" data-i18n="Título de la composición" style="font-size: 10px; margin-bottom: 6px;">📝
-            Título</span>
-          <input type="text" id="pref-title" placeholder="Mi Composición"
-            data-i18n-placeholder="Título de la composición"
-            style="width: 100%; padding: 8px; font-size: 14px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #fff; font-family: inherit; box-sizing: border-box;">
+        <!-- Title, BPM, Time Signature (Same Row) -->
+        <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: nowrap;">
+
+          <!-- Composition Title -->
+          <div class="pref-section" style="flex: 1; min-width: 0; padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Título de la composición"
+              style="font-size: 10px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              Título</span>
+            <input type="text" id="pref-title" placeholder="Emotion"
+              style="width: 100%; padding: 8px; font-size: 14px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #fff; font-family: inherit; box-sizing: border-box;">
+          </div>
+
+          <!-- BPM -->
+          <div class="pref-section" style="flex: 0 0 auto; width: 80px; padding: 10px 10px;">
+            <span class="pref-label" data-i18n="BPM"
+              style="font-size: 10px; margin-bottom: 6px; white-space: nowrap;">⏱️ BPM</span>
+            <input type="number" id="pref-bpm" min="10" max="440" step="1"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: #2a2a3a; border: 1.5px solid rgba(255,255,255,0.25); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+          </div>
+
+          <!-- Time Signature -->
+          <div class="pref-section" style="flex: 0 0 auto; width: max-content; min-width: 85px; padding: 10px 10px;">
+            <span class="pref-label" data-i18n="Métrica"
+              style="font-size: 10px; margin-bottom: 6px; white-space: nowrap;"> Métrica</span>
+            <select id="pref-metrica"
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: #2a2a3a; border: 1.5px solid rgba(255,255,255,0.25); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              <option value="[2,4]">2/4</option>
+              <option value="[3,4]">3/4</option>
+              <option value="[4,4]" selected>4/4</option>
+            </select>
+          </div>
+
         </div>
 
-        <!-- Smart Harmony & Nomenclature (Flexible Row) -->
+        <!-- Smart Harmony, Key & Scale (Flexible Row) -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
           <!-- Nomenclature -->
           <div class="pref-section" style="flex: 1; min-width: 140px; padding: 10px 14px;">
-            <span class="pref-label" data-i18n="Nomenclatura" style="font-size: 10px; margin-bottom: 6px;">🎵
+            <span class="pref-label" data-i18n="Nomenclatura" style="font-size: 10px; margin-bottom: 6px;">
               Nomenclatura</span>
             <div class="pref-options" style="gap: 6px;">
               <label class="pref-chip" style="font-size: 12px; padding: 4px 10px;">
-                <input type="radio" name="pref-nomen" value="english" checked> C / D / E
+                <input type="radio" name="pref-nomen" value="english"
+                  onchange="if(window.appPrefs) { window.appPrefs.set('nomenclature', this.value); window.appPrefs.apply(); }"
+                  checked> C / D / E
               </label>
               <label class="pref-chip" style="font-size: 12px; padding: 4px 10px;">
-                <input type="radio" name="pref-nomen" value="latin"> Do / Re
+                <input type="radio" name="pref-nomen" value="latin"
+                  onchange="if(window.appPrefs) { window.appPrefs.set('nomenclature', this.value); window.appPrefs.apply(); }">
+                Do / Re
               </label>
             </div>
           </div>
-
-          <!-- Smart Harmony -->
-          <div class="pref-section" style="flex: 1; min-width: 140px; padding: 10px 14px;">
-            <span class="pref-label" data-i18n="Armonía Diatónica" style="font-size: 10px; margin-bottom: 6px;">🎼
-              Armonía Diatónica</span>
-            <label class="pref-toggle">
-              <input type="checkbox" id="pref-smart-diatonic" checked>
-              <span class="pref-toggle-track" style="width: 36px; height: 20px;"><span class="pref-toggle-thumb"
-                  style="width: 14px; height: 14px; top: 2px; left: 2px;"></span></span>
-              <span class="pref-toggle-label" id="smart-diatonic-label" style="font-size: 12px;">On</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Musical Preferences (Grid for compactness) -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
-          <!-- BPM -->
-          <div class="pref-section" style="padding: 10px 14px;">
-            <span class="pref-label" data-i18n="BPM" style="font-size: 10px; margin-bottom: 6px;">⏱️ BPM</span>
-            <input type="number" id="pref-bpm" min="40" max="300" step="1"
-              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
-          </div>
-          <!-- Time Signature -->
-          <div class="pref-section" style="padding: 10px 14px;">
-            <span class="pref-label" data-i18n="Métrica" style="font-size: 10px; margin-bottom: 6px;">📏 Métrica</span>
-            <select id="pref-metrica"
-              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
-              <option value="[2,4]">2 / 4</option>
-              <option value="[3,4]">3 / 4</option>
-              <option value="[4,4]" selected>4 / 4</option>
-            </select>
-          </div>
           <!-- Key Root -->
-          <div class="pref-section" style="padding: 10px 14px;">
-            <span class="pref-label" data-i18n="Key" style="font-size: 10px; margin-bottom: 6px;">🎹 Key</span>
+          <div class="pref-section" style="flex: 1; min-width: 100px; padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Key" style="font-size: 10px; margin-bottom: 6px;"> Key</span>
             <select id="pref-key"
-              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: #2a2a3a; border: 1.5px solid rgba(255,255,255,0.25); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
               <option value="C">C</option>
               <option value="C#">C#</option>
               <option value="D">D</option>
@@ -1986,10 +2389,10 @@
             </select>
           </div>
           <!-- Scale Mode -->
-          <div class="pref-section" style="padding: 10px 14px;">
-            <span class="pref-label" data-i18n="Escala" style="font-size: 10px; margin-bottom: 6px;">🎼 Escala</span>
+          <div class="pref-section" style="flex: 1; min-width: 100px; padding: 10px 14px;">
+            <span class="pref-label" data-i18n="Escala" style="font-size: 10px; margin-bottom: 6px;"> Escala</span>
             <select id="pref-scale"
-              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
+              style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: #2a2a3a; border: 1.5px solid rgba(255,255,255,0.25); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
               <option value="Major" data-i18n="Mayor">Major</option>
               <option value="Minor" data-i18n="Menor">Minor</option>
               <option value="Chromatic" data-i18n="Cromática">Chromatic</option>
@@ -1997,6 +2400,15 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Dropzone for .musicoli files -->
+      <div id="welcome-dropzone"
+        style="border: 2px dashed rgba(255,255,255,0.3); border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 16px; cursor: pointer; transition: all 0.3s; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span style="font-size: 20px; display: block;"></span>
+        <span data-i18n="Arrastra o selecciona un archivo .musicoli"
+          style="font-size: 13px; color: #b0bec5; font-weight: 600;">Arrastra o selecciona un archivo .musicoli</span>
+        <input type="file" id="welcome-file-input" accept=".musicoli,.json" style="display: none;">
       </div>
 
       <!-- Action button -->
@@ -2010,6 +2422,19 @@
 
   <!-- Welcome Screen Styles -->
   <style id="welcome-styles">
+    /* ---- Selects & inputs: fondo oscuro para legibilidad ---- */
+    #welcome-card select,
+    #welcome-card input[type="number"] {
+      background: #2a2a3a !important;
+      color: #e8eaf6 !important;
+      border-color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+    #welcome-card select option {
+      background: #2a2a3a;
+      color: #e8eaf6;
+    }
+
     /* ---- Overlay ---- */
     #welcome-overlay {
       position: fixed;
@@ -2068,7 +2493,7 @@
       max-width: 480px;
       width: calc(100vw - 40px);
       max-height: calc(100vh - 40px);
-      overflow-y: hidden;
+      overflow-y: auto;
       box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
       animation: wSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       color: #e8eaf6;
@@ -2098,7 +2523,6 @@
     #welcome-note {
       font-size: 64px;
       line-height: 1;
-      animation: wPulse 2.5s ease-in-out infinite;
       filter: drop-shadow(0 0 18px rgba(126, 87, 194, 0.7));
     }
 
@@ -2332,6 +2756,11 @@
         window._welcomeStopParticles = function () {
           cancelAnimationFrame(animId);
         };
+        // Expose start function
+        window._welcomeStartParticles = function () {
+          cancelAnimationFrame(animId);
+          draw();
+        };
       })();
 
       /* ---- Helper: dismiss overlay ---- */
@@ -2343,6 +2772,20 @@
         overlay.classList.add('hiding');
         setTimeout(() => { overlay.style.display = 'none'; }, 460);
       }
+
+      /* ---- Helper: open overlay ---- */
+      window.openWelcomePanel = function() {
+        const overlay = document.getElementById('welcome-overlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        overlay.classList.remove('hiding');
+        if (typeof restoreFormValues === 'function') {
+          restoreFormValues();
+        }
+        if (window._welcomeStartParticles) {
+          window._welcomeStartParticles();
+        }
+      };
 
       /* ---- Helper: save prefs and apply ---- */
       function saveAndApply() {
@@ -2357,9 +2800,7 @@
         const nomenEl = document.querySelector('input[name="pref-nomen"]:checked');
         if (nomenEl) prefs.set('nomenclature', nomenEl.value);
 
-        // Smart diatonic
-        const sdEl = document.getElementById('pref-smart-diatonic');
-        if (sdEl) prefs.set('smartDiatonic', sdEl.checked);
+        // Smart diatonic is always enabled
 
         // BPM
         const bpmEl = document.getElementById('pref-bpm');
@@ -2379,8 +2820,8 @@
 
         // Title sync
         const titleEl = document.getElementById('pref-title');
-        if (titleEl && titleEl.value.trim() !== '') {
-          const newTitle = titleEl.value.trim();
+        if (titleEl) {
+          const newTitle = titleEl.value.trim() !== '' ? titleEl.value.trim() : 'Emotion';
           // Update both possible main title inputs
           ['title-input', 'lyrics-title-input'].forEach(id => {
             const el = document.getElementById(id);
@@ -2390,9 +2831,9 @@
               el.dispatchEvent(new Event('change'));
             }
           });
-          // Update visual display if it exists
+          // Update visual display download attribute if it exists
           const display = document.getElementById('title-display');
-          if (display) display.textContent = newTitle + '.mid';
+          if (display) display.setAttribute('download', newTitle + '.mid');
         }
 
         prefs.set('welcomed', true);
@@ -2415,9 +2856,7 @@
         const nomenEl = document.querySelector(`input[name="pref-nomen"][value="${nomenVal}"]`);
         if (nomenEl) nomenEl.checked = true;
 
-        // Smart diatonic
-        const sdEl = document.getElementById('pref-smart-diatonic');
-        if (sdEl) sdEl.checked = prefs.get('smartDiatonic');
+        // Smart diatonic is always enabled (no UI control)
 
         // BPM
         const bpmVal = prefs.get('bpm');
@@ -2443,34 +2882,30 @@
         const prefTitleEl = document.getElementById('pref-title');
         const mainTitleEl = document.getElementById('title-input');
         if (prefTitleEl && mainTitleEl) {
-          prefTitleEl.value = mainTitleEl.value;
+          const mVal = mainTitleEl.value.trim().toLowerCase();
+          prefTitleEl.value = (mVal === 'emotion' || mVal === '') ? '' : mainTitleEl.value;
         }
 
-        // Update toggle label
-        updateToggleLabel();
+
 
         // MANUALLY APPLY LANGUAGE FROM FORM (Crucial for first load visibility)
         const initialLangEl = document.querySelector('input[name="pref-lang"]:checked');
         if (initialLangEl && typeof setLanguage === 'function') {
-          setLanguage(initialLangEl.value);
+          // Use the (possibly migrated) pref value, not the DOM radio value
+          const resolvedLang = prefs ? prefs.get('language') : initialLangEl.value;
+          setLanguage(resolvedLang);
         }
       }
 
-      function updateToggleLabel() {
-        const sdEl = document.getElementById('pref-smart-diatonic');
-        const labelEl = document.getElementById('smart-diatonic-label');
-        if (sdEl && labelEl && typeof t === 'function') {
-          labelEl.textContent = sdEl.checked ? t('Activada') : t('Desactivada');
-        }
-      }
+
 
       /* ---- Main init ---- */
       function init() {
         const overlay = document.getElementById('welcome-overlay');
         const startBtn = document.getElementById('welcome-start-btn');
-        const sdEl = document.getElementById('pref-smart-diatonic');
+        const prefs = window.appPrefs;
 
-        if (!overlay) return;
+        if (!overlay || !prefs) return;
 
         // Restore saved values to form each time
         restoreFormValues();
@@ -2497,8 +2932,20 @@
           });
         });
 
-        // Toggle label update
-        if (sdEl) sdEl.addEventListener('change', updateToggleLabel);
+        // Key and Scale real-time sync to prevent resets when Nomenclature changes
+        const keyEl = document.getElementById('pref-key');
+        if (keyEl) {
+          keyEl.addEventListener('change', () => {
+            prefs.set('keyRoot', keyEl.value);
+          });
+        }
+
+        const scaleEl = document.getElementById('pref-scale');
+        if (scaleEl) {
+          scaleEl.addEventListener('change', () => {
+            prefs.set('scaleMode', scaleEl.value);
+          });
+        }
 
         // Only the Empezar button closes the overlay
         if (startBtn) {
@@ -2506,6 +2953,136 @@
             e.stopPropagation();
             saveAndApply();
             dismiss();
+          });
+        }
+
+        /* ---- Drag and Drop for .musicoli files ---- */
+        function handleWelcomeFile(file) {
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const jsonContent = e.target.result;
+              const newBdi = JSON.parse(jsonContent);
+
+              let newMeasures = null;
+              let newMetadata = null;
+
+              if (Array.isArray(newBdi)) {
+                newMeasures = newBdi;
+              } else if (newBdi && typeof newBdi === 'object' && Array.isArray(newBdi.bar)) {
+                newMeasures = newBdi.bar;
+                if (newBdi.metadata) {
+                  newMetadata = newBdi.metadata;
+                }
+              }
+
+              if (newMeasures) {
+                if (typeof saveBdiState === 'function') saveBdiState();
+
+                if (newMetadata && window.bdi) {
+                  window.bdi.metadata = JSON.parse(JSON.stringify(newMetadata));
+                }
+
+                if (typeof window.bdi.bar !== 'undefined') {
+                  window.bdi.bar.length = 0;
+                  window.bdi.bar.push(...newMeasures);
+                }
+
+                if (typeof window.rebuildRecordi === 'function') {
+                  window.rebuildRecordi();
+                }
+
+                if (typeof window.applyTextLayer === 'function') {
+                  window.applyTextLayer();
+                }
+
+                if (newMetadata) {
+                  const prefTitleEl = document.getElementById('pref-title');
+                  const titleInput = document.getElementById('title-input');
+                  const lyricsTitleInput = document.getElementById('lyrics-title-input');
+                  if (newMetadata.title) {
+                    if (titleInput) titleInput.value = newMetadata.title;
+                    if (lyricsTitleInput) lyricsTitleInput.value = newMetadata.title;
+                    if (prefTitleEl) prefTitleEl.value = newMetadata.title;
+                  }
+
+                  const prefs = window.appPrefs;
+                  if (prefs) {
+                    if (newMetadata.bpm) {
+                      prefs.set('bpm', newMetadata.bpm);
+                      const bpmEl = document.getElementById('pref-bpm');
+                      if (bpmEl) bpmEl.value = newMetadata.bpm;
+                    }
+                    if (newMetadata.timeSignature) {
+                      prefs.set('timeSignature', JSON.stringify(newMetadata.timeSignature));
+                      const metricaEl = document.getElementById('pref-metrica');
+                      if (metricaEl) metricaEl.value = JSON.stringify(newMetadata.timeSignature);
+                    }
+                  }
+                }
+
+                const bdiDisplay = document.getElementById('bdi-display');
+                if (bdiDisplay) bdiDisplay.value = JSON.stringify(window.bdi, null, 2);
+
+                const dropzone = document.getElementById('welcome-dropzone');
+                if (dropzone) {
+                  const originalBg = dropzone.style.background;
+                  const originalBorder = dropzone.style.borderColor;
+                  dropzone.style.background = 'rgba(76, 175, 80, 0.2)';
+                  dropzone.style.borderColor = '#4CAF50';
+                  const span = dropzone.querySelector('span:nth-of-type(2)');
+                  const oldText = span.textContent;
+                  span.textContent = typeof t === 'function' ? t('¡Archivo cargado correctamente!') : '¡Archivo cargado correctamente!';
+                  setTimeout(() => {
+                    saveAndApply();
+                    dismiss();
+                  }, 800);
+                }
+
+              } else {
+                alert(typeof t === 'function' ? t('El archivo no tiene el formato .musicoli o .json válido.') : 'El archivo no tiene el formato .musicoli o .json válido.');
+              }
+            } catch (e) {
+              alert(typeof t === 'function' ? t('Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.') : 'Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.');
+              console.error(e);
+            }
+          };
+          reader.readAsText(file);
+        }
+
+        const dropzone = document.getElementById('welcome-dropzone');
+        const fileInput = document.getElementById('welcome-file-input');
+
+        if (dropzone && fileInput) {
+          dropzone.addEventListener('click', () => fileInput.click());
+
+          dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.background = 'rgba(255,255,255,0.15)';
+            dropzone.style.borderColor = '#fff';
+          });
+
+          dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropzone.style.background = 'rgba(255,255,255,0.05)';
+            dropzone.style.borderColor = 'rgba(255,255,255,0.3)';
+          });
+
+          dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.background = 'rgba(255,255,255,0.05)';
+            dropzone.style.borderColor = 'rgba(255,255,255,0.3)';
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              handleWelcomeFile(e.dataTransfer.files[0]);
+            }
+          });
+
+          fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              handleWelcomeFile(e.target.files[0]);
+            }
           });
         }
       }
