@@ -2276,6 +2276,23 @@
     }
   </script>
 
+  <!-- Variations Panel Outside Click Script -->
+  <script>
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('variation-intensity-panel');
+      const btn = document.getElementById('variation-settings-btn');
+      if (panel && panel.style.display === 'block') {
+        if (!panel.contains(e.target) && !btn.contains(e.target)) {
+          panel.style.display = 'none';
+        }
+      }
+    });
+
+    // Also stop propagation when clicking inside the panel to prevent issues
+    // though the 'contains' check should handle it.
+  </script>
+
+
   <!-- ====================================================
      WELCOME / PREFERENCES OVERLAY
      ==================================================== -->

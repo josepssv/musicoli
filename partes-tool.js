@@ -389,7 +389,7 @@
 
     function renderPartesPreview(plan, displayEl, infoEl) {
         var html = '', totalMeasures = 0;
-        plan.forEach(function (part) {
+        plan.forEach(function (part, i) {
             totalMeasures += part.measures;
             var patStr = part.pattern.map(tipiLabel).join('-');
 
@@ -425,7 +425,13 @@
                     (isFirst ? '<span style="font-size:8px;opacity:0.7;">n=' + part.noteGroup + '</span>' : '') +
                     '</div>';
             }
-            html += '<div style="display:inline-flex;margin-bottom:4px;margin-right:6px;">' + blocks + '</div>';
+            // Wrap in a div that handles randomization of THIS part
+            html += '<div onclick="randomizePartInPreview(' + i + ')" ' +
+                'style="display:inline-flex;margin-bottom:4px;margin-right:6px;cursor:pointer;transition:transform 0.1s;" ' +
+                'onmouseover="this.style.transform=\'scale(1.03)\';this.style.filter=\'brightness(1.15)\';" ' +
+                'onmouseout="this.style.transform=\'scale(1)\';this.style.filter=\'brightness(1)\';" ' +
+                'title="' + (typeof t === 'function' ? t('PartesReshuffleTitle') : 'Randomizar esta parte') + '">' +
+                blocks + '</div>';
         });
 
         displayEl.innerHTML = html ||
@@ -472,10 +478,57 @@
     window.previewPartesFromUI = refreshPreview;
     window.reshufflePartesFromUI = function () { window.partesState = null; refreshPreview(); };
 
+    /**
+     * Randomize a single part in the preview plan.
+     */
+    window.randomizePartInPreview = function (index) {
+        if (!window.partesState || !window.partesState.plan[index]) return;
+        var plan = window.partesState.plan;
+        var part = plan[index];
+
+        // 1. Pick a random note group (density) from available ones
+        var availableGroups = getAvailableGroups();
+        if (availableGroups.length > 1) {
+            // Try to pick one different from current
+            var currentGroup = part.noteGroup;
+            var poolGroups = availableGroups.filter(function (g) { return g !== currentGroup; });
+            part.noteGroup = (poolGroups.length > 0 ? poolGroups : availableGroups)[Math.floor(Math.random() * (poolGroups.length > 0 ? poolGroups.length : availableGroups.length))];
+        }
+
+        // 2. Pick new random pattern for the NEW noteGroup
+        var usedPatterns = plan.map(function (p) { return p.pattern; });
+        part.pattern = pickTrilipiPattern(part.noteGroup, usedPatterns.filter(function (_, i) { return i !== index; }));
+
+        // 3. Randomize muted voices within the selected voice mode context
+        var voiceMode = getVoiceMode();
+        if (voiceMode !== 'all') {
+            var rot = voiceMode === 'mute1' ? MUTE1_ROTATIONS
+                : voiceMode === 'mute3' ? MUTE3_ROTATIONS
+                    : MUTE2_ROTATIONS;
+
+            // Pick a random one that is DIFFERENT from current if possible
+            var currentMutedStr = JSON.stringify(part.muted.slice().sort());
+            var available = rot.filter(function (r) {
+                return JSON.stringify(r.slice().sort()) !== currentMutedStr;
+            });
+            var pool = available.length > 0 ? available : rot;
+            part.muted = pool[Math.floor(Math.random() * pool.length)];
+
+            // Update active voices list
+            part.active = ['s', 'a', 't', 'b'].filter(function (v) {
+                return part.muted.indexOf(v) === -1;
+            });
+        }
+
+        renderPartesPreview(plan, document.getElementById('partes-preview-display'), document.getElementById('partes-info'));
+    };
+
     // ── Apply ─────────────────────────────────────────────────
     window.applyPartesFromUI = function () {
-        refreshPreview();
-        if (!window.partesState) return;
+        if (!window.partesState || !window.partesState.plan) {
+            refreshPreview(); 
+            if (!window.partesState) return;
+        }
 
         var plan = window.partesState.plan;
         if (!window.bdi || !window.bdi.bar) { alert('No hay partitura activa.'); return; }

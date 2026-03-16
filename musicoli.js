@@ -12418,7 +12418,7 @@ ${notepadCss}
             const newBpm = parseInt(e.target.value);
 
             // Validate BPM range
-            if (!isNaN(newBpm) && newBpm >= 40 && newBpm <= 240) {
+            if (!isNaN(newBpm) && newBpm >= 10 && newBpm <= 440) {
                 // Update BPM variables
                 bpmValue = newBpm;
                 tempi = newBpm;
@@ -12431,7 +12431,7 @@ ${notepadCss}
                     rebuildRecordi();
                 }
             } else {
-                alert('Por favor ingresa un BPM entre 40 y 240');
+                alert('Por favor ingresa un BPM entre 10 y 440');
                 e.target.value = bpmValue || 120;
             }
         });
