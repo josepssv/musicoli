@@ -8891,12 +8891,28 @@ async function tarareoAritmo() {
         // Copying grouping logic here for per-line scope
 
         const functionWords = new Set([
+            // Spanish
             'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
-            'de', 'del', 'al', 'a', 'en', 'con', 'por', 'para', 'sin',
+            'de', 'del', 'al', 'a', 'en', 'con', 'por', 'para', 'sin', 'bajo', 'entre', 'hacia', 'hasta', 'desde',
             'mi', 'tu', 'su', 'mis', 'tus', 'sus',
-            'me', 'te', 'se', 'le', 'lo', 'les', 'nos',
-            'y', 'e', 'o', 'u', 'ni',
-            'que', 'si', 'no', 'es'
+            'me', 'te', 'se', 'le', 'lo', 'les', 'nos', 'yo', 'tu', 'el', 'ella', 'nosotros', 'ellos',
+            'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'aunque', 'porque', 'sino',
+            'que', 'si', 'no', 'es', 'son', 'fue', 'eran', 'ser', 'estar',
+
+            // English
+            'the', 'a', 'an',
+            'of', 'to', 'in', 'on', 'at', 'by', 'for', 'with', 'from', 'as', 'into', 'like', 'through', 'after', 'over', 'between', 'out', 'against', 'during', 'without', 'before', 'under', 'around', 'among',
+            'and', 'or', 'but', 'so', 'yet', 'nor', 'because', 'although', 'while', 'since',
+            'my', 'your', 'his', 'her', 'its', 'our', 'their', 'me', 'you', 'him', 'it', 'us', 'them', 'i', 'he', 'she', 'we', 'they',
+            'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did', 'have', 'has', 'had', 'can', 'could', 'will', 'would', 'shall', 'should',
+            'not', 'no', 'yes', 'that', 'this', 'these', 'those', 'who', 'what', 'which', 'where', 'when', 'why', 'how',
+
+            // German
+            'der', 'die', 'das', 'ein', 'eine', 'einer', 'eines', 'einem', 'einen', 'des', 'dem', 'den',
+            'in', 'an', 'auf', 'aus', 'bei', 'mit', 'nach', 'von', 'zu', 'bis', 'durch', 'für', 'gegen', 'ohne', 'um', 'vor', 'zwischen',
+            'und', 'oder', 'aber', 'denn', 'doch', 'da', 'als', 'wenn', 'dass', 'weil', 'obwohl',
+            'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mein', 'dein', 'sein', 'unser', 'euer', 'mich', 'dich', 'sich', 'uns', 'euch', 'mir', 'dir', 'ihm',
+            'ist', 'bin', 'bist', 'sind', 'war', 'waren', 'nicht', 'ja', 'dies', 'diese', 'dieser', 'dieses', 'auch', 'nur', 'noch', 'schon'
         ]);
 
         const strategyElement = document.getElementById('tarareo-strategy');
