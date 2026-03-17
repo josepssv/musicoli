@@ -51,9 +51,7 @@ The Humming system is a unique feature of Musicoli that converts text into music
 
 ### 🛠️ Developer & Technical Info
 
-*   **[Algorithm Configuration](test/ALGORITHM_CONFIG_GUIDE.md)**: Technical details on pattern selection logic and weights.
 *   **[Image to Melody Algorithm](docs/IMAGE_TO_MELODY_ALGORITHM_EN.md)**: Documentation on the visual-to-musical conversion system.
-*   **[Voice Configuration Guide](docs/VOICE_CONFIG_GUIDE_EN.md)**: Details on automatic patterns and time decrease per voice.
 
 ## License
 
