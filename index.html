@@ -154,6 +154,11 @@
       vertical-align: top !important;
     }
 
+    /* SCROLL OFFSET FOR STICKY MATRIX */
+    [id^="comp-"], .mode-panel {
+      scroll-margin-top: 150px;
+    }
+    
     /* Remove any flex gaps or spacing */
     [id^="content-row-"] {
       align-items: flex-start !important;
@@ -816,7 +821,7 @@
     </div>
     <div id="example-container"
       style="background-color: #666; color: white; display: flex; flex-direction:column ; gap: 10px;">
-      <div id="timeline-split-view" style="display: flex; width: 100%; overflow: hidden; min-height: 100px;">
+      <div id="timeline-split-view" style="display: flex; width: 100%; overflow: hidden; min-height: 100px; position: sticky; top: 0; z-index: 100; background: #666;">
 
         <!-- LEFT COLUMN: LABELS (Fixed) -->
         <div id="timeline-labels-column"
@@ -1026,11 +1031,15 @@
               <div id="comp-partes-section"
                 style="display: none; margin-bottom: 15px; padding: 15px; background: #333333; border: 2px solid #555555; border-radius: 8px;">
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                  <span data-i18n="Partes">Partes</span>
-                  <span style="font-weight: normal; font-size: 11px; color: #cccccc;" data-i18n="PartesDesc">— Ritmos
-                    diferenciados por
-                    sección</span>
+                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span data-i18n="Partes">Partes</span>
+                    <span style="font-weight: normal; font-size: 11px; color: #cccccc;" data-i18n="PartesDesc">— Ritmos
+                      diferenciados por
+                      sección</span>
+                  </div>
+                  <button onclick="document.getElementById('comp-partes-section').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" 
+                          class="panel-scroll-top-btn" title="Ir a la matriz">↑</button>
                 </h4>
 
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
@@ -1111,11 +1120,15 @@
               <div id="comp-tarareo-section"
                 style="display: none; margin-bottom: 15px; padding: 15px; background: #333333; border: 2px solid #555555; border-radius: 8px;">
                 <h4
-                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                  <span data-i18n="Hum (Rhythm)">Hum (Rhythm)</span>
-                  <button id="tarareo-info-btn"
-                    style="background: #555555; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
-                    data-i18n-title="Algorithm information" title="Algorithm information">i</button>
+                  style="margin: 0 0 10px 0; font-family: monospace; color: #eeeeee; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span data-i18n="Hum (Rhythm)">Hum (Rhythm)</span>
+                    <button id="tarareo-info-btn"
+                      style="background: #555555; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
+                      data-i18n-title="Algorithm information" title="Algorithm information">i</button>
+                  </div>
+                  <button onclick="document.getElementById('comp-tarareo-section').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" 
+                          class="panel-scroll-top-btn" title="Ir a la matriz">↑</button>
                 </h4>
 
                 <!-- Tooltip de información (oculto por defecto) -->
@@ -1972,8 +1985,10 @@
 
                   <!-- ONDA RITMO PART -->
                   <h4
-                    style="margin: 0 0 5px 0; font-family: monospace; color: #eeeeee; font-size: 13px; font-weight: bold;">
-                    Onda Ritmo
+                    style="margin: 0 0 5px 0; font-family: monospace; color: #eeeeee; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Onda Ritmo</span>
+                    <button onclick="document.getElementById('comp-onda-tools-section').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" 
+                            class="panel-scroll-top-btn" title="Ir a la matriz" style="padding: 1px 5px;">↑</button>
                   </h4>
                   <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 5px;">
@@ -2111,10 +2126,12 @@
           <!-- 7. COMPOSITION EDITOR (RIGHT PART: STRUCTURE GENERATOR) -->
           <div id="editor-composicion" class="mode-panel mode-editor editor-composicion"
             style="display: none; padding: 10px;">
-            <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
               <h3 class="mode-editor-title" data-i18n=" Compositor de Estructuras"
-                style="font-size: 14px; margin-bottom: 5px; color: #eeeeee;"> Compositor de Estructuras
+                style="font-size: 14px; margin-bottom: 5px; color: #eeeeee; margin: 0;"> Compositor de Estructuras
               </h3>
+              <button onclick="document.getElementById('editor-composicion').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" 
+                      class="panel-scroll-top-btn" title="Ir a la matriz">↑</button>
             </div>
             <div style="padding: 10px; background: #333333; border-radius: 8px; border: 2px solid #555555;">
               <p data-i18n="Define la estructura (letras A, B, C...)"

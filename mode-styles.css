@@ -279,6 +279,46 @@ body.app-mode-composicion {
   color: var(--ritmo-text);
 }
 
+/* MUSICOLI: editor-ritmo is always empty in ritmo mode (content goes to rhythm-patterns-slot) */
+body.app-mode-ritmo #editor-ritmo {
+  display: none !important;
+}
+
+
+/* MUSICOLI: rhythm-patterns-slot - no overflow by default */
+#rhythm-patterns-slot {
+  overflow-y: hidden;
+  overflow-x: hidden;
+}
+
+/* Only show scroll when JS detects overflow (adds .is-scrollable) */
+#rhythm-patterns-slot.is-scrollable {
+  overflow-y: scroll;
+  scrollbar-width: auto;
+  /* Firefox */
+  scrollbar-color: rgba(200, 200, 200, 0.8) rgba(0, 0, 0, 0.3);
+}
+
+#rhythm-patterns-slot.is-scrollable::-webkit-scrollbar {
+  width: 14px;
+}
+
+#rhythm-patterns-slot.is-scrollable::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 7px;
+}
+
+#rhythm-patterns-slot.is-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(200, 200, 200, 0.8);
+  border-radius: 7px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+}
+
+#rhythm-patterns-slot.is-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+
 .editor-ritmo .mode-editor-title {
   color: var(--ritmo-text-dark);
 }
@@ -534,3 +574,36 @@ body.app-mode-ritmo .slider {
 body.app-mode-ritmo input:checked+.slider {
   background-color: #00acc1;
 }
+/* ============================================
+   PANEL SCROLL TO TOP BUTTONS
+   ============================================ */
+.panel-scroll-top-btn {
+  display: none; /* Hidden by default, shown by JS */
+  background: #555;
+  color: white;
+  border: 1px solid #777;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.panel-scroll-top-btn.visible {
+  display: flex !important;
+}
+
+.panel-scroll-top-btn:hover {
+  background: #777;
+  border-color: #999;
+  transform: translateY(-1px);
+}
+
+.panel-scroll-top-btn:active {
+  transform: translateY(0);
+}
+

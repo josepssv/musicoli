@@ -128,10 +128,14 @@
                         style="background: #555555; color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: help; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;"
                         data-i18n-title="ImgMelodyInfoTitle" title="Información sobre el algoritmo">ℹ</button>
                 </div>
-                <button id="img-melody-open-btn" data-i18n="ImgMelodyOpen"
-                    style="background: #444444; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 10px; border: 1px solid #555555;">
-                     Abrir
-                </button>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <button id="img-melody-open-btn" data-i18n="ImgMelodyOpen"
+                        style="background: #444444; color: white; border: none; padding: 2px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-family: monospace; font-size: 10px; border: 1px solid #555555;">
+                        Abrir
+                    </button>
+                    <button onclick="document.getElementById('image-melody-container').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" 
+                            class="panel-scroll-top-btn" title="Ir a la matriz" style="padding: 1px 5px;">↑</button>
+                </div>
                 <input type="file" id="img-melody-upload" accept="image/*" style="display: none;">
             </div>
 

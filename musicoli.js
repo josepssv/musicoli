@@ -19105,3 +19105,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+
+/* ============================================
+   PANEL SCROLL ARROWS VISIBILITY LOGIC
+   ============================================ */
+window.addEventListener('scroll', () => {
+    const threshold = 150; // Mostrar flechas tras bajar 150px
+    const arrows = document.querySelectorAll('.panel-scroll-top-btn');
+    const isScrolled = window.scrollY > threshold;
+    
+    arrows.forEach(arrow => {
+        if (isScrolled) {
+            arrow.classList.add('visible');
+        } else {
+            arrow.classList.remove('visible');
+        }
+    });
+}, { passive: true });
+
