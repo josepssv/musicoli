@@ -47,19 +47,13 @@ Musicoli is built with standard web technologies (HTML, CSS, JS) and **requires 
 
 The Humming system is a unique feature of Musicoli that converts text into musical rhythm:
 
-*   **[Quick Start Guide](docs/TARAREO_QUICKSTART.md)**: Learn to use Humming in 5 minutes.
-*   **[Technical Guide](docs/TARAREO_GUIDE.md)**: Detailed documentation of the system, algorithms, and rhythmic patterns.
-*   **[Proposals for Improvement](docs/TARAREO_PROPOSALS.md)**: Ideas and future options to expand the system.
-*   **[Multi-Language Guide](docs/TARAREO_MULTILANGUAGE.md)**: Implementation for Spanish and English using the same algorithm.
+*   **[Technical Guide](docs/TARAREO_GUIDE_EN.md)**: Detailed documentation of the system, algorithms, and rhythmic patterns.
 
 ### 🛠️ Developer & Technical Info
 
 *   **[Algorithm Configuration](test/ALGORITHM_CONFIG_GUIDE.md)**: Technical details on pattern selection logic and weights.
-*   **[Image to Melody Algorithm](docs/IMAGE_TO_MELODY_ALGORITHM.md)**: Documentation on the visual-to-musical conversion system.
-*   **[Testing Strategy](test/TESTING_INSTRUCTIONS.md)**: Instructions for verifying system performance and accuracy.
-*   **[Solution Analysis](test/SOLUTION_ANALYSIS.md)**: Retrospective of architectural decisions and problem-solving.
-*   **[Voice Configuration Guide](test/VOICE_CONFIG_COMPLETE.md)**: Full documentation on configuring independent voices.
-*   **[Pattern Selection Guide](docs/PATTERN_SELECTION_GUIDE.md)**: Guide on using the pattern selection system.
+*   **[Image to Melody Algorithm](docs/IMAGE_TO_MELODY_ALGORITHM_EN.md)**: Documentation on the visual-to-musical conversion system.
+*   **[Voice Configuration Guide](docs/VOICE_CONFIG_GUIDE_EN.md)**: Details on automatic patterns and time decrease per voice.
 
 ## License
 
