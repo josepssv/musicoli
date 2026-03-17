@@ -1,266 +1,250 @@
-# 🎤 Tarareo: Guía Rápida del Usuario
+# Humming (Tarareo): Quick Start User Guide
 
-## ¿Qué es el Tarareo?
+## What is Humming?
 
-El **Tarareo** convierte tus palabras en ritmo musical automáticamente. Simplemente escribe texto y Musicoli lo transforma en compases con ritmos naturales y expresivos.
-
----
-
-## Cómo Usar el Tarareo
-
-### 1. Accede al Panel de Tarareo en el modo Compsición
-
-1. Abre Musicoli en tu navegador
-2. Selecciona el **Modo Composición** (🧩)
-3. Encuentra el panel morado **🎤 Tarareo (Ritmo)** en la parte superior
-
-### 2. Escribe Tu Texto
-
-En el campo de texto, puedes escribir:
-
-#### ✍️ Texto Natural
-```
-la música es bella
-```
-
-#### 🎵 Frases Poéticas
-```
-en el silencio de la noche
-las estrellas brillan
-```
-
-#### 📝 Con Puntuación (para silencios)
-```
-hola, ¿cómo estás?
-buenos días!
-```
-
-### 3. Genera el Ritmo
-
-Haz clic en el botón **→** o presiona **Enter** para generar los compases.
+**Humming** (Tarareo) automatically converts your words into musical rhythms. Simply type text, and Musicoli transforms it into measures with natural and expressive rhythms.
 
 ---
 
-## Trucos y Consejos
+## How to Use Humming
 
-### 💡 Usa la Puntuación para Controlar Silencios
+### 1. Access the Humming Panel
 
-| Símbolo | Silencio Generado |
+1.  Open Musicoli in your browser.
+2.  Select **Composition Mode**.
+3.  Find the **Humming (Rhythm)** panel at the top.
+
+### 2. Type Your Text
+
+In the text field, you can type:
+
+#### Natural Text
+```
+the music is beautiful
+```
+
+#### Poetic Phrases
+```
+in the silence of the night
+the stars are shining
+```
+
+#### With Punctuation (for rests)
+```
+hello, how are you?
+good morning!
+```
+
+### 3. Generate Rhythm
+
+Click the arrow button (→) or press **Enter** to generate the measures.
+
+---
+
+## Tips and Tricks
+
+### Use Punctuation to Control Rests
+
+| Symbol | Generated Rest |
 |---------|-------------------|
-| `,` (coma) | Pausa corta (1 tiempo) |
-| `.` (punto) | Pausa corta (1 tiempo) |
-| `;` (punto y coma) | Pausa corta (1 tiempo) |
-| `!` (exclamación) | Pausa larga (2 tiempos) |
-| `(silencio)` | Pausa explícita |
+| `,` (comma) | Short pause (1 beat) |
+| `.` (period) | Short pause (1 beat) |
+| `;` (semicolon) | Short pause (1 beat) |
+| `!` (exclamation) | Long pause (2 beats) |
+| `(silence)` | Explicit pause |
 
-**Ejemplo:**
+**Example:**
 ```
-Input:  "hola, mundo!"
-Output: "hola" + pausa corta + "mundo" + pausa larga
-```
-
-### 🎯 El Sistema Detecta Acentos Automáticamente
-
-Las sílabas tónicas (acentuadas) se marcan con mayor volumen:
-
-```
-"música" → mú-si-ca
-           ↑ (acento aquí)
+Input:  "hello, world!"
+Output: "hello" + short pause + "world" + long pause
 ```
 
-### 🔄 Cada Vez es Diferente
+### Automatic Accent Detection
 
-El sistema selecciona patrones rítmicos aleatoriamente, así que:
-- Mismo texto → diferentes ritmos cada vez
-- Perfecto para experimentar y encontrar el ritmo ideal
-
-### 📚 Agrupa Palabras Naturalmente
-
-El sistema agrupa palabras pequeñas automáticamente:
+Tonic (accented) syllables are marked with higher volume:
 
 ```
-"el sol brilla"
-  ↓
-["el sol"] + ["brilla"]
+"music" -> mu-sic
+           ^ (accent here)
 ```
 
-Esto crea frases musicales más naturales.
+### Every Time is Different
+
+The system selects rhythmic patterns randomly, so:
+- Same text -> different rhythms every time.
+- Perfect for experimenting to find the ideal rhythm.
+
+### Natural Word Grouping
+
+The system groups small words automatically:
+
+```
+"the sun shines"
+   |
+["the sun"] + ["shines"]
+```
+
+This creates more natural musical phrases.
 
 ---
 
-## Ejemplos Prácticos
+## Practical Examples
 
-### Ejemplo 1: Canción Simple
-
-**Input:**
-```
-la vida es un sueño
-```
-
-**Resultado:**
-- 2-3 compases
-- Ritmo natural basado en las sílabas
-- Acentos en "vi-da" y "sue-ño"
-
-### Ejemplo 2: Poesía con Pausas
+### Example 1: Simple Song
 
 **Input:**
 ```
-bajo la luna,
-canta el río.
+life is but a dream
 ```
 
-**Resultado:**
-- Compás 1: "bajo la luna" + pausa
-- Compás 2: "canta" + "el río" + pausa
+**Result:**
+- 2-3 measures.
+- Natural rhythm based on syllables.
+- Accents on "life" and "dream".
 
-### Ejemplo 3: Ritmo Rápido
+### Example 2: Poetry with Pauses
 
 **Input:**
 ```
-corre corre sin parar
+under the moon,
+the river sings.
 ```
 
-**Resultado:**
-- Ritmo continuo con corcheas
-- Sensación de movimiento
+**Result:**
+- Measure 1: "under the moon" + pause.
+- Measure 2: "the river" + "sings" + pause.
+
+### Example 3: Fast Rhythm
+
+**Input:**
+```
+run run without stopping
+```
+
+**Result:**
+- Continuous rhythm with eighth notes.
+- Sense of movement.
 
 ---
 
-## Preguntas Frecuentes
+## Frequently Asked Questions
 
-### ❓ ¿Puedo editar el ritmo generado?
+### Can I edit the generated rhythm?
 
-Sí, después de generar los compases:
-1. Haz clic en el compás en el editor
-2. Usa el **Editor MIDI** para ajustar duraciones
-3. Modifica las dinámicas (volumen) si lo deseas
+Yes, after generating the measures:
+1.  Click the measure in the editor.
+2.  Use the **MIDI Editor** to adjust durations.
+3.  Modify dynamics (volume) if desired.
 
-### ❓ ¿Funciona en otros idiomas?
+### Does it work in other languages?
 
-Actualmente está optimizado para **español**. El sistema de silabificación funciona mejor con palabras en español.
+The syllabification system is currently optimized for **Spanish**, but it can be used with English and other languages for creative results.
 
-### ❓ ¿Qué pasa si escribo muchas palabras?
+### What happens if I type many words?
 
-El sistema genera un compás por cada palabra o grupo de palabras. Si escribes mucho texto, obtendrás muchos compases.
+The system generates one measure for each word or group of words. Long texts will result in many measures.
 
-### ❓ ¿Puedo controlar el tipo de ritmo?
+### Can I control the type of rhythm?
 
-Actualmente el sistema selecciona automáticamente. En futuras versiones podrás:
-- Elegir entre ritmos lentos/rápidos
-- Seleccionar estilos (clásico, jazz, pop)
-- Previsualizar antes de aplicar
-
-### ❓ ¿Los ritmos siempre llenan un compás completo?
-
-No necesariamente. El sistema genera ritmos basados en las sílabas, que pueden ser más cortos o más largos que un compás de 4/4.
+Currently, the system selects patterns automatically. In future versions, you will be able to:
+- Choose between slow/fast rhythms.
+- Select styles (classical, jazz, pop).
+- Preview before applying.
 
 ---
 
-## Atajos de Teclado
+## Keyboard Shortcuts
 
-| Acción | Atajo |
+| Action | Shortcut |
 |--------|-------|
-| Generar ritmo | `Enter` (en el campo de texto) |
-| Borrar texto | `Ctrl + A` → `Delete` |
+| Generate rhythm | `Enter` (inside text field) |
+| Clear text | `Ctrl + A` -> `Delete` |
 
 ---
 
-## Flujo de Trabajo Recomendado
+## Recommended Workflow
 
-### Para Crear una Canción:
+### To Create a Song:
 
-1. **Escribe la primera línea** de tu letra
-   ```
-   bajo el cielo azul
-   ```
+1.  **Type the first line** of your lyrics:
+    ```
+    under the blue sky
+    ```
+2.  **Generate the rhythm** (→).
+3.  **Listen to the result** (Play).
+4.  **Adjust if necessary** (edit the measure).
+5.  **Repeat** with the following lines.
+6.  **Combine** the measures to form your complete song.
 
-2. **Genera el ritmo** (→)
+### To Experiment:
 
-3. **Escucha el resultado** (▶ Play)
-
-4. **Ajusta si es necesario** (edita el compás)
-
-5. **Repite** con las siguientes líneas
-
-6. **Combina** los compases para formar tu canción completa
-
-### Para Experimentar:
-
-1. Escribe una palabra o frase
-2. Genera varias veces para obtener variaciones
-3. Elige la que más te guste
-4. Combina diferentes ritmos para crear patrones interesantes
+1.  Type a word or phrase.
+2.  Generate multiple times to get variations.
+3.  Choose the one you like best.
+4.  Combine different rhythms to create interesting patterns.
 
 ---
 
-## Limitaciones Actuales
+## Current Limitations
 
-- ⚠️ Máximo 8 sílabas por palabra (palabras más largas usan ritmo por defecto)
-- ⚠️ Optimizado para español
-- ⚠️ No hay previsualización antes de generar
-- ⚠️ No se puede elegir el estilo de ritmo
+- Maximum 8 syllables per word (longer words use a default rhythm).
+- Optimized for Spanish.
+- No preview before generating.
+- Cannot choose rhythm style.
 
-**Nota:** Estas limitaciones se abordarán en futuras actualizaciones.
-
----
-
-## Consejos Creativos
-
-### 🎨 Experimenta con Diferentes Textos
-
-- **Poesía clásica**: Versos de Lorca, Neruda, Machado
-- **Refranes**: "No por mucho madrugar amanece más temprano"
-- **Trabalenguas**: "Tres tristes tigres"
-- **Tus propias letras**: Escribe lo que sientas
-
-### 🎼 Combina con Otros Modos
-
-1. Genera el ritmo con **Tarareo**
-2. Añade melodía en **Modo Tonalidad**
-3. Ajusta dinámicas con **Modo Dinámica**
-4. Añade la letra final en **Modo Lyrics**
-
-### 🌊 Usa las Herramientas de Onda
-
-Después de generar con Tarareo:
-- Aplica **Onda Ritmo** para variaciones
-- Usa **Onda Modulación** para expresividad
-- Experimenta con **Dinámicas** para dar vida
+**Note:** These limitations will be addressed in future updates.
 
 ---
 
-## Solución de Problemas
+## Creative Tips
 
-### El botón → no funciona
-- Verifica que hayas escrito algo en el campo de texto
-- Recarga la página si es necesario
+### Experiment with Different Texts
 
-### No se generan compases
-- Asegúrate de estar en **Modo Composición**
-- Verifica que la librería `silaba.js` esté cargada (mira la consola del navegador)
+- **Classical Poetry**: Verses by Lorca, Neruda, or Frost.
+- **Sayings**: "Actions speak louder than words".
+- **Tongue Twisters**: "She sells seashells by the seashore".
+- **Your own lyrics**: Write what you feel.
 
-### Los ritmos no suenan bien
-- Prueba a generar de nuevo (obtendrás un patrón diferente)
-- Edita manualmente el compás generado
-- Ajusta las dinámicas para mejorar la expresión
+### Combine with Other Modes
 
----
-
-## Recursos Adicionales
-
-- 📖 **Guía Técnica Completa**: `docs/TARAREO_GUIDE.md`
-- 🎵 **Patrones Rítmicos**: Definidos en `metrica.js`
-- 🔧 **Código Fuente**: `tarareo-helper.js` y `musicoli.js`
+1.  Generate rhythm with **Humming**.
+2.  Add melody in **Tonality Mode**.
+3.  Adjust dynamics with **Dynamics Mode**.
+4.  Add final lyrics in **Lyrics Mode**.
 
 ---
 
-## ¡Empieza a Crear!
+## Troubleshooting
 
-El Tarareo es tu puerta de entrada a la composición musical sin barreras. No necesitas saber de teoría musical, solo escribe lo que sientes y deja que Musicoli lo convierta en música.
+### The → button doesn't work
+- Ensure you have typed something in the text field.
+- Reload the page if necessary.
 
-**¡Diviértete componiendo! 🎵✨**
+### No measures are generated
+- Make sure you are in **Composition Mode**.
+- Verify that the `silaba.js` library is loaded (check the browser console).
+
+### Rhythms don't sound right
+- Try generating again (you'll get a different pattern).
+- Manually edit the generated measure.
+- Adjust dynamics to improve expression.
 
 ---
 
-*Última actualización: Febrero 2026*
+## Additional Resources
+
+- **Full Technical Guide**: `docs/TARAREO_GUIDE.md`
+- **Rhythmic Patterns**: Defined in `metrica.js`
+- **Source Code**: `tarareo-helper.js` and `musicoli.js`
+
+---
+
+## Start Creating!
+
+Humming is your gateway to musical composition without barriers. You don't need to know music theory—just write what you feel and let Musicoli turn it into music.
+
+**Have fun composing!**
+
+---
+
+*Last update: February 2026*
