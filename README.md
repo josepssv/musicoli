@@ -1,65 +1,69 @@
 # Musicoli 🎵🎨
 
-**Musicoli** es una herramienta web para la composición musical basada en compases, enfocada en la independencia de voces, el tarareo y la visualización mediante colores. Permite componer, editar y reproducir música polifónica MIDI directamente desde el navegador.
+**Musicoli** is a web-based musical composition tool focused on measure-based workflow, voice independence, humming (tarareo), and color-based visualization. It allows you to compose, edit, and play polyphonic MIDI music directly from your browser.
 
-##  Características Principales
+## Main Features
 
-*   **Edición Polifónica**: Soporte completo para 4 voces independientes (Soprano, Contralto, Tenor, Bajo).
-*   **Modos de Edición Especializados**:
-    *    **Ritmo**: Define la estructura temporal y los patrones rítmicos.
-    *    **Tonalidad**: Ajusta las escalas, armonías y notas específicas.
-    *    **Lyrics (Letra)**: Añade y sincroniza texto con la música.
-    *    **Dinámica**: Control preciso del volumen general y mezcla individual por pista.
-    *    **Foco en el compás** La edición por compases añade más ritmo y sentido a las frases y la composición final.
-*   **🎤 Sistema de Tarareo**: Convierte texto en ritmo musical automáticamente. Escribe palabras o frases y el sistema las traduce en patrones rítmicos naturales basados en la silabificación del español. [Ver guía completa →](docs/TARAREO_QUICKSTART.md)
-*   **Sistema de Colores**: Visualización intuitiva donde los colores representan alturas y funciones tonales.
-*   **Reproducción MIDI**: Motor de audio integrado basado en *Soundfont* para una reproducción realista.
-*   **Exportación**: Genera y descarga archivos `.mid` (MIDI) y resúmenes en HTML de tus composiciones.
-*   **Almacenamiento Local**: Guarda tus frases y progresos en el navegador.
+*   **Polyphonic Editing**: Full support for 4 independent voices (Soprano, Alto, Tenor, Bass).
+*   **Specialized Editing Modes**:
+    *   **Rhythm**: Define temporal structure and rhythmic patterns.
+    *   **Tonality**: Adjust scales, harmonies, and specific notes.
+    *   **Lyrics**: Add and synchronize text with the music.
+    *   **Dynamics**: Precise control of overall volume and individual track mixing.
+    *   **Measure Focus**: Measure-based editing adds more rhythm and meaning to phrases and the final composition.
+*   **🎤 Humming System**: Automatically converts text into musical rhythm. Type words or phrases and the system translates them into natural rhythmic patterns based on Spanish syllabification. [See Quick Start Guide →](docs/TARAREO_QUICKSTART.md)
+*   **Color System**: Intuitive visualization where colors represent pitches and tonal functions.
+*   **MIDI Playback**: Integrated audio engine based on *Soundfont* for realistic playback.
+*   **Export**: Generate and download `.mid` (MIDI) files and HTML summaries of your compositions.
+*   **Local Storage**: Save your phrases and progress in the browser.
 
-##  Cómo empezar
+## Getting Started
 
-Musicoli está construido con tecnologías web estándar (HTML, CSS, JS) y **no requiere instalación ni procesos de compilación**.
+Musicoli is built with standard web technologies (HTML, CSS, JS) and **requires no installation or build processes**.
 
-1.  Clona o descarga este repositorio.
-2.  Abre el archivo `index.html` en cualquier navegador web moderno (Chrome, Firefox, Edge).
-3.  ¡Empieza a componer!
+1.  Clone or download this repository.
+2.  Open `index.html` in any modern web browser (Chrome, Firefox, Edge).
+3.  Start composing!
 
-##  Estructura del Proyecto
+## Project Structure
 
-*   `index.html`: Punto de entrada de la aplicación. Contiene la estructura de la interfaz.
-*   `musicoli.js`: Núcleo lógico de la aplicación. Maneja el estado (objeto `bdi`), la reproducción y la lógica de edición.
-*   `notepad.js`: Componente para la visualización y edición en partitura/piano roll.
-*   `metrica.js` & `silaba.js`: Módulos auxiliares para el manejo de métrica y silabeo de textos.
-*   `midiWriter.js`: Librería para la generación de archivos MIDI.
-*   `soundfont-player.js`: Librería para la reproducción de audio mediante fuentes de sonido.
-*   `recuromemtis/`: (Si existe) Recursos adicionales y memorias del proyecto.
+*   `index.html`: Entry point of the application. Contains the UI structure.
+*   `musicoli.js`: Core logic of the application. Manages the state (`bdi` object), playback, and editing logic.
+*   `notepad.js`: Component for score and piano roll visualization and editing.
+*   `metrica.js` & `silaba.js`: Auxiliary modules for handling metrics and text syllabification.
+*   `midiWriter.js`: Library for generating MIDI files.
+*   `soundfont-player.js`: Library for audio playback using soundfonts.
 
-##  Tecnologías
+## Technologies
 
 *   HTML5
-*   CSS3 (Variables CSS, Flexbox/Grid)
+*   CSS3 (Variables, Flexbox/Grid)
 *   JavaScript (ES6+)
 *   Web Audio API
 
-##  Documentación
+## Documentation
 
-### 📚 Guías del Sistema de Tarareo
+### 📚 Humming System Guides (Tarareo)
 
-El sistema de Tarareo es una característica única de Musicoli que convierte texto en ritmo musical:
+The Humming system is a unique feature of Musicoli that converts text into musical rhythm:
 
-*   **[Guía Rápida](docs/TARAREO_QUICKSTART.md)**: Aprende a usar el Tarareo en 5 minutos
-*   **[Guía Técnica Completa](docs/TARAREO_GUIDE.md)**: Documentación detallada del sistema, algoritmos y patrones rítmicos
-*   **[Propuestas de Mejora](docs/TARAREO_PROPOSALS.md)**: Ideas y opciones futuras para expandir el sistema
-*   **[Guía Multi-Idioma](docs/TARAREO_MULTILANGUAGE.md)**: Implementación para español e inglés con el mismo algoritmo
+*   **[Quick Start Guide](docs/TARAREO_QUICKSTART.md)**: Learn to use Humming in 5 minutes.
+*   **[Technical Guide](docs/TARAREO_GUIDE.md)**: Detailed documentation of the system, algorithms, and rhythmic patterns.
+*   **[Proposals for Improvement](docs/TARAREO_PROPOSALS.md)**: Ideas and future options to expand the system.
+*   **[Multi-Language Guide](docs/TARAREO_MULTILANGUAGE.md)**: Implementation for Spanish and English using the same algorithm.
 
-##  Licencia
+### 🛠️ Developer & Technical Info
 
-Este proyecto es de código abierto. Siéntete libre de usarlo, modificarlo y contribuir.
+*   **[Algorithm Configuration](test/ALGORITHM_CONFIG_GUIDE.md)**: Technical details on pattern selection logic and weights.
+*   **[Image to Melody Algorithm](docs/IMAGE_TO_MELODY_ALGORITHM.md)**: Documentation on the visual-to-musical conversion system.
+*   **[Testing Strategy](test/TESTING_INSTRUCTIONS.md)**: Instructions for verifying system performance and accuracy.
+*   **[Solution Analysis](test/SOLUTION_ANALYSIS.md)**: Retrospective of architectural decisions and problem-solving.
+*   **[Voice Configuration Guide](test/VOICE_CONFIG_COMPLETE.md)**: Full documentation on configuring independent voices.
+*   **[Pattern Selection Guide](docs/PATTERN_SELECTION_GUIDE.md)**: Guide on using the pattern selection system.
+
+## License
+
+This project is open-source. Feel free to use, modify, and contribute.
 
 ---
-*Hemos usado IA Antigravity*
-
-
-
-
+*Created with the assistance of Antigravity AI*
