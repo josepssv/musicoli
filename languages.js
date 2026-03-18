@@ -300,9 +300,15 @@ const LANGUAGES = {
         "El archivo no tiene el formato .musicoli o .json válido.": "El archivo no tiene el formato .musicoli o .json válido.",
         "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.",
         "StrumTitle": "Intensidad de Arpegio",
-        "Arpeggio": "Arpegio"
+        "Arpeggio": "Arpegio",
+        "Escalas": "Escalas",
+        "Acordes": "Acordes",
+        "Apply chord to selected notes": "Aplicar acorde a las notas seleccionadas"
     },
     en: {
+        "Escalas": "Scales",
+        "Acordes": "Chords",
+        "Apply chord to selected notes": "Apply chord to selected notes",
         "Ritmo": "Rhythm",
         "Melodía": "Melody",
         "Dinámica": "Dynamics",
@@ -561,7 +567,10 @@ const LANGUAGES = {
         "El archivo no tiene el formato .musicoli o .json válido.": "The file does not have a valid .musicoli or .json format.",
         "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error reading file. Make sure it is a valid JSON / .musicoli.",
         "StrumTitle": "Arpeggio Intensity",
-        "Arpeggio": "Arpeggio"
+        "Arpeggio": "Arpeggio",
+        "Escalas": "Scales",
+        "Acordes": "Chords",
+        "Apply chord to selected notes": "Apply chord to selected notes"
     },
     de: {
         "Ritmo": "Rhythmus",

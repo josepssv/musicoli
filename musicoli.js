@@ -182,6 +182,22 @@ const escalasNotas = {
     locrio: [0, 1, 3, 5, 6, 8, 10],       // Locrio:    C Db Eb F Gb Ab Bb (disonante)
     cromatica: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  // Cromática: todas las notas
 };
+
+const acordesNotas = {
+    "Mayor": [0, 4, 7],
+    "Menor": [0, 3, 7],
+    "Maj7": [0, 4, 7, 11],
+    "m7": [0, 3, 7, 10],
+    "7": [0, 4, 7, 10],
+    "Sus4": [0, 5, 7],
+    "Sus2": [0, 2, 7],
+    "Aumentado": [0, 4, 8],
+    "Disminuido": [0, 3, 6],
+    "m7b5": [0, 3, 6, 10],
+    "Dim7": [0, 3, 6, 9],
+    "9": [0, 4, 7, 10, 14],
+    "add9": [0, 4, 7, 14]
+};
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 // Function to update visibility of notisi/notidi based on midiEditingLevel
@@ -14118,6 +14134,73 @@ ${notepadCss}
                 noteWrapper.appendChild(rhythmSpan);
                 notesContainer.appendChild(noteWrapper);
             });
+
+            // --- Chord Analyzer (SATB) ---
+            const mIdx = window.currentEditingMeasureIndex;
+            const m = (mIdx >= 0 && window.bdi.bar && window.bdi.bar[mIdx]) ? window.bdi.bar[mIdx] : null;
+
+            const updateChordDisplay = () => {
+                const allPitches = new Set();
+                let bassNote = -1;
+
+                // 1. Current Active Voice (Live Editing)
+                if (window.currentFullMidiValues && window.currentFullMidiValues.length > 0) {
+                    const firstNote = Math.abs(window.currentFullMidiValues[0]);
+                    if (firstNote > 0) {
+                        allPitches.add(firstNote % 12);
+                        if (bassNote === -1 || firstNote < bassNote) bassNote = firstNote;
+                    }
+                }
+
+                // 2. Addition of other SATB voices from memory
+                if (m && m.voci) {
+                    const voicesArr = Array.isArray(m.voci) ? m.voci : Object.values(m.voci);
+                    const vSelector = document.getElementById('voice-selector');
+                    const activeCode = vSelector ? vSelector.value : 's';
+                    
+                    voicesArr.forEach(v => {
+                        // Skip the active voice as we already added its live data
+                        if (v.nami !== activeCode && v.nimidi && v.nimidi.length > 0) {
+                            const n = Math.abs(v.nimidi[0]);
+                            if (n > 0) {
+                                allPitches.add(n % 12);
+                                if (bassNote === -1 || n < bassNote) bassNote = n;
+                            }
+                        }
+                    });
+                }
+
+                if (allPitches.size === 0) return "";
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const bassName = bassNote !== -1 ? noteNames[bassNote % 12] : "";
+                if (allPitches.size === 1) return bassName;
+                
+                const sortedPitches = Array.from(allPitches).sort((a, b) => a - b);
+                const patterns = {
+                    '0,4,7': '', '0,3,7': 'm', '0,3,6': 'dim', '0,4,8': 'aug',
+                    '0,4,7,10': '7', '0,3,7,10': 'm7', '0,4,7,11': 'maj7',
+                    '0,3,6,9': 'dim7', '0,3,6,10': 'm7b5', '0,2,7': 'sus2',
+                    '0,5,7': 'sus4', '0,4,7,9': '6', '0,3,7,9': 'm6'
+                };
+
+                for (let root of sortedPitches) {
+                    const relative = sortedPitches.map(n => (n - root + 12) % 12).sort((a,b)=>a-b);
+                    const key = relative.filter((v,i,a)=>a.indexOf(v)===i).join(',');
+                    if (patterns[key] !== undefined) {
+                        let name = noteNames[root] + patterns[key];
+                        if (root !== (bassNote % 12)) name += "/" + bassName;
+                        return name;
+                    }
+                }
+                return bassName + "...";
+            };
+
+            const chordDisp = container.parentElement ? container.parentElement.querySelector('.chord-display-label') : null;
+            if (chordDisp) {
+                const txt = updateChordDisplay();
+                chordDisp.innerHTML = txt;
+                chordDisp.style.setProperty('display', txt ? 'block' : 'none', 'important');
+            }
         };
 
         // 1. Unified Score + Controls Block (Bloque Unificado, a sangre)
@@ -14130,16 +14213,20 @@ ${notepadCss}
             position: relative; display: flex; gap: 6px; flex-wrap: nowrap;
             justify-content: flex-start; align-items: flex-start; 
             background: #fff; padding: 0; padding-bottom: 5px; height: 95px;
-            box-sizing: border-box; overflow-x: auto; overflow-y: hidden; cursor: pointer; transition: background 0.2s;
+            box-sizing: border-box; overflow-x: auto; cursor: pointer; transition: background 0.2s;
             border-bottom: 1px solid #eee; width: 100%;
         `;
 
-        // Store original values for Revert functionality
         const originalMidiValues = [...midiValues];
         const originalRhythmValues = [...rhythmValues];
 
         renderMidiScorePreview(midiValues, rhythmValues, rhythmContainer);
         unifiedBlock.appendChild(rhythmContainer);
+
+        const chordDisplay = document.createElement('div');
+        chordDisplay.className = 'chord-display-label';
+        chordDisplay.style.cssText = 'position: absolute !important; top: 74px !important; right: 20px !important; font-size: 14px !important; font-weight: bold !important; color: white !important; background: #673AB7 !important; padding: 2px 10px !important; border-radius: 4px !important; z-index: 9999 !important; pointer-events: none !important; border: 1px solid white !important; box-shadow: 0 4px 8px rgba(0,0,0,0.4) !important; text-transform: uppercase !important; min-width: 40px !important; text-align: center !important; line-height: 1.2 !important; display: none;';
+        unifiedBlock.appendChild(chordDisplay);
 
         // Invert Selection Button (Fixed Top-Right)
         const invertSelBtn = document.createElement('button');
@@ -19383,6 +19470,121 @@ window.generateHarmonyForVoice = function (sourceData, voiceCode, selectedVoiceC
     return { nimidi: nimidi };
 };
 
+/* ============================================
+   MUSICOLI: CHORDS PANEL LOGIC (Melody Mode)
+   ============================================ */
+
+const noteNamesFull = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+window.initChordsPanel = function() {
+    const chordsPanel = document.getElementById('editor-chords-panel');
+    if (!chordsPanel) return;
+
+    // 1. Populate buttons
+    chordsPanel.innerHTML = '';
+    
+    // Add a helper text/title
+    const title = document.createElement('div');
+    title.style.cssText = 'font-family: monospace; font-size: 11px; margin-bottom: 10px; color: #888; width: 100%;';
+    title.textContent = t("Apply chord to selected notes");
+    title.setAttribute('data-i18n', 'Apply chord to selected notes');
+    chordsPanel.appendChild(title);
+
+    Object.keys(acordesNotas).forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'chord-btn theme-btn';
+        
+        // Add note names to titles/tooltips (normalized)
+        const intervals = acordesNotas[name];
+        const notesStr = intervals.map(i => noteNamesFull[i % 12]).join('-');
+        btn.title = `${name}: ${notesStr}`;
+        
+        btn.textContent = name;
+        btn.onclick = (e) => {
+            e.preventDefault();
+            window.applyChordToSelectedNotes(name);
+        };
+        chordsPanel.appendChild(btn);
+    });
+};
+
+window.applyChordToSelectedNotes = function(chordType) {
+    const intervals = acordesNotas[chordType];
+    if (!intervals) return;
+
+    // Get current editing context
+    const measureIndex = window.currentEditingMeasureIndex;
+    if (measureIndex < 0) {
+        alert(t("Select a measure and notes first"));
+        return;
+    }
+
+    const selectedIndices = window.selectedNoteIndices || [];
+    if (selectedIndices.length === 0) {
+        alert(t("Select notes in the MIDI editor to apply the chord"));
+        return;
+    }
+
+    const measure = window.bdi.bar[measureIndex];
+    if (!measure || !measure.voci) return;
+
+    // Get reference MIDI values from the current editor view
+    const singleInput = document.getElementById('midi-single-input');
+    if (!singleInput) return;
+    const currentMidiVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+    if (currentMidiVals.length === 0) return;
+
+    // Define "Vertical" Voice Mapping (Musical SATB distribution)
+    const voiceMapping = {
+        's': intervals[2] !== undefined ? intervals[2] : intervals[intervals.length - 1], // Soprano -> 5th or top
+        'a': intervals[1] !== undefined ? intervals[1] : intervals[0],                   // Alto -> 3rd or root
+        't': intervals[0],                                                                // Tenor -> Root
+        'b': (intervals[0] - 12)                                                          // Bass -> Root - Octave
+    };
+
+    // Optimized for 7ths or complex chords (4+ notes)
+    if (intervals.length >= 4) {
+        voiceMapping['s'] = intervals[3]; // Soprano -> 7th
+        voiceMapping['a'] = intervals[2]; // Alto -> 5th
+        voiceMapping['t'] = intervals[1]; // Tenor -> 3rd
+        voiceMapping['b'] = intervals[0] - 12; // Bass -> Root Bass
+    }
+
+    // Apply the chord VERTICALLY but respecting the RELATIVE MELODY of each index
+    selectedIndices.forEach(idx => {
+        if (idx >= currentMidiVals.length) return;
+
+        // Calculate root pitch independently for THIS note index to preserve melody movement
+        const pointRootPitch = Math.abs(currentMidiVals[idx]) || 60;
+
+        measure.voci.forEach(v => {
+            const interval = voiceMapping[v.nami];
+            if (interval === undefined) return;
+
+            if (v.nimidi && idx < v.nimidi.length) {
+                // Apply root + interval, preserving sign (silence/pitch)
+                const sign = v.nimidi[idx] >= 0 ? 1 : -1;
+                v.nimidi[idx] = (pointRootPitch + interval) * sign;
+            }
+        });
+    });
+
+    // Refresh current voice's input field to reflect changes immediately
+    const voiceSelector = document.getElementById('voice-selector');
+    const curVoiceCode = voiceSelector ? voiceSelector.value : 's';
+    const updatedVoice = measure.voci.find(v => v.nami === curVoiceCode);
+    if (updatedVoice) {
+        singleInput.value = updatedVoice.nimidi.join(' ');
+        // Fire input event to trigger notations/score update
+        singleInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Force full score preview refresh
+    if (typeof window.rebuildRecordi === 'function') {
+        window.rebuildRecordi();
+    }
+};
+
 // AUTO-INITIALIZATION
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof rebuildRecordi === 'function') {
@@ -19391,7 +19593,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof applyTextLayer === 'function') {
             applyTextLayer();
         }
-    } else {
+    }
+
+    // Initialize Chords Panel switch/populate
+    if (typeof window.initChordsPanel === 'function') {
+        window.initChordsPanel();
     }
 });
 

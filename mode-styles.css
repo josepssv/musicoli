@@ -473,13 +473,6 @@ body.app-mode-composicion #macoti-tracks-container {
 }
 
 
-
-/* Opcional: Asegurar que el margen se resetee también al hacer focus/active si notepad.js añade algo 
-.compasi:focus,
-.compasi:active,
-.compasi[style*="outline"] {
-  margin: 0 !important;
-
 /* REFACTOR: Generic Mode Panel Visibility */
 .mode-panel {
   display: none;
@@ -495,21 +488,62 @@ body.app-mode-composicion #macoti-tracks-container {
 #editor-tonalidad-ladder {
   display: none !important;
   margin-bottom: 5px;
-  /* Add spacing */
 }
 
 /* Show in Ritmo Mode */
 body.app-mode-ritmo #editor-tonalidad-ladder {
   display: inline-block !important;
-  /* Keep original inline-ish or block behavior */
   width: 100%;
-  /* Ensure it takes width if block */
 }
 
 /* Show in Tonalidad Mode */
 body.app-mode-tonalidad #editor-tonalidad-ladder {
   display: inline-block !important;
   width: 100%;
+}
+
+/* Chords Panel */
+#editor-chords-panel {
+  display: none;
+  background: var(--tonalidad-bg-light);
+  border: 1px solid var(--tonalidad-border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  text-align: center;
+}
+
+/* Show in Tonalidad Mode ONLY */
+body.app-mode-tonalidad #editor-chords-panel {
+  display: block;
+}
+
+#editor-chords-panel .chord-btn {
+  display: inline-block;
+  margin: 3px;
+  padding: 8px 10px;
+  background: #555;
+  color: #fff;
+  border: 1px solid #777;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 60px;
+  text-align: center;
+}
+
+#editor-chords-panel .chord-btn:hover {
+  background: #666;
+  border-color: #999;
+}
+
+#editor-chords-panel .chord-btn:active {
+  transform: scale(0.95);
+  background: var(--tonalidad-accent);
 }
 
 /* ============================================
@@ -574,6 +608,7 @@ body.app-mode-ritmo .slider {
 body.app-mode-ritmo input:checked+.slider {
   background-color: #00acc1;
 }
+
 /* ============================================
    PANEL SCROLL TO TOP BUTTONS
    ============================================ */
@@ -606,4 +641,3 @@ body.app-mode-ritmo input:checked+.slider {
 .panel-scroll-top-btn:active {
   transform: translateY(0);
 }
-
