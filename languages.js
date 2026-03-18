@@ -298,7 +298,9 @@ const LANGUAGES = {
         "Arrastra o selecciona un archivo .musicoli": "Arrastra o selecciona un archivo .musicoli",
         "¡Archivo cargado correctamente!": "¡Archivo cargado correctamente!",
         "El archivo no tiene el formato .musicoli o .json válido.": "El archivo no tiene el formato .musicoli o .json válido.",
-        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido."
+        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.",
+        "StrumTitle": "Intensidad de Arpegio",
+        "Arpeggio": "Arpegio"
     },
     en: {
         "Ritmo": "Rhythm",
@@ -557,7 +559,9 @@ const LANGUAGES = {
         "Arrastra o selecciona un archivo .musicoli": "Drag or select a .musicoli file",
         "¡Archivo cargado correctamente!": "File loaded successfully!",
         "El archivo no tiene el formato .musicoli o .json válido.": "The file does not have a valid .musicoli or .json format.",
-        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error reading file. Make sure it is a valid JSON / .musicoli."
+        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Error reading file. Make sure it is a valid JSON / .musicoli.",
+        "StrumTitle": "Arpeggio Intensity",
+        "Arpeggio": "Arpeggio"
     },
     de: {
         "Ritmo": "Rhythmus",
@@ -762,7 +766,9 @@ const LANGUAGES = {
         "Arrastra o selecciona un archivo .musicoli": "Ziehen oder wählen Sie eine .musicoli-Datei",
         "¡Archivo cargado correctamente!": "Datei erfolgreich geladen!",
         "El archivo no tiene el formato .musicoli o .json válido.": "Die Datei hat kein gültiges .musicoli- oder .json-Format.",
-        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Fehler beim Lesen der Datei. Stellen Sie sicher, dass es ein gültiges JSON / .musicoli ist."
+        "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Fehler beim Lesen der Datei. Stellen Sie sicher, dass es ein gültiges JSON / .musicoli ist.",
+        "StrumTitle": "Arpeggio-Intensität",
+        "Arpeggio": "Arpeggio"
     }
 };
 

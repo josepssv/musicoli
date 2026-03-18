@@ -126,6 +126,7 @@ let tracksConfig = [
 ///////////////////////////////////////
 let bpmValue = 60 * 2;
 let traki = [];
+window.staggerIntensity = 0; // MIDI Track arpeggiation intensity (ticks offset)
 let compi = [4, 4];
 let tempi = bpmValue
 let currentVoice = bdi.metadata.voici || 's'; // Initialize currentVoice
@@ -1115,6 +1116,37 @@ function renderVisualTracks() {
             span.style.verticalAlign = 'top';
             span.style.borderRadius = '2px';
             span.style.position = 'relative';
+
+            // Arpeggio Indicator
+            const hasStagger = (measures[index].stagger > 0 || (measures[index].staggerNotes && Object.keys(measures[index].staggerNotes).length > 0));
+            if (hasStagger && key === 's') { // Show only once on Top track (Soprano)
+                const arpTag = document.createElement('div');
+                let tagDir = measures[index].staggerDir || 1;
+                // If there are per-note settings, use the first one available
+                if (measures[index].staggerNotes && Object.keys(measures[index].staggerNotes).length > 0) {
+                    const firstIdx = Object.keys(measures[index].staggerNotes)[0];
+                    tagDir = measures[index].staggerNotes[firstIdx].dir || 1;
+                }
+                arpTag.textContent = (tagDir === -1 ? '↓' : '↑');
+                arpTag.style.cssText = `
+                    position: absolute;
+                    bottom: 2px;
+                    left: 2px;
+                    font-size: 10px;
+                    color: #fff;
+                    background: #00BCD4;
+                    width: 11px;
+                    height: 11px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 2px;
+                    z-index: 100;
+                    font-weight: bold;
+                    pointer-events: none;
+                `;
+                span.appendChild(arpTag);
+            }
 
             // Get voice data for this measure
             const measure = measures[index];
@@ -10742,39 +10774,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!baseTipis && item.tipis) baseTipis = [...item.tipis];
 
-        const processVoice = (voiceData, trackIndex, voiceKey) => {
+        const processVoice = (voiceData, trackIndex, voiceKey, nc) => {
             if (!voiceData || !voiceData.nimidi || voiceData.nimidi.length === 0) {
                 return;
+            }
+
+            // Stagger intensity per measure
+            const staggerIntensity = (item.stagger !== undefined) ? item.stagger : ((nc === 0) ? window.staggerIntensity : 0);
+            
+            let initialWait = 0;
+            if (staggerIntensity > 0) {
+                // Arpeggio order: Bass (0) -> Tenor (X) -> Alto (2X) -> Soprano (3X)
+                const staggerMap = { 's': 3, 'a': 2, 't': 1, 'b': 0 };
+                const multiplier = (staggerMap[voiceKey] !== undefined) ? staggerMap[voiceKey] : 0;
+                initialWait = multiplier * staggerIntensity;
             }
 
             let dati = [];
             const voiceMeta = metadata.voices ? metadata.voices[voiceKey] : null;
             let instrument = (voiceMeta && voiceMeta.instrument !== undefined) ? parseInt(voiceMeta.instrument) : 1;
-            // Ensure instrument 0 is not defaulted to 1 (Acoustic Grand Piano)
             if (isNaN(instrument)) instrument = 1;
 
-            // MUSICOLI: Global Percussion Override
             let isPercussion = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled) ? true : (voiceMeta ? voiceMeta.percussion : false);
-
             const trackVol = (voiceMeta && typeof voiceMeta.volume !== 'undefined') ? voiceMeta.volume : 100;
-
             const volFactor = trackVol / 127;
 
             const noteCount = voiceData.nimidi.length;
-
-            // RITMIZACIÓN: transform tipis when PERC is ON, using S (Snare) as base
             const effectiveTipis = (window.currentEditMode === 'ritmo' && window.isGlobalPercussionEnabled && voiceData.tipis)
                 ? applyRitmizacion([...voiceData.tipis], voiceKey, baseTipis)
                 : (voiceData.tipis || []);
 
             if (voiceData.chordi) {
+                const globalIntensity = (item.stagger !== undefined) ? item.stagger : ((nc === 0) ? window.staggerIntensity : 0);
+                const globalDir = item.staggerDir !== undefined ? item.staggerDir : 1;
+                
+                let chordWait = 0;
+                let config = (item.staggerNotes && item.staggerNotes[0]) ? item.staggerNotes[0] : null;
+                
+                // Fallback for legacy or empty selection
+                if (!config && (!item.staggerNotes || Object.keys(item.staggerNotes).length === 0)) {
+                    config = { intensity: globalIntensity, dir: globalDir };
+                }
+
+                if (config && config.intensity > 0) {
+                    const staggerMap = { 's': 3, 'a': 2, 't': 1, 'b': 0 };
+                    let multiplier = (staggerMap[voiceKey] !== undefined) ? staggerMap[voiceKey] : 0;
+                    if (config.dir === -1) {
+                        multiplier = 3 - multiplier;
+                    }
+                    chordWait = multiplier * config.intensity;
+                }
+
                 dati[1] = [];
-                dati[2] = [1];
+                const baseDuration = '1';
+                const baseTicks = MidiWriter.Utils.getTickDuration(baseDuration);
+                const compensatedTicks = Math.max(1, baseTicks - chordWait);
+                
+                dati[2] = ['T' + compensatedTicks];
                 dati[0] = instrument;
                 dati[3] = false;
                 let baseVel = (voiceData.dinami && voiceData.dinami[0] !== undefined) ? voiceData.dinami[0] : 100;
                 dati[4] = Math.round(baseVel * volFactor);
-                dati[5] = 0;
+                dati[5] = chordWait > 0 ? ['T' + chordWait] : 0;
                 dati[6] = isPercussion ? 'p' : '1';
                 for (let u = 0; u < noteCount; u++) {
                     let midiNote = voiceData.nimidi[u];
@@ -10788,8 +10849,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 addi(dati, trackIndex, targetTracks);
             } else {
                 let pendingWaits = [];
+                const staggerIntensity = (item.stagger !== undefined) ? item.stagger : ((nc === 0) ? window.staggerIntensity : 0);
+
                 for (var a = 0; a < noteCount; a++) {
                     let duration = dobli5(effectiveTipis[a]);
+                    
+                    // PER-NOTE STAGGER logic (Note: staggerNotes is now an object mapping index to {intensity, dir})
+                    let noteStagger = 0;
+                    if (staggerIntensity > 0 || (item.staggerNotes && Object.keys(item.staggerNotes).length > 0)) {
+                        let config = (item.staggerNotes && item.staggerNotes[a]) ? item.staggerNotes[a] : null;
+                        
+                        // Fallback logic for legacy measure-wide stagger
+                        if (!config && (!item.staggerNotes || Object.keys(item.staggerNotes).length === 0)) {
+                            config = { intensity: staggerIntensity, dir: (item.staggerDir || 1) };
+                        }
+
+                        if (config && config.intensity > 0) {
+                            const staggerMap = { 's': 3, 'a': 2, 't': 1, 'b': 0 };
+                            let multiplier = (staggerMap[voiceKey] !== undefined) ? staggerMap[voiceKey] : 0;
+                            if (config.dir === -1) {
+                                multiplier = 3 - multiplier;
+                            }
+                            noteStagger = multiplier * config.intensity;
+                        }
+                    }
+
+                    if (noteStagger > 0) {
+                        pendingWaits.push('T' + noteStagger);
+                        // Compensate current note duration to keep grid aligned
+                        const originalTicks = MidiWriter.Utils.getTickDuration(duration);
+                        const compensatedTicks = Math.max(1, originalTicks - noteStagger);
+                        duration = ['T' + compensatedTicks];
+                    }
+
                     if (effectiveTipis[a] < 0) {
                         if (Array.isArray(duration)) pendingWaits.push(...duration);
                         else pendingWaits.push(duration);
@@ -10872,7 +10964,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             targetTracks[tIdx].addEvent({ data: [0x00, 0xC0 | (chan - 1), inst] });
                         }
                     }
-                    processVoice(vData, tIdx, vKey);
+                    processVoice(vData, tIdx, vKey, nc);
                 }
             }
         });
@@ -12838,6 +12930,12 @@ ${notepadCss}
 
     // Function to open MIDI editor for a measure
     window.openMidiEditor = function (measureIndex, noteIndex = -1) {
+        window.currentEditingStagger = (measureIndex >= 0 && window.bdi.bar && window.bdi.bar[measureIndex]) ? (window.bdi.bar[measureIndex].stagger || 0) : 0;
+        window.currentEditingStaggerDir = (measureIndex >= 0 && window.bdi.bar && window.bdi.bar[measureIndex]) ? (window.bdi.bar[measureIndex].staggerDir || 1) : 1;
+        window.currentEditingStaggerNotes = (measureIndex >= 0 && window.bdi.bar && window.bdi.bar[measureIndex] && window.bdi.bar[measureIndex].staggerNotes)
+            ? (Array.isArray(window.bdi.bar[measureIndex].staggerNotes) ? {} : JSON.parse(JSON.stringify(window.bdi.bar[measureIndex].staggerNotes)))
+            : {};
+
         // MUSICOLI: Block MIDI editor in composition mode
         const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode : (typeof currentEditMode !== 'undefined' ? currentEditMode : '');
         if (mode === 'composicion') {
@@ -13722,6 +13820,28 @@ ${notepadCss}
 
             container.appendChild(bassClef);
 
+            // Add Arpeggio Indicator if stagger > 0
+            const displayStagger = window.currentEditingStagger || 0;
+            if (displayStagger > 0) {
+                const arpeggioLabel = document.createElement('div');
+                const displayDir = window.currentEditingStaggerDir === -1 ? '↓' : '↑';
+                arpeggioLabel.textContent = '▥ ' + displayStagger + ' ' + displayDir;
+                arpeggioLabel.style.cssText = `
+                    position: absolute;
+                    top: 78px;
+                    left: 10px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    color: #00BCD4;
+                    font-family: monospace;
+                    z-index: 5;
+                    background: rgba(255,255,255,0.7);
+                    padding: 0 4px;
+                    border-radius: 2px;
+                `;
+                container.appendChild(arpeggioLabel);
+            }
+
             // Container for notes (positioned absolutely within container)
             const notesContainer = document.createElement('div');
             notesContainer.style.cssText = `
@@ -13820,6 +13940,25 @@ ${notepadCss}
                     // 3. Update Visibility
                     if (typeof window.updateMidiEditingLevelVisibility === 'function') {
                         window.updateMidiEditingLevelVisibility();
+                    }
+
+                    // Sync Arpeggio UI to selected note
+                    const sInp = document.getElementById('strum-intensity-input');
+                    const sDir = document.getElementById('strum-direction-btn');
+                    if (sInp && sDir) {
+                        if (window.selectedNoteIndices && window.selectedNoteIndices.length === 1) {
+                            const sIdx = window.selectedNoteIndices[0];
+                            const cfg = (window.currentEditingStaggerNotes && window.currentEditingStaggerNotes[sIdx]) ? window.currentEditingStaggerNotes[sIdx] : null;
+                            if (cfg) {
+                                sInp.value = cfg.intensity;
+                                sDir.textContent = cfg.dir === 1 ? '↑' : '↓';
+                            } else {
+                                sInp.value = 0;
+                            }
+                        } else if (!window.selectedNoteIndices || window.selectedNoteIndices.length === 0) {
+                            sInp.value = window.currentEditingStagger || 0;
+                            sDir.textContent = (window.currentEditingStaggerDir === -1) ? '↓' : '↑';
+                        }
                     }
 
                     // Always show full measure in input, but highlight in score
@@ -13937,6 +14076,35 @@ ${notepadCss}
                     `;
                     rhythmSpan.appendChild(sharpSign);
                 }
+
+                // Add Arpeggio Marker for individual notes if staggered
+                const hasStaggerData = (window.currentEditingStagger > 0 || (window.currentEditingStaggerNotes && Object.keys(window.currentEditingStaggerNotes).length > 0));
+                
+                if (hasStaggerData) {
+                    let noteConfig = (window.currentEditingStaggerNotes && window.currentEditingStaggerNotes[index]) ? window.currentEditingStaggerNotes[index] : null;
+                    // Legacy fallback
+                    if (!noteConfig && (!window.currentEditingStaggerNotes || Object.keys(window.currentEditingStaggerNotes).length === 0)) {
+                        noteConfig = { intensity: window.currentEditingStagger, dir: (window.currentEditingStaggerDir || 1) };
+                    }
+
+                    if (noteConfig && noteConfig.intensity > 0) {
+                        const arpSign = document.createElement('div');
+                        arpSign.textContent = (noteConfig.dir === -1 ? '↓' : '↑');
+                        arpSign.style.cssText = `
+                            position: absolute;
+                            top: -2px;
+                            left: -10px;
+                            font-size: 11px;
+                            color: #00BCD4;
+                            font-weight: bold;
+                            pointer-events: none;
+                            z-index: 20;
+                            text-shadow: 0 0 2px #fff, 0 0 4px #fff;
+                        `;
+                        noteWrapper.appendChild(arpSign);
+                    }
+                }
+
                 const noteOctave = Math.floor(midiValue / 12) - 1;
                 const noteNameIndex = midiValue % 12;
                 // Use keyin for ABC (C, D, E...) and tonicain for Solfege (Do, Re, Mi...)
@@ -14496,6 +14664,112 @@ ${notepadCss}
             }
         };
         unifiedControls.appendChild(rotateBtn);
+        
+        // --- STRUM / ARPEGGIO CONTROLS ---
+        const strumGroup = document.createElement('div');
+        strumGroup.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 4px; border-radius: 4px; background: #eceff1; margin-right: 4px; height: 24px; box-sizing: border-box;';
+        
+        const strumLabel = document.createElement('button');
+        strumLabel.textContent = '▥';
+        strumLabel.style.cssText = 'background: transparent; color: #333; border: 1px solid #999; padding: 0 4px; border-radius: 2px; cursor: pointer; font-size: 14px; font-weight: bold; height: 18px; line-height: 1;';
+        strumLabel.title = "Apply Arpeggio to selection";
+
+        const strumInp = document.createElement('input');
+        strumInp.id = 'strum-intensity-input';
+        strumInp.type = 'number';
+        strumInp.min = 0;
+        strumInp.max = 127;
+        strumInp.title = t("StrumTitle");
+        strumInp.style.cssText = 'width: 32px; border: 1px solid #999; border-radius: 2px; height: 18px; font-size: 11px; padding: 0 2px; text-align: center;';
+        strumInp.value = window.currentEditingStagger || 0;
+
+        const strumDirBtn = document.createElement('button');
+        strumDirBtn.id = 'strum-direction-btn';
+        strumDirBtn.textContent = (window.currentEditingStaggerDir === -1) ? '↓' : '↑';
+        strumDirBtn.title = (window.currentEditingStaggerDir === -1) ? "Descending" : "Ascending";
+        strumDirBtn.style.cssText = 'width: 20px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid #999; border-radius: 2px; cursor: pointer; background: #fff; font-size: 11px; font-weight: bold; padding: 0;';
+
+        const updateStrumBrush = () => {
+             window.currentEditingStagger = parseInt(strumInp.value) || 0;
+             window.currentEditingStaggerDir = (strumDirBtn.textContent === '↑') ? 1 : -1;
+             
+             if (window.currentEditingStagger > 0) {
+                 strumGroup.style.background = '#00BCD4';
+                 strumLabel.style.color = '#fff';
+             } else {
+                 strumGroup.style.background = '#eceff1';
+                 strumLabel.style.color = '#333';
+             }
+        };
+
+        const applyStrumToSelection = () => {
+            const intensity = parseInt(strumInp.value) || 0;
+            const dir = strumDirBtn.textContent === '↑' ? 1 : -1;
+            
+            const selected = window.selectedNoteIndices || [];
+            if (selected.length > 0) {
+                if (!window.currentEditingStaggerNotes || Array.isArray(window.currentEditingStaggerNotes)) window.currentEditingStaggerNotes = {};
+                selected.forEach(idx => {
+                    if (intensity > 0) {
+                        window.currentEditingStaggerNotes[idx] = { intensity, dir };
+                    } else {
+                        delete window.currentEditingStaggerNotes[idx];
+                    }
+                });
+            } else {
+                // Apply to all if nothing selected (legacy mode)
+                window.currentEditingStagger = intensity;
+                window.currentEditingStaggerDir = dir;
+                window.currentEditingStaggerNotes = {}; // Clean individual notes when applying global
+            }
+            updateStrumBrush();
+            
+            // Trigger preview
+            if (typeof window.playMeasureFast === 'function') {
+                const currentInput = document.getElementById('midi-single-input');
+                const val = currentInput ? currentInput.value.trim() : '';
+                const pMidi = val ? val.split(/\s+/).map(v => Math.abs(parseInt(v))).filter(v => !isNaN(v)) : (window.currentFullMidiValues || []);
+                const pRhythm = window.currentEditingRhythmValues || [];
+                const pDinami = window.currentEditingDynamicsValues || new Array(pMidi.length).fill(80);
+                const basi = [{
+                    nimidi: pMidi, tipis: pRhythm, dinami: pDinami,
+                    stagger: window.currentEditingStagger,
+                    staggerDir: window.currentEditingStaggerDir,
+                    staggerNotes: window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {}
+                }];
+                window.playMeasureFast(0, basi[0]);
+                if (typeof renderMidiScorePreview === 'function') {
+                    const rContainer = document.getElementById('rhythm-container');
+                    if (rContainer) renderMidiScorePreview(pMidi, pRhythm, rContainer);
+                }
+            }
+            if (typeof window.saveBdiState === 'function') window.saveBdiState();
+        };
+
+        strumLabel.onclick = (e) => {
+            e.stopPropagation();
+            applyStrumToSelection();
+        };
+
+        strumInp.onchange = updateStrumBrush;
+        strumDirBtn.onclick = (e) => {
+            e.stopPropagation();
+            strumDirBtn.textContent = (strumDirBtn.textContent === '↑') ? '↓' : '↑';
+            strumDirBtn.title = strumDirBtn.textContent === '↑' ? "Ascending" : "Descending";
+            updateStrumBrush();
+        };
+
+        strumGroup.appendChild(strumLabel);
+        strumGroup.appendChild(strumInp);
+        strumGroup.appendChild(strumDirBtn);
+        unifiedControls.appendChild(strumGroup);
+
+        // Initial style
+        const hasAnyStagInitial = (window.currentEditingStagger > 0) || (window.currentEditingStaggerNotes && Object.keys(window.currentEditingStaggerNotes).length > 0);
+        if (hasAnyStagInitial) {
+            strumGroup.style.background = '#00BCD4';
+            strumLabel.style.color = '#fff';
+        }
 
         // Spacer to push Right Group to the far right
         const spacer = document.createElement('div');
@@ -14687,7 +14961,12 @@ ${notepadCss}
                         ]
                     };
                 }
-
+                
+                // Use current editing arpeggio globals
+                newMeasure.stagger = window.currentEditingStagger || 0;
+                newMeasure.staggerDir = window.currentEditingStaggerDir || 1;
+                newMeasure.staggerNotes = window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {};
+                
                 // 4. Update the ACTIVE VOICE in newMeasure with INPUT values
                 const voiceSelector = document.getElementById('voice-selector');
                 const selectedVoice = voiceSelector ? voiceSelector.value : 'soprano';
@@ -14896,6 +15175,11 @@ ${notepadCss}
                     voci: {}
                 };
 
+                // Use current editing arpeggio globals
+                newMeasure.stagger = window.currentEditingStagger || 0;
+                newMeasure.staggerDir = window.currentEditingStaggerDir || 1;
+                newMeasure.staggerNotes = window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {};
+
                 // Apply rhythm logic
                 if (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length === isRestArray.length) {
                     newMeasure.tipis = window.currentEditingRhythmValues.map((dur, i) => {
@@ -15076,7 +15360,13 @@ ${notepadCss}
             if (currentMidiVals.length === 0) return;
             const liveRhythm = (window.currentEditingRhythmValues && window.currentEditingRhythmValues.length > 0) ? window.currentEditingRhythmValues : rhythmValues;
             const liveDinami = (window.currentEditingDynamicsValues && window.currentEditingDynamicsValues.length > 0) ? window.currentEditingDynamicsValues : new Array(currentMidiVals.length).fill(127);
-            const basi = [{ nimidi: currentMidiVals, tipis: liveRhythm, dinami: liveDinami }];
+            const updateIndex = window.currentEditingMeasureIndex;
+            const basi = [{ 
+                nimidi: currentMidiVals, tipis: liveRhythm, dinami: liveDinami,
+                stagger: window.currentEditingStagger || 0,
+                staggerDir: window.currentEditingStaggerDir || 1,
+                staggerNotes: window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {}
+            }];
             // Pass the constructed measure object as override for preview
             if (typeof window.playMeasureFast === 'function') window.playMeasureFast(0, basi[0]);
         });
