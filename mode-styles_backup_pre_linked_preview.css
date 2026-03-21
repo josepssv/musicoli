@@ -542,11 +542,6 @@ body.app-mode-tonalidad #editor-chords-panel {
   display: flex !important;
 }
 
-/* Ocultar Panel de Acordes en modo Independiente (pues los acordes aplican a SATB completo) */
-body.voice-mode-independent #editor-chords-panel {
-  display: none !important;
-}
-
 #chords-buttons-container {
   flex: 1;
   display: flex;

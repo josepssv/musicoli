@@ -13823,7 +13823,7 @@ ${notepadCss}
 
             // 2. Create Rhythm Visuals
             // 2. Create Rhythm Visuals
-            const isLinked = window.chordsMidiLinkEnabled;
+            const isLinked = (window.chordsMidiLinkEnabled && window.voiceEditMode === 'dependent');
             const mIdx = window.currentEditingMeasureIndex;
             const currentMeasure = (mIdx >= 0 && window.bdi.bar) ? window.bdi.bar[mIdx] : null;
             const vSelector = document.getElementById('voice-selector');
@@ -13832,40 +13832,31 @@ ${notepadCss}
             midiVals.forEach((baseMidiValue, index) => {
                 // Determine all midi values to show at this horizontal position
                 // Priority for 'Link' + Staged Chord over BDI data for live feedback
-                const activeIntensity = (window.currentEditingDynamicsValues && window.currentEditingDynamicsValues[index]) || 80;
-                const voiceNotesAtPosition = [{ midi: baseMidiValue, voice: activeVoiceCode, isActive: true, intensity: activeIntensity }];
-                
-                const chordDynamics = { s: 92, a: 64, t: 76, b: 104 };
+                const voiceNotesAtPosition = [{ midi: baseMidiValue, voice: activeVoiceCode, isActive: true }];
                 
                 if (isLinked) {
                     const stagedChordName = document.getElementById('chord-staff-container')?.dataset.stagedChord;
-                    const intervals = stagedChordName ? acordesNotas[stagedChordName] : null;
+                    const intervals = stagedChordName ? window.acordesNotas[stagedChordName] : null;
 
                     if (intervals) {
                         const harmony = window.getSATBNotesForChord(baseMidiValue, intervals, activeVoiceCode);
-                        // Make active note inherit the chord's defined dynamic for consistent preview
-                        voiceNotesAtPosition[0].intensity = chordDynamics[activeVoiceCode] || activeIntensity;
-                        
                         Object.keys(harmony.satb).forEach(vCode => {
                             if (vCode !== activeVoiceCode) {
                                 voiceNotesAtPosition.push({
                                     midi: Math.abs(harmony.satb[vCode]),
                                     voice: vCode,
-                                    isActive: false,
-                                    intensity: chordDynamics[vCode] || 80
+                                    isActive: false
                                 });
                             }
                         });
                     } else if (currentMeasure && currentMeasure.voci) {
                         // Fallback to BDI stored voices if no chord is staged
-                        const voicesArr = Array.isArray(currentMeasure.voci) ? currentMeasure.voci : Object.values(currentMeasure.voci);
-                        voicesArr.forEach(v => {
+                        currentMeasure.voci.forEach(v => {
                             if (v.nami !== activeVoiceCode && v.nimidi && v.nimidi.length > index) {
                                 voiceNotesAtPosition.push({ 
                                     midi: Math.abs(v.nimidi[index]), 
                                     voice: v.nami, 
-                                    isActive: false,
-                                    intensity: (v.dinami && v.dinami[index]) ? v.dinami[index] : 80
+                                    isActive: false 
                                 });
                             }
                         });
@@ -13982,40 +13973,16 @@ ${notepadCss}
                         });
                     }
 
-                    let vNoteColor = vNote.isActive ? '#000' : '#666';
-                    let vNoteOpacity = vNote.isActive ? '1' : '0.6';
-                    let vNoteShadow = 'none';
-
-                    if (isLinked) {
-                        vNoteOpacity = '0.9'; // Solid preview
-                        const intensity = vNote.intensity || 80;
-                        if (intensity > 80) {
-                            const ratio = (intensity - 80) / (127 - 80);
-                            const r = Math.max(0, Math.min(255, Math.round(200 + ratio * 55)));
-                            const g = Math.max(0, Math.min(255, Math.round(160 - ratio * 80)));
-                            vNoteColor = `rgb(${r}, ${g}, 0)`; 
-                        } else if (intensity < 80) {
-                            const ratio = (80 - intensity) / (80 - 16);
-                            const r = Math.max(0, Math.min(255, Math.round(80 - ratio * 80)));
-                            const g = Math.max(0, Math.min(255, Math.round(150 - ratio * 50)));
-                            vNoteColor = `rgb(${r}, ${g}, 255)`; 
-                        } else {
-                            vNoteColor = '#444';
-                        }
-                        vNoteShadow = '1px 1px 0px rgba(0,0,0,0.15)';
-                    }
-                    
                     const subRhythmSpan = document.createElement('span');
                     subRhythmSpan.innerHTML = rhythmChar;
                     
                     subRhythmSpan.style.cssText = `
                         font-family: "Bravura"; font-size: 24px;
-                        color: ${vNoteColor} !important;
-                        text-shadow: ${vNoteShadow};
+                        color: ${vNote.isActive ? '#000' : '#666'} !important;
                         min-width: 15px; text-align: center; position: absolute;
                         left: 0; width: 100%;
                         top: ${verticalOffset * 0.5 + 19}px; display: inline-block; pointer-events: none;
-                        opacity: ${vNoteOpacity};
+                        opacity: ${vNote.isActive ? '1' : '0.6'};
                         z-index: ${vNote.isActive ? '15' : '12'};
                     `;
 
@@ -14027,8 +13994,7 @@ ${notepadCss}
                         sharpSign.innerHTML = '&#xE262;';
                         sharpSign.style.cssText = `
                             position: absolute; top: 0px; left: 50%; margin-left: -16px;
-                            font-family: "Bravura"; font-size: 24px; color: ${vNoteColor} !important;
-                            text-shadow: ${vNoteShadow};
+                            font-family: "Bravura"; font-size: 24px; color: ${vNote.isActive ? '#000' : '#666'} !important;
                             pointer-events: none; z-index: 10;
                         `;
                         subRhythmSpan.appendChild(sharpSign);
@@ -15065,7 +15031,7 @@ ${notepadCss}
                         // MUSICOLI: Support for Chords Panel "Link" mode
                         const isChordLinked = !!window.chordsMidiLinkEnabled;
                         const stagedChordName = isChordLinked ? document.getElementById('chord-staff-container')?.dataset.stagedChord : null;
-                        const chordIntervals = stagedChordName ? acordesNotas[stagedChordName] : null;
+                        const chordIntervals = stagedChordName ? window.acordesNotas[stagedChordName] : null;
 
                         newMeasure.voci.forEach(v => {
                             if (v.nami !== voiceCode) {
@@ -15279,7 +15245,7 @@ ${notepadCss}
                     // MUSICOLI: Support for Chords Panel "Link" mode
                     const isChordLinked = !!window.chordsMidiLinkEnabled;
                     const stagedChordName = isChordLinked ? document.getElementById('chord-staff-container')?.dataset.stagedChord : null;
-                    const chordIntervals = stagedChordName ? acordesNotas[stagedChordName] : null;
+                    const chordIntervals = stagedChordName ? window.acordesNotas[stagedChordName] : null;
 
                     newMeasure.voci.forEach(v => {
                         if (v.nami !== voiceCode) {
@@ -16630,13 +16596,6 @@ ${notepadCss}
                 voiceModeIndicator.title = isInd ?
                     'Modo Independiente: Cada pista se edita por separado' :
                     'Modo Dependiente: Las armonías se generan automáticamente';
-            }
-
-            // Global State Hook for CSS styles (e.g., hiding Chords panel)
-            if (isInd) {
-                document.body.classList.add('voice-mode-independent');
-            } else {
-                document.body.classList.remove('voice-mode-independent');
             }
         };
 
@@ -19409,14 +19368,10 @@ window.renderChordPreviewOnStaff = function(chordName, intervals, container) {
         let noteColor = '#000';
         if (intensity > 80) {
             const ratio = (intensity - 80) / (127 - 80);
-            const r = Math.max(0, Math.min(255, Math.round(200 + ratio * 55)));
-            const g = Math.max(0, Math.min(255, Math.round(160 - ratio * 80)));
-            noteColor = `rgb(${r}, ${g}, 0)`; // Golden / Orange
+            noteColor = `rgb(${200 + ratio * 55}, ${160 - ratio * 80}, 0)`; // Golden / Orange
         } else if (intensity < 80) {
             const ratio = (80 - intensity) / (80 - 16);
-            const r = Math.max(0, Math.min(255, Math.round(80 - ratio * 80)));
-            const g = Math.max(0, Math.min(255, Math.round(150 - ratio * 50)));
-            noteColor = `rgb(${r}, ${g}, 255)`; // Light to deep blue
+            noteColor = `rgb(${80 - ratio * 80}, ${150 - ratio * 50}, 255)`; // Light to deep blue
         } else {
             noteColor = '#555';
         }
@@ -19900,7 +19855,18 @@ window.initChordsPanel = function() {
     staffContainer.onclick = () => {
         const chordName = staffContainer.dataset.stagedChord;
         if (chordName) {
-            // Removed forced independent mode because Chords conceptually belong to multi-track (Dependent) operations
+            
+            // 1. Force Independent Mode immediately so the system doesn't auto-harmonize our custom chord
+            if (window.voiceEditMode !== 'independent') {
+                const editModeToggle = document.getElementById('edit-mode-toggle');
+                if (editModeToggle) {
+                    editModeToggle.click();
+                } else {
+                    window.voiceEditMode = 'independent';
+                    if (typeof window.updateModeToggleUI === 'function') window.updateModeToggleUI();
+                }
+            }
+
             if (window.chordInsertModeEnabled) {
                 // Insert Mode: Utilize the MIDI Editor's native ADD function to avoid double splice
                 if (window.chordInsertModeEnabled === undefined) window.chordInsertModeEnabled = true;
@@ -19950,7 +19916,9 @@ window.initChordsPanel = function() {
                     window.rebuildRecordi();
                     if (typeof window.applyTextLayer === 'function') window.applyTextLayer();
                     
-                    // 4. Open Editor without forcing mode
+                    // 4. Force Independent mode so SATB is respected and Open Editor
+                    window.voiceEditMode = 'independent';
+                    if (typeof window.updateModeToggleUI === 'function') window.updateModeToggleUI();
                     
                     window.openMidiEditor(measureIndex);
                     
@@ -20127,7 +20095,16 @@ window.applyChordToSelectedNotes = function(chordType) {
         });
     });
 
-    // Custom chord logic executed without forcing a mode switch.
+    // Force INDEPENDENT mode to prevent automatic harmonization from overwriting the custom chord!
+    if (window.voiceEditMode !== 'independent') {
+        const editModeToggle = document.getElementById('edit-mode-toggle');
+        if (editModeToggle) {
+            editModeToggle.click(); // This updates all internal state, UI, and visual tracks
+        } else {
+            window.voiceEditMode = 'independent';
+            if (typeof window.updateModeToggleUI === 'function') window.updateModeToggleUI();
+        }
+    }
 
     // Save state for Undo/Redo
     if (typeof saveBdiState === 'function') {
