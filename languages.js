@@ -303,7 +303,10 @@ const LANGUAGES = {
         "Arpeggio": "Arpegio",
         "Escalas": "Escalas",
         "Acordes": "Acordes",
-        "Apply chord to selected notes": "Aplicar acorde a las notas seleccionadas"
+        "Apply chord to selected notes": "Aplicar acorde a las notas seleccionadas",
+        "Tessituras": "Tesituras",
+        "Min": "Min",
+        "Max": "Max"
     },
     en: {
         "Escalas": "Scales",
@@ -570,7 +573,10 @@ const LANGUAGES = {
         "Arpeggio": "Arpeggio",
         "Escalas": "Scales",
         "Acordes": "Chords",
-        "Apply chord to selected notes": "Apply chord to selected notes"
+        "Apply chord to selected notes": "Apply chord to selected notes",
+        "Tessituras": "Tessituras",
+        "Min": "Min",
+        "Max": "Max"
     },
     de: {
         "Ritmo": "Rhythmus",
@@ -777,7 +783,10 @@ const LANGUAGES = {
         "El archivo no tiene el formato .musicoli o .json válido.": "Die Datei hat kein gültiges .musicoli- oder .json-Format.",
         "Error al leer el archivo. Asegúrate de que es un JSON / .musicoli válido.": "Fehler beim Lesen der Datei. Stellen Sie sicher, dass es ein gültiges JSON / .musicoli ist.",
         "StrumTitle": "Arpeggio-Intensität",
-        "Arpeggio": "Arpeggio"
+        "Arpeggio": "Arpeggio",
+        "Tessituras": "Tonumfänge",
+        "Min": "Min",
+        "Max": "Max"
     }
 };
 

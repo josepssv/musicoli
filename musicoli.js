@@ -1918,9 +1918,52 @@ async function createTonalidadEditor(notepadInstance, containerId) {
     */
 
     header.appendChild(title);
-    //header.appendChild(modeSelector);
     container.innerHTML = '';
     container.appendChild(header);
+
+    // Global toggle function (kept for logic if needed, but buttons removed per user request)
+    window.toggleMelodyEditor = function(target) {
+        const ladder = document.getElementById('editor-tonalidad-ladder');
+        const grid = document.getElementById('tonality-grid-container');
+        const chords = document.getElementById('editor-chords-panel');
+        
+        if (target === 'scales') {
+            if (ladder) ladder.style.display = 'block';
+            if (grid) grid.style.display = 'grid';
+            if (chords) chords.style.display = 'none';
+            if (typeof makeladi === 'function') makeladi();
+        } else if (target === 'chords') {
+            if (ladder) ladder.style.display = 'none';
+            if (grid) grid.style.display = 'none';
+            if (chords) {
+                chords.style.display = 'block';
+                if (typeof window.initChordsPanel === 'function') window.initChordsPanel();
+            }
+        } else {
+            // Default show everything in Tonalidad
+            if (ladder) ladder.style.display = 'block';
+            if (grid) grid.style.display = 'grid';
+            if (chords) {
+                chords.style.display = 'block';
+                if (typeof window.initChordsPanel === 'function') window.initChordsPanel();
+            }
+        }
+    };
+
+    // Create container for the palette grid to toggle it
+    const paletteGridContainer = document.createElement('div');
+    paletteGridContainer.id = 'tonality-grid-container';
+    paletteGridContainer.style.display = 'grid';
+    paletteGridContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
+    paletteGridContainer.style.gap = '10px';
+    container.appendChild(paletteGridContainer);
+
+    // Initial state: Scales
+    setTimeout(() => {
+        // Set default styles for btnScales because ID might not be in DOM yet
+        const bS = document.getElementById('switcher-btn-scales');
+        if (bS) { bS.style.background = '#ff9800'; bS.style.color = 'white'; }
+    }, 0);
 
     const colorMap = notepadInstance.noteColorMap || {};
     const characters = Object.keys(colorMap).filter(k => k.length === 1 || !k.endsWith('_flavors')).sort((a, b) => {
@@ -1935,9 +1978,7 @@ async function createTonalidadEditor(notepadInstance, containerId) {
         return a.localeCompare(b);
     });
 
-    const grid = document.createElement('div');
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
+    const grid = paletteGridContainer; // Use the toggleable container
     grid.style.gap = '10px';
 
     // Create all items first, then fetch color names asynchronously
@@ -10913,7 +10954,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const voiceCodes = voicesOverride || selectedVoicesStr.split(',');
         const effectiveMode = (voicesOverride && voicesOverride.length > 1) ? 'dependent' : (window.voiceEditMode || (typeof voiceEditMode !== 'undefined' ? voiceEditMode : 'independent'));
 
-        ['s', 'a', 't', 'b'].forEach(vKey => {
+    ['s', 'a', 't', 'b'].forEach(vKey => {
             if (voiceCodes.includes(vKey)) {
                 let vData = null;
                 if (item.voci) {
@@ -11708,7 +11749,9 @@ ${notepadCss}
     }
     // Apply color layer to notepad (Tonalidad mode)
     function applyColorLayer() {
-        tonalidadContent = colorLayerTextarea.value;
+        if (colorLayerTextarea) {
+            tonalidadContent = colorLayerTextarea.value;
+        }
         // Update metadata based on new lyrics content
         updateLyricsMetadata();
         // Use central applyTextLayer to sync content with correct colors
@@ -11838,8 +11881,11 @@ ${notepadCss}
             // Show Tonalidad content in Notepad
             applyColorLayer();
 
-            // Hide/Show MIDI visualizer
-            document.getElementById('staffi').style.display = 'block';
+            // Sync MIDI visualizer with global toggle
+            if (typeof window.toggleMidiStaff === 'function') {
+                const toggle = document.getElementById('score-viz-toggle');
+                if (toggle) window.toggleMidiStaff(toggle.checked);
+            }
 
             // Hide rhythm color selector (only visible in Ritmo mode)
             const rhythmColorInfoTonalidad = document.getElementById('rhythm-color-info-div');
@@ -11897,8 +11943,11 @@ ${notepadCss}
             // Show Ritmo content in Notepad
             applyTextLayer();
 
-            // Hide/Show MIDI visualizer
-            document.getElementById('staffi').style.display = 'none';
+            // Sync MIDI visualizer with global toggle
+            if (typeof window.toggleMidiStaff === 'function') {
+                const toggle = document.getElementById('score-viz-toggle');
+                if (toggle) window.toggleMidiStaff(toggle.checked);
+            }
 
             // Show tarareo controls
             if (tarareoInput) {
@@ -11945,8 +11994,11 @@ ${notepadCss}
             // Show Lyrics content in Notepad
             applyLyricsLayer();
 
-            // Hide/Show MIDI visualizer
-            document.getElementById('staffi').style.display = 'none';
+            // Sync MIDI visualizer with global toggle
+            if (typeof window.toggleMidiStaff === 'function') {
+                const toggle = document.getElementById('score-viz-toggle');
+                if (toggle) window.toggleMidiStaff(toggle.checked);
+            }
 
             // Hide rhythm color selector (only visible in Ritmo mode)
             const rhythmColorInfoLyrics = document.getElementById('rhythm-color-info-div');
@@ -12512,7 +12564,7 @@ ${notepadCss}
 
     if (bpmCustomInputEl) {
         // Update BPM when user enters custom value
-        bpmCustomInputEl.addEventListener('change', (e) => {
+        bpmCustomInputEl.addEventListener('input', (e) => {
             const newBpm = parseInt(e.target.value);
 
             // Validate BPM range
@@ -12722,10 +12774,18 @@ ${notepadCss}
 
             // Show editor-tonalidad with immediate UI refresh for ladder elements
             const editorTonalidad = document.getElementById('editor-tonalidad');
+            const editorChordsPanel = document.getElementById('editor-chords-panel');
+            const tonalidadLadder = document.getElementById('editor-tonalidad-ladder');
+
             if (editorTonalidad) {
                 editorTonalidad.style.display = 'block';
-                // Force immediate refresh to hide non-tonalidad elements (1-8 buttons, patterns)
-                if (typeof makeladi === 'function') setTimeout(() => makeladi(), 0);
+                // Reset to scales mode by default when entering the mode
+                if (typeof window.toggleMelodyEditor === 'function') {
+                    window.toggleMelodyEditor('scales');
+                } else {
+                    if (tonalidadLadder) tonalidadLadder.style.display = 'block';
+                    if (typeof makeladi === 'function') setTimeout(() => makeladi(), 0);
+                }
             }
 
             // Show harmonize button
@@ -13822,42 +13882,79 @@ ${notepadCss}
             container.appendChild(notesContainer);
 
             // 2. Create Rhythm Visuals
-            // 2. Create Rhythm Visuals
             const isLinked = window.chordsMidiLinkEnabled;
             const mIdx = window.currentEditingMeasureIndex;
             const currentMeasure = (mIdx >= 0 && window.bdi.bar) ? window.bdi.bar[mIdx] : null;
             const vSelector = document.getElementById('voice-selector');
             const activeVoiceCode = vSelector ? vSelector.value : 's';
-
+            // MUSICOLI: Use chordVoiceOverwrites for preview coloring if available, otherwise fallback to defaults
+            const chordDynamicsColors = { 
+                s: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.s !== null) ? window.chordVoiceOverwrites.s : 92,
+                a: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.a !== null) ? window.chordVoiceOverwrites.a : 64,
+                t: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.t !== null) ? window.chordVoiceOverwrites.t : 76,
+                b: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.b !== null) ? window.chordVoiceOverwrites.b : 104
+            };
             midiVals.forEach((baseMidiValue, index) => {
                 // Determine all midi values to show at this horizontal position
                 // Priority for 'Link' + Staged Chord over BDI data for live feedback
                 const activeIntensity = (window.currentEditingDynamicsValues && window.currentEditingDynamicsValues[index]) || 80;
                 const voiceNotesAtPosition = [{ midi: baseMidiValue, voice: activeVoiceCode, isActive: true, intensity: activeIntensity }];
                 
-                const chordDynamics = { s: 92, a: 64, t: 76, b: 104 };
+                const chordDynamics = chordDynamicsColors; 
                 
                 if (isLinked) {
                     const stagedChordName = document.getElementById('chord-staff-container')?.dataset.stagedChord;
                     const intervals = stagedChordName ? acordesNotas[stagedChordName] : null;
 
-                    if (intervals) {
+                    // MUSICOLI: Respect selection in Link mode
+                    const selectedIndices = window.selectedNoteIndices || [];
+                    const isSelected = selectedIndices.includes(index);
+
+                    if (intervals && selectedIndices.length > 0 && isSelected) {
                         const harmony = window.getSATBNotesForChord(baseMidiValue, intervals, activeVoiceCode);
                         // Make active note inherit the chord's defined dynamic for consistent preview
                         voiceNotesAtPosition[0].intensity = chordDynamics[activeVoiceCode] || activeIntensity;
                         
                         Object.keys(harmony.satb).forEach(vCode => {
                             if (vCode !== activeVoiceCode) {
+                                // MUSICOLI: Apply Balanced Vertical Dynamics if enabled
+                                // Default balance: S=92, A=64, T=76, B=104 (Mean: 84)
+                                // Offsets: S:+8, A:-20, T:-8, B:+20
+                                const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                                let intensityVal = chordDynamics[vCode] || 80;
+                                
+                                // MUSICOLI: Priority 1 - Individual Overwrites from Mixer
+                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[vCode] !== null) {
+                                    const overwrite = window.chordVoiceOverwrites[vCode];
+                                    if (typeof overwrite === 'string' && overwrite.startsWith("shape:")) {
+                                        // If it's a shape mode, try to pull from the BDI data which was updated by the shape button
+                                        if (currentMeasure && currentMeasure.voci) {
+                                            const vArr = Array.isArray(currentMeasure.voci) ? currentMeasure.voci : Object.values(currentMeasure.voci);
+                                            const targetV = vArr.find(v => v.nami === vCode);
+                                            if (targetV && targetV.dinami && targetV.dinami[index] !== undefined) {
+                                                intensityVal = targetV.dinami[index];
+                                            }
+                                        }
+                                    } else {
+                                        intensityVal = overwrite;
+                                    }
+                                } else if (window.chordsVerticalDynamicsEnabled) {
+                                    // MUSICOLI: Priority 2 - Balanced Vertical Sync
+                                    const activeOffset = offsets[activeVoiceCode] || 0;
+                                    const columnMean = activeIntensity - activeOffset;
+                                    intensityVal = Math.max(16, Math.min(127, columnMean + (offsets[vCode] || 0)));
+                                }
+                                
                                 voiceNotesAtPosition.push({
                                     midi: Math.abs(harmony.satb[vCode]),
                                     voice: vCode,
                                     isActive: false,
-                                    intensity: chordDynamics[vCode] || 80
+                                    intensity: intensityVal
                                 });
                             }
                         });
                     } else if (currentMeasure && currentMeasure.voci) {
-                        // Fallback to BDI stored voices if no chord is staged
+                        // Fallback to BDI stored voices if no chord is staged or this note is not selected
                         const voicesArr = Array.isArray(currentMeasure.voci) ? currentMeasure.voci : Object.values(currentMeasure.voci);
                         voicesArr.forEach(v => {
                             if (v.nami !== activeVoiceCode && v.nimidi && v.nimidi.length > index) {
@@ -13870,6 +13967,19 @@ ${notepadCss}
                             }
                         });
                     }
+                } else if (currentMeasure && currentMeasure.voci) {
+                    // Fallback to BDI stored voices if not in Link mode
+                    const voicesArr = Array.isArray(currentMeasure.voci) ? currentMeasure.voci : Object.values(currentMeasure.voci);
+                    voicesArr.forEach(v => {
+                        if (v.nami !== activeVoiceCode && v.nimidi && v.nimidi.length > index) {
+                            voiceNotesAtPosition.push({ 
+                                midi: Math.abs(v.nimidi[index]), 
+                                voice: v.nami, 
+                                isActive: false,
+                                intensity: (v.dinami && v.dinami[index]) ? v.dinami[index] : 80
+                            });
+                        }
+                    });
                 }
 
                 const noteWrapper = document.createElement('span');
@@ -14689,133 +14799,12 @@ ${notepadCss}
         };
         // unifiedControls.appendChild(rotateBtn);
         
-        // --- STRUM / ARPEGGIO CONTROLS ---
-        const strumGroup = document.createElement('div');
-        strumGroup.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 4px; border-radius: 4px; background: #eceff1; margin-right: 4px; height: 24px; box-sizing: border-box;';
-        
-        const strumLabel = document.createElement('button');
-        strumLabel.textContent = '▥';
-        strumLabel.style.cssText = 'background: transparent; color: #333; border: 1px solid #999; padding: 0 4px; border-radius: 2px; cursor: pointer; font-size: 14px; font-weight: bold; height: 18px; line-height: 1;';
-        strumLabel.title = "Apply Arpeggio to selection";
 
-        const strumInp = document.createElement('input');
-        strumInp.id = 'strum-intensity-input';
-        strumInp.type = 'number';
-        strumInp.min = 0;
-        strumInp.max = 127;
-        strumInp.title = t("StrumTitle");
-        strumInp.style.cssText = 'width: 32px; border: 1px solid #999; border-radius: 2px; height: 18px; font-size: 11px; padding: 0 2px; text-align: center;';
-        strumInp.value = window.currentEditingStagger || 0;
-
-        const strumDirBtn = document.createElement('button');
-        strumDirBtn.id = 'strum-direction-btn';
-        strumDirBtn.textContent = (window.currentEditingStaggerDir === -1) ? '↓' : '↑';
-        strumDirBtn.title = (window.currentEditingStaggerDir === -1) ? "Descending" : "Ascending";
-        strumDirBtn.style.cssText = 'width: 20px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid #999; border-radius: 2px; cursor: pointer; background: #fff; font-size: 11px; font-weight: bold; padding: 0;';
-
-        const updateStrumBrush = () => {
-             window.currentEditingStagger = parseInt(strumInp.value) || 0;
-             window.currentEditingStaggerDir = (strumDirBtn.textContent === '↑') ? 1 : -1;
-             
-             if (window.currentEditingStagger > 0) {
-                 strumGroup.style.background = '#00BCD4';
-                 strumLabel.style.color = '#fff';
-             } else {
-                 strumGroup.style.background = '#eceff1';
-                 strumLabel.style.color = '#333';
-             }
-        };
-
-        const applyStrumToSelection = () => {
-            const intensity = parseInt(strumInp.value) || 0;
-            const dir = strumDirBtn.textContent === '↑' ? 1 : -1;
-            
-            const selected = window.selectedNoteIndices || [];
-            if (selected.length > 0) {
-                if (!window.currentEditingStaggerNotes || Array.isArray(window.currentEditingStaggerNotes)) window.currentEditingStaggerNotes = {};
-                selected.forEach(idx => {
-                    if (intensity > 0) {
-                        window.currentEditingStaggerNotes[idx] = { intensity, dir };
-                    } else {
-                        delete window.currentEditingStaggerNotes[idx];
-                    }
-                });
-            } else {
-                // Apply to all if nothing selected (legacy mode)
-                window.currentEditingStagger = intensity;
-                window.currentEditingStaggerDir = dir;
-                window.currentEditingStaggerNotes = {}; // Clean individual notes when applying global
-            }
-            updateStrumBrush();
-            
-            // Trigger preview
-            if (typeof window.playMeasureFast === 'function') {
-                const currentInput = document.getElementById('midi-single-input');
-                const val = currentInput ? currentInput.value.trim() : '';
-                const pMidi = val ? val.split(/\s+/).map(v => Math.abs(parseInt(v))).filter(v => !isNaN(v)) : (window.currentFullMidiValues || []);
-                const pRhythm = window.currentEditingRhythmValues || [];
-                const pDinami = window.currentEditingDynamicsValues || new Array(pMidi.length).fill(80);
-                const basi = [{
-                    nimidi: pMidi, tipis: pRhythm, dinami: pDinami,
-                    stagger: window.currentEditingStagger,
-                    staggerDir: window.currentEditingStaggerDir,
-                    staggerNotes: window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {}
-                }];
-                window.playMeasureFast(0, basi[0]);
-                if (typeof renderMidiScorePreview === 'function') {
-                    const rContainer = document.getElementById('rhythm-container');
-                    if (rContainer) renderMidiScorePreview(pMidi, pRhythm, rContainer);
-                }
-            }
-            if (typeof window.saveBdiState === 'function') window.saveBdiState();
-        };
-
-        strumLabel.onclick = (e) => {
-            e.stopPropagation();
-            applyStrumToSelection();
-        };
-
-        strumInp.onchange = updateStrumBrush;
-        strumDirBtn.onclick = (e) => {
-            e.stopPropagation();
-            strumDirBtn.textContent = (strumDirBtn.textContent === '↑') ? '↓' : '↑';
-            strumDirBtn.title = strumDirBtn.textContent === '↑' ? "Ascending" : "Descending";
-            updateStrumBrush();
-        };
-
-        strumGroup.appendChild(strumLabel);
-        strumGroup.appendChild(strumInp);
-        
-        // MUSICOLI: Fixed Intensity Buttons (5, 10, 20, 40)
-        [5, 10, 20, 40].forEach(val => {
-            const fBtn = document.createElement('button');
-            fBtn.textContent = val;
-            fBtn.title = `Set arpeggio to ${val} ticks`;
-            fBtn.style.cssText = 'background: #fff; color: #333; border: 1px solid #999; border-radius: 2px; cursor: pointer; font-size: 10px; font-weight: bold; height: 18px; min-width: 18px; padding: 0 2px; line-height: 1; margin: 0;';
-            fBtn.onclick = (e) => {
-                e.stopPropagation();
-                strumInp.value = val;
-                updateStrumBrush();
-                applyStrumToSelection();
-            };
-            strumGroup.appendChild(fBtn);
-        });
-
-        strumGroup.appendChild(strumDirBtn);
-        // unifiedControls.appendChild(strumGroup);
-
-        // Initial style
-        const hasAnyStagInitial = (window.currentEditingStagger > 0) || (window.currentEditingStaggerNotes && Object.keys(window.currentEditingStaggerNotes).length > 0);
-        if (hasAnyStagInitial) {
-            strumGroup.style.background = '#00BCD4';
-            strumLabel.style.color = '#fff';
-        }
 
         // assembling everything
         unifiedControls.appendChild(x2Btn);
         unifiedControls.appendChild(div2Btn);
         unifiedControls.appendChild(rotateBtn);
-        unifiedControls.appendChild(strumGroup);
         
         // --- ROW B: Main Actions -- RIGHT ALIGNED (Revert, Add, Apply) ---
         const rightGroup = document.createElement('div');
@@ -15314,7 +15303,24 @@ ${notepadCss}
                                     harmonyData.push(h.satb[v.nami] * (note >= 0 ? 1 : -1));
                                 });
                                 v.nimidi = harmonyData;
-                                v.dinami = new Array(v.nimidi.length).fill(64);
+                                // MUSICOLI: Apply Dynamics with Overwrites, Shapes or Balance
+                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[v.nami] !== null) {
+                                    const overwrite = window.chordVoiceOverwrites[v.nami];
+                                    if (typeof overwrite === 'string' && overwrite.startsWith("shape:")) {
+                                        // Shape is already in v.dinami from the button click, leave it
+                                    } else {
+                                        v.dinami = new Array(v.nimidi.length).fill(overwrite);
+                                    }
+                                } else if (window.chordsVerticalDynamicsEnabled && activeVoice.dinami) {
+                                    const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                                    const activeOffset = offsets[voiceCode] || 0;
+                                    v.dinami = activeVoice.dinami.map(d => {
+                                        const columnMean = d - activeOffset;
+                                        return Math.max(16, Math.min(127, columnMean + (offsets[v.nami] || 0)));
+                                    });
+                                } else {
+                                    v.dinami = new Array(v.nimidi.length).fill(64);
+                                }
                             } else if (typeof generateHarmonyForVoice === 'function') {
                                 // Standard Scale-based Harmony
                                 const harmonyData = generateHarmonyForVoice({
@@ -15324,7 +15330,24 @@ ${notepadCss}
                                     dinami: activeVoice.dinami
                                 }, v.nami, voiceCode);
                                 v.nimidi = harmonyData.nimidi;
-                                v.dinami = new Array(v.nimidi.length).fill(64);
+                                // MUSICOLI: Apply Dynamics with Overwrites, Shapes or Balance
+                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[v.nami] !== null) {
+                                    const overwrite = window.chordVoiceOverwrites[v.nami];
+                                    if (typeof overwrite === 'string' && overwrite.startsWith("shape:")) {
+                                        // Shape is already in v.dinami from the button click, leave it
+                                    } else {
+                                        v.dinami = new Array(v.nimidi.length).fill(overwrite);
+                                    }
+                                } else if (window.chordsVerticalDynamicsEnabled && activeVoice.dinami) {
+                                    const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                                    const activeOffset = offsets[voiceCode] || 0;
+                                    v.dinami = activeVoice.dinami.map(d => {
+                                        const columnMean = d - activeOffset;
+                                        return Math.max(16, Math.min(127, columnMean + (offsets[v.nami] || 0)));
+                                    });
+                                } else {
+                                    v.dinami = new Array(v.nimidi.length).fill(64);
+                                }
                             }
                         }
                     });
@@ -18060,6 +18083,38 @@ ${notepadCss}
     }
 });
 
+// Tessituras Panel Initialization
+function initTessiturasPanel() {
+    const voices = ['s', 'a', 't', 'b'];
+    voices.forEach(v => {
+        const minInput = document.getElementById(`tessitura-min-${v}`);
+        const maxInput = document.getElementById(`tessitura-max-${v}`);
+        
+        if (minInput && maxInput) {
+            // Initialize values
+            if (window.globalTessituras && window.globalTessituras[v]) {
+                minInput.value = window.globalTessituras[v].min;
+                maxInput.value = window.globalTessituras[v].max;
+            }
+            
+            // Add event listeners (real-time or on change)
+            minInput.addEventListener('input', () => {
+                const val = parseInt(minInput.value);
+                if (!isNaN(val) && window.globalTessituras && window.globalTessituras[v]) {
+                    window.globalTessituras[v].min = val;
+                }
+            });
+            
+            maxInput.addEventListener('input', () => {
+                const val = parseInt(maxInput.value);
+                if (!isNaN(val) && window.globalTessituras && window.globalTessituras[v]) {
+                    window.globalTessituras[v].max = val;
+                }
+            });
+        }
+    });
+}
+
 // ============================================
 // MODE BUTTON EVENT HANDLERS
 // ============================================
@@ -18085,6 +18140,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'composicion': 'editor-composicion',
         'tarareo': 'editor-tarareo' // Added Tarareo just in case
     };
+
+    // Initialize Tessituras Panel
+    initTessiturasPanel();
 
     // Function to switch mode
     function switchMode(mode) {
@@ -18221,6 +18279,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Always ensure main container is visible (it wraps editors now)
         if (exampleContainer) exampleContainer.style.display = 'flex';
 
+        const scoreToggle = document.getElementById('global-score-toggle');
+
         if (mode === 'composicion') {
             // SHOW tracks in composition mode as well (User Request)
             if (tracksContainer) tracksContainer.style.display = 'flex';
@@ -18267,64 +18327,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Allow time for any clearing scripts to run
             setTimeout(() => {
-                let currentContainer = document.getElementById('harmonize-container');
-                const currentEditor = document.getElementById('editor-tonalidad');
-
-                if (!currentContainer && currentEditor) {
-
-                    const newItem = document.createElement('div');
-                    newItem.id = 'harmonize-container';
-                    // High Visibility Styles
-                    newItem.style.cssText = 'margin: 20px 0; padding: 20px; background: #fff3e0; border: 2px solid #ff9800; border-radius: 8px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: block !important;';
-
-                    newItem.innerHTML = `
-                        <h4 style="margin-top: 0; margin-bottom: 15px; font-family: monospace; color: #e65100; font-size: 16px; font-weight: bold;">
-                           ZONA DE ARMONIZACIÓN
-                        </h4>
-                        
-                        <!-- PHRASE TOOLS (At Top, No Title) -->
-                        <div style="display: flex; align-items: center; gap: 5px; background: #fff3e0; padding: 4px 8px; border-radius: 4px; border: 1px solid #ffe0b2; margin-bottom: 15px; flex-wrap: wrap;">
-                            <input type="number" id="transpose-amount" value="0" 
-                                style="width: 50px; padding: 6px; border: 1px solid #ff9800; border-radius: 4px; font-family: monospace; font-weight: bold; text-align: center;">
-                            
-                            <select id="transpose-unit" 
-                                style="padding: 6px; border: 1px solid #ff9800; border-radius: 4px; font-family: monospace; font-weight: bold; background: white;">
-                                <option value="scale">Escala (E)</option>
-                                <option value="semitone">Tono (ST)</option>
-                            </select>
-
-                            <button onclick="triggerDuplicate()" class="theme-btn"
-                              style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white;">
-                              Duplicar
-                            </button>
-                            
-                            <button onclick="triggerTranspose()" class="theme-btn"
-                              style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #9c27b0; color: white;">
-                              Trasponer
-                            </button>
-                        </div>
-
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-                            <button id="harmonize-btn" class="theme-btn"
-                              style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #ff9800; color: white;">
-                               Armonizar
-                            </button>
-                            <button id="harmonize-scale-btn" class="theme-btn"
-                              style="padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; font-family: monospace; font-weight: bold; background: #4CAF50; color: white;">
-                               Escala
-                            </button>
-                        </div>
-                    `;
-
-                    currentEditor.insertBefore(newItem, currentEditor.firstChild);
-                    currentContainer = newItem;
-
-                    // Re-attach event listeners to the new buttons
-                    if (typeof attachHarmonizeListeners === 'function') {
-                        attachHarmonizeListeners();
-                    }
-                }
-
+                const currentContainer = document.getElementById('harmonize-container');
                 if (currentContainer) {
                     currentContainer.style.setProperty('display', 'block', 'important');
                 }
@@ -18367,6 +18370,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const rhythmColorInfoDiv = document.getElementById('rhythm-color-info-div');
         if (rhythmColorInfoDiv) {
             rhythmColorInfoDiv.style.display = (mode === 'ritmo' || mode === 'tonalidad') ? 'flex' : 'none';
+        }
+
+        // Tessituras Panel: Only in Tonalidad (Melody) mode
+        const tessiturasPanel = document.getElementById('editor-tessituras-panel');
+        if (tessiturasPanel) {
+            tessiturasPanel.style.display = (mode === 'tonalidad') ? 'flex' : 'none';
         }
 
         // Force refresh of makeladi (Tool Ladder) when switching modes
@@ -19289,6 +19298,11 @@ window.calculateNotePosition = function(midiNote) {
  * Get the exact MIDI notes for a chord distributed across SATB voices,
  * strictly enforcing vocal ranges (tessituras) while anchoring to the active voice.
  */
+
+/**
+ * Get the exact MIDI notes for a chord distributed across SATB voices,
+ * strictly enforcing vocal ranges (tessituras) while anchoring to the active voice.
+ */
 window.getSATBNotesForChord = function(rootMidi, intervals, activeVoiceCode = 's') {
     const intervalsCopy = [...intervals];
     
@@ -19316,14 +19330,12 @@ window.getSATBNotesForChord = function(rootMidi, intervals, activeVoiceCode = 's
     Object.keys(window.globalTessituras).forEach(vCode => {
         let pitch = chordRootMIDI + mapping[vCode];
         
-        // Transpose only if it's NOT the active voice (the anchor must stay fixed)
-        if (vCode !== activeVoiceCode) {
-            const range = window.globalTessituras[vCode];
-            let safety = 0;
-            while (pitch < range.min && safety < 10) { pitch += 12; safety++; }
-            safety = 0;
-            while (pitch > range.max && safety < 10) { pitch -= 12; safety++; }
-        }
+        // Ensure all voices (including the anchor) stick to their tessituras
+        const range = window.globalTessituras[vCode];
+        let safety = 0;
+        while (pitch < range.min && safety < 10) { pitch += 12; safety++; }
+        safety = 0;
+        while (pitch > range.max && safety < 10) { pitch -= 12; safety++; }
         
         satb[vCode] = pitch;
     });
@@ -19339,22 +19351,32 @@ window.renderChordPreviewOnStaff = function(chordName, intervals, container) {
     container.innerHTML = '';
     
     // Determine root note for preview
-    let rootMidi = 72; // Default C5 for Soprano as anchor point when empty
+    let rootMidi;
     const selectedIndices = window.selectedNoteIndices || [];
-    if (selectedIndices.length > 0 && window.currentFullMidiValues) {
-        rootMidi = Math.abs(window.currentFullMidiValues[selectedIndices[0]]) || 60;
-    }
     
     // Get current active voice to use as anchor
     const voiceSelector = document.getElementById('voice-selector');
     const activeVoiceCode = voiceSelector ? voiceSelector.value : 's';
+
+    if (selectedIndices.length > 0 && window.currentFullMidiValues) {
+        rootMidi = Math.abs(window.currentFullMidiValues[selectedIndices[0]]) || 60;
+    } else {
+        const baseKey = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0;
+        const defaults = { 
+            's': window.chordsSopranoRefMidi || (72 + baseKey), 
+            'a': 60 + baseKey, 
+            't': 60 + baseKey, 
+            'b': 48 + baseKey 
+        };
+        rootMidi = defaults[activeVoiceCode] || (72 + baseKey);
+    }
     
     // Get SATB distribution anchored to the active voice note
     const result = window.getSATBNotesForChord(rootMidi, intervals, activeVoiceCode);
     const satbNotes = result.satb;
     
     // Actualización del nombre encima del pentagrama basado en la raíz calculada
-    const nameLabel = document.getElementById('chord-preview-name');
+    const nameLabel = document.getElementById('chord-preview-name-label');
     if (nameLabel) {
         const notesArr = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         const rootIndex = ((result.root % 12) + 12) % 12;
@@ -19391,8 +19413,13 @@ window.renderChordPreviewOnStaff = function(chordName, intervals, container) {
     notesContainer.style.cssText = 'position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-left: 35px;';
     staffWrapper.appendChild(notesContainer);
 
-    // Balanced SATB dynamics mapping to colorize preview (S=92, A=64, T=76, B=104)
-    const chordDynamics = { s: 92, a: 64, t: 76, b: 104 };
+    // MUSICOLI: Use chordVoiceOverwrites for preview coloring if available, otherwise fallback to defaults
+    const chordDynamics = { 
+        s: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.s !== null) ? window.chordVoiceOverwrites.s : 92,
+        a: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.a !== null) ? window.chordVoiceOverwrites.a : 64,
+        t: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.t !== null) ? window.chordVoiceOverwrites.t : 76,
+        b: (window.chordVoiceOverwrites && window.chordVoiceOverwrites.b !== null) ? window.chordVoiceOverwrites.b : 104
+    };
 
     // Render each SATB note
     Object.keys(satbNotes).forEach(vKey => {
@@ -19405,21 +19432,20 @@ window.renderChordPreviewOnStaff = function(chordName, intervals, container) {
         const verticalOffset = calculateNotePosition(midiVal);
         const topPos = verticalOffset * 0.5 + 19;
         
-        // Determine dynamic color similar to midi editor
-        let noteColor = '#000';
-        if (intensity > 80) {
-            const ratio = (intensity - 80) / (127 - 80);
-            const r = Math.max(0, Math.min(255, Math.round(200 + ratio * 55)));
-            const g = Math.max(0, Math.min(255, Math.round(160 - ratio * 80)));
-            noteColor = `rgb(${r}, ${g}, 0)`; // Golden / Orange
-        } else if (intensity < 80) {
-            const ratio = (80 - intensity) / (80 - 16);
-            const r = Math.max(0, Math.min(255, Math.round(80 - ratio * 80)));
-            const g = Math.max(0, Math.min(255, Math.round(150 - ratio * 50)));
-            noteColor = `rgb(${r}, ${g}, 255)`; // Light to deep blue
-        } else {
-            noteColor = '#555';
-        }
+        // MUSICOLI: Unified dynamic color logic (thermal scale)
+        const getDynamicColor = (val) => {
+            if (val > 80) {
+                const ratio = (val - 80) / (127 - 80);
+                return `rgb(${Math.max(0, Math.min(255, Math.round(200 + ratio * 55)))}, ${Math.max(0, Math.min(255, Math.round(160 - ratio * 80)))}, 0)`;
+            } else if (val < 80) {
+                const ratio = (80 - val) / (80 - 16);
+                return `rgb(${Math.max(0, Math.min(255, Math.round(80 - ratio * 80)))}, ${Math.max(0, Math.min(255, Math.round(150 - ratio * 50)))}, 255)`;
+            } else {
+                return '#555';
+            }
+        };
+
+        const noteColor = getDynamicColor(intensity);
         
         // Note head
         const head = document.createElement('div');
@@ -19658,16 +19684,58 @@ window.generateHarmonyForVoice = function (sourceData, voiceCode, selectedVoiceC
         const chordName = staffContainer ? staffContainer.dataset.stagedChord : null;
         if (chordName && typeof acordesNotas !== 'undefined' && acordesNotas[chordName]) {
             const intervals = acordesNotas[chordName];
+            const selectedIndices = window.selectedNoteIndices || [];
             
-            let linkedNimidi = sourceNimidi.map((n) => {
+            // "Replicarlas": Caluclate the reference SATB notes for the first selected note
+            let refPitch = null;
+            let refSATB = null;
+            if (selectedIndices.length > 0) {
+                refPitch = Math.abs(sourceNimidi[selectedIndices[0]]) || 60;
+                refSATB = window.getSATBNotesForChord(refPitch, intervals, selectedVoiceCode).satb;
+            }
+
+            let linkedNimidi = sourceNimidi.map((n, idx) => {
+                const isSelected = selectedIndices.includes(idx);
+                // If NO notes are selected or this note is not selected, skip chord mapping
+                if (selectedIndices.length === 0 || !isSelected) {
+                    return null; // Force fallback below
+                }
+
                 if (typeof window.getSATBNotesForChord === 'function') {
-                    const satbResult = window.getSATBNotesForChord(n, intervals, selectedVoiceCode);
-                    if (satbResult && satbResult.satb && satbResult.satb[voiceCode] !== undefined) {
-                        return satbResult.satb[voiceCode];
+                    const currentPitch = Math.abs(n) || 60;
+                    if (refSATB && refPitch !== null) {
+                        // Apply identical intervals relative to first selected note's voicing
+                        const diff = currentPitch - refPitch;
+                        return refSATB[voiceCode] + diff;
+                    } else {
+                        const satbResult = window.getSATBNotesForChord(currentPitch, intervals, selectedVoiceCode);
+                        if (satbResult && satbResult.satb && satbResult.satb[voiceCode] !== undefined) {
+                            return satbResult.satb[voiceCode];
+                        }
                     }
                 }
                 return n; // Fallback to unison if generation fails
             });
+
+            // If some notes were skipped (not selected), we must fill them from regular BDI data or scale logic
+            const anyNull = linkedNimidi.includes(null);
+            if (anyNull) {
+                // Get pre-existing data for this voice to fill non-selected gaps
+                const measureIndex = window.currentEditingMeasureIndex;
+                let originalVoiceNimidi = [];
+                if (measureIndex >= 0 && window.bdi && window.bdi.bar[measureIndex]) {
+                    const targetV = window.bdi.bar[measureIndex].voci.find(v => v.nami === voiceCode);
+                    if (targetV) originalVoiceNimidi = targetV.nimidi || [];
+                }
+
+                linkedNimidi = linkedNimidi.map((val, idx) => {
+                    if (val !== null) return val;
+                    // Try to preserve existing note if available, else use fallback
+                    if (originalVoiceNimidi[idx] !== undefined) return originalVoiceNimidi[idx];
+                    return sourceNimidi[idx]; // Absolute fallback to unison
+                });
+            }
+
             return { nimidi: linkedNimidi };
         }
     }
@@ -19770,9 +19838,136 @@ window.initChordsPanel = function() {
     // Título en inglés por defecto, traducible
     headerTitle.textContent = (typeof t === 'function' ? t('Chords') : 'Chords') || 'Chords';
     // Ajustado a la derecha
-    headerTitle.style.cssText = 'margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; flex: 1; font-size: 14px; text-align: right; padding-right: 10px;';
+    headerTitle.style.cssText = 'margin: 0; font-family: monospace; color: #333; cursor: default; user-select: none; font-size: 14px; flex: 0 0 auto; padding-right: 10px; padding-left: 10px;';
     
+    // Create an empty spacer to push everything to the right
+    const headerSpacer = document.createElement('div');
+    headerSpacer.style.flex = '1';
+    
+    // --- STRUM / ARPEGGIO CONTROLS ---
+    const strumGroup = document.createElement('div');
+    strumGroup.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 4px; border-radius: 4px; background: #eceff1; margin-right: 4px; margin-left: 0px; height: 24px; box-sizing: border-box;';
+    
+    const strumLabel = document.createElement('button');
+    strumLabel.textContent = '▥';
+    strumLabel.style.cssText = 'background: transparent; color: #333; border: 1px solid #999; padding: 0 4px; border-radius: 2px; cursor: pointer; font-size: 14px; font-weight: bold; height: 18px; line-height: 1;';
+    strumLabel.title = "Apply Arpeggio to selection";
+
+    const strumInp = document.createElement('input');
+    strumInp.id = 'strum-intensity-input';
+    strumInp.type = 'number';
+    strumInp.min = 0;
+    strumInp.max = 127;
+    strumInp.title = (typeof t === 'function' ? t('StrumTitle') : 'StrumTitle');
+    strumInp.style.cssText = 'width: 32px; border: 1px solid #999; border-radius: 2px; height: 18px; font-size: 11px; padding: 0 2px; text-align: center;';
+    strumInp.value = window.currentEditingStagger || 0;
+
+    const strumDirBtn = document.createElement('button');
+    strumDirBtn.id = 'strum-direction-btn';
+    strumDirBtn.textContent = (window.currentEditingStaggerDir === -1) ? '↓' : '↑';
+    strumDirBtn.title = (window.currentEditingStaggerDir === -1) ? "Descending" : "Ascending";
+    strumDirBtn.style.cssText = 'width: 20px; height: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid #999; border-radius: 2px; cursor: pointer; background: #fff; font-size: 11px; font-weight: bold; padding: 0;';
+
+    const updateStrumBrush = () => {
+         window.currentEditingStagger = parseInt(strumInp.value) || 0;
+         window.currentEditingStaggerDir = (strumDirBtn.textContent === '↑') ? 1 : -1;
+         
+         if (window.currentEditingStagger > 0) {
+             strumGroup.style.background = '#00BCD4';
+             strumLabel.style.color = '#fff';
+         } else {
+             strumGroup.style.background = '#eceff1';
+             strumLabel.style.color = '#333';
+         }
+    };
+
+    const applyStrumToSelection = () => {
+        const intensity = parseInt(strumInp.value) || 0;
+        const dir = strumDirBtn.textContent === '↑' ? 1 : -1;
+        
+        const selected = window.selectedNoteIndices || [];
+        if (selected.length > 0) {
+            if (!window.currentEditingStaggerNotes || Array.isArray(window.currentEditingStaggerNotes)) window.currentEditingStaggerNotes = {};
+            selected.forEach(idx => {
+                if (intensity > 0) {
+                    window.currentEditingStaggerNotes[idx] = { intensity, dir };
+                } else {
+                    delete window.currentEditingStaggerNotes[idx];
+                }
+            });
+        } else {
+            // Apply to all if nothing selected (legacy mode)
+            window.currentEditingStagger = intensity;
+            window.currentEditingStaggerDir = dir;
+            window.currentEditingStaggerNotes = {}; // Clean individual notes when applying global
+        }
+        updateStrumBrush();
+        
+        // Trigger preview
+        if (typeof window.playMeasureFast === 'function') {
+            const currentInput = document.getElementById('midi-single-input');
+            const val = currentInput ? currentInput.value.trim() : '';
+            const pMidi = val ? val.split(/\s+/).map(v => Math.abs(parseInt(v))).filter(v => !isNaN(v)) : (window.currentFullMidiValues || []);
+            const pRhythm = window.currentEditingRhythmValues || [];
+            const pDinami = window.currentEditingDynamicsValues || new Array(pMidi.length).fill(80);
+            const basi = [{
+                nimidi: pMidi, tipis: pRhythm, dinami: pDinami,
+                stagger: window.currentEditingStagger,
+                staggerDir: window.currentEditingStaggerDir,
+                staggerNotes: window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {}
+            }];
+            window.playMeasureFast(0, basi[0]);
+            if (typeof renderMidiScorePreview === 'function') {
+                const rContainer = document.getElementById('rhythm-container');
+                if (rContainer) renderMidiScorePreview(pMidi, pRhythm, rContainer);
+            }
+        }
+        if (typeof window.saveBdiState === 'function') window.saveBdiState();
+    };
+
+    strumLabel.onclick = (e) => {
+        e.stopPropagation();
+        applyStrumToSelection();
+    };
+
+    strumInp.oninput = updateStrumBrush;
+    strumDirBtn.onclick = (e) => {
+        e.stopPropagation();
+        strumDirBtn.textContent = (strumDirBtn.textContent === '↑') ? '↓' : '↑';
+        strumDirBtn.title = strumDirBtn.textContent === '↑' ? "Ascending" : "Descending";
+        updateStrumBrush();
+    };
+
+    strumGroup.appendChild(strumLabel);
+    strumGroup.appendChild(strumInp);
+    
+    // MUSICOLI: Fixed Intensity Buttons (5, 10, 20, 40)
+    [5, 10, 20, 40].forEach(val => {
+        const fBtn = document.createElement('button');
+        fBtn.textContent = val;
+        fBtn.title = `Set arpeggio to ${val} ticks`;
+        fBtn.style.cssText = 'background: #fff; color: #333; border: 1px solid #999; border-radius: 2px; cursor: pointer; font-size: 10px; font-weight: bold; height: 18px; min-width: 18px; padding: 0 2px; line-height: 1; margin: 0;';
+        fBtn.onclick = (e) => {
+            e.stopPropagation();
+            strumInp.value = val;
+            updateStrumBrush();
+            applyStrumToSelection();
+        };
+        strumGroup.appendChild(fBtn);
+    });
+
+    strumGroup.appendChild(strumDirBtn);
+    // unifiedControls.appendChild(strumGroup);
+
+    // Initial style
+    const hasAnyStagInitial = (window.currentEditingStagger > 0) || (window.currentEditingStaggerNotes && Object.keys(window.currentEditingStaggerNotes).length > 0);
+    if (hasAnyStagInitial) {
+        strumGroup.style.background = '#00BCD4';
+        strumLabel.style.color = '#fff';
+    }
     headerContainer.appendChild(headerTitle);
+    headerContainer.appendChild(headerSpacer);
+    headerContainer.appendChild(strumGroup);
     
     // Checkbox para vincular al MIDI Editor - REDESIGNED as SLIDER
     const linkContainer = document.createElement('label');
@@ -19780,7 +19975,7 @@ window.initChordsPanel = function() {
     linkContainer.style.marginLeft = '12px';
     linkContainer.style.gap = '6px';
     linkContainer.title = (typeof t === 'function' ? t("Al hacer Apply o Add en el Editor MIDI, usar el acorde seleccionado en vez de la escala") : "When clicking Apply or Add in the MIDI Editor, use the selected chord instead of the scale");
-    
+
     const linkLabelText = document.createElement('span');
     linkLabelText.className = 'switch-label';
     linkLabelText.textContent = (typeof t === 'function' ? t('Link') : 'Link');
@@ -19801,11 +19996,223 @@ window.initChordsPanel = function() {
     linkSwitchControl.appendChild(linkCheckbox);
     linkSwitchControl.appendChild(linkSlider);
     
-    // Order: Name then Switch
+    // Build the switch container
     linkContainer.appendChild(linkLabelText);
     linkContainer.appendChild(linkSwitchControl);
+    
+    headerContainer.appendChild(linkContainer);
+    
+    // Dynamics Row (Ordering: Static -> Shapes -> Mixer)
+    const dynContainer = document.createElement('div');
+    dynContainer.id = 'chords-dynamics-row';
+    dynContainer.style.cssText = 'display: flex; gap: 2px; align-items: center; justify-content: flex-start;';
+    dynContainer.style.display = 'flex';
 
-    // Checkbox Insert as new measure (Reverted to original design)
+    const dynLabels = [
+        { label: 'ppp', val: 16 }, { label: 'pp', val: 33 }, { label: 'p', val: 49 },
+        { label: 'mp', val: 64 }, { label: 'mf', val: 80 }, { label: 'f', val: 96 },
+        { label: 'ff', val: 112 }, { label: 'fff', val: 127 }
+    ];
+
+    // 1. Add Shapes (at the beginning of the row)
+    const shapeConfigs = [
+        { label: '< cresc', type: 'cresc' },
+        { label: '> dim', type: 'dim' },
+        { label: '∧ Peak', type: 'cima' },
+        { label: '∨ Valley', type: 'valle' }
+    ];
+
+    dynLabels.forEach(dyn => {
+        const dBtn = document.createElement('button');
+        dBtn.className = 'theme-btn compact-dyn';
+        dBtn.textContent = dyn.label; // Label remains for the button
+        dBtn.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; padding: 5px 4px 0 4px; font-size: 11px; font-family: "Bravura", serif; font-style: italic; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; line-height: 1; min-width: 24px; height: 18px; overflow: hidden;';
+        
+        dBtn.onclick = (e) => {
+            e.preventDefault();
+            const val = dyn.val;
+            
+            // MUSICOLI: Master Sync - Link ON
+            if (window.chordsMidiLinkEnabled && window.chordVoiceOverwrites) {
+                ['s', 'a', 't', 'b'].forEach(vK => {
+                    window.chordVoiceOverwrites[vK] = val;
+                });
+                const mixerBtns = document.getElementById('chords-vertical-mixer')?.querySelectorAll('[id^="chords-display-"]');
+                if (mixerBtns) {
+                    mixerBtns.forEach((mDisplay, idx) => {
+                        const vKey = ['s', 'a', 't', 'b'][idx];
+                        mDisplay.textContent = vKey.toUpperCase() + ": " + dyn.label;
+                        mDisplay.style.background = getDisplayColor(val);
+                        mDisplay.style.color = val === 80 ? "#fff" : (val > 80 ? "#331100" : "#ffffff"); 
+                        mDisplay.style.fontWeight = "bold";
+                    });
+                }
+                if (window.refreshMidiEditorScore) window.refreshMidiEditorScore();
+            } else {
+                // Link OFF: Affect ONLY current Chord Staging/Preview
+                if (window.chordVoiceOverwrites) {
+                    ['s', 'a', 't', 'b'].forEach(vK => {
+                        window.chordVoiceOverwrites[vK] = val;
+                        // Update Mixer buttons/displays UI
+                        const mRow = document.getElementById('chords-vertical-mixer');
+                        const mixerBtns = mRow ? mRow.querySelectorAll('[id^="chords-display-"]') : null;
+                        if (mixerBtns) {
+                            const vIdx = ['s', 'a', 't', 'b'].indexOf(vK);
+                            if (mixerBtns[vIdx]) {
+                                // Updated text writing according to user request: Voice + Dynamic name
+                                mixerBtns[vIdx].textContent = vK.toUpperCase() + ": " + dyn.label;
+                                mixerBtns[vIdx].style.background = getDisplayColor(val); // Dynamic color
+                                mixerBtns[vIdx].style.color = (val === 80 || val === null) ? "#fff" : (val > 80 ? "#331100" : "#ffffff"); 
+                                mixerBtns[vIdx].style.fontWeight = "bold";
+                            }
+                        }
+                    });
+                }
+                // Trigger preview re-render
+                const staffCt = document.getElementById('chord-staff-container');
+                const staged = staffCt?.dataset.stagedChord;
+                if (staged && acordesNotas[staged]) {
+                    window.renderChordPreviewOnStaff(staged, acordesNotas[staged], staffCt);
+                }
+            }
+            dBtn.style.background = '#e3f2fd';
+            setTimeout(() => dBtn.style.background = '#fff', 200);
+        };
+        dynContainer.appendChild(dBtn);
+    });
+
+    // Separator between static and shapes
+    const shapeSep = document.createElement('div');
+    shapeSep.style.cssText = 'width: 1px; height: 16px; background: #ccc; margin: 0 4px;';
+    dynContainer.appendChild(shapeSep);
+
+    // 2. Add Shapes (Cresc, Dim, etc.)
+    shapeConfigs.forEach(shape => {
+        const sBtn = document.createElement('button');
+        sBtn.className = 'theme-btn compact-dyn';
+        sBtn.textContent = shape.label;
+        sBtn.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; padding: 4px 4px 0 4px; font-size: 10px; font-family: "Bravura", serif; font-style: italic; cursor: pointer; border: 1px solid #bbb; border-radius: 3px; background: #fdfdfd; line-height: 1; min-width: 28px; height: 18px; overflow: hidden;';
+        
+        sBtn.onclick = (e) => {
+            e.preventDefault();
+            
+            const verticalProfiles = {
+                 'cresc': { s: 112, a: 96, t: 80, b: 64 }, 
+                 'dim':   { s: 64, a: 80, t: 96, b: 112 },
+                 'cima':  { s: 64, a: 112, t: 112, b: 64 },
+                 'valle': { s: 112, a: 64, t: 64, b: 112 } 
+            };
+            const profile = verticalProfiles[shape.type];
+
+            if (window.chordsMidiLinkEnabled) {
+                if (profile && window.chordVoiceOverwrites) {
+                    ['s','a','t','b'].forEach(vK => {
+                        const val = profile[vK];
+                        window.chordVoiceOverwrites[vK] = val;
+                        const mixerBtns = document.getElementById('chords-vertical-mixer')?.querySelectorAll('[id^="chords-display-"]');
+                        if (mixerBtns) {
+                            const idx = ['s', 'a', 't', 'b'].indexOf(vK);
+                            const dLabel = dynLabels.find(dl => dl.val === val)?.label || "--";
+                            if (mixerBtns[idx]) {
+                                const val = profile[vK];
+                                mixerBtns[idx].textContent = vK.toUpperCase() + ": " + dLabel; 
+                                mixerBtns[idx].style.background = getDisplayColor(val);
+                                mixerBtns[idx].style.color = val === 80 ? "#fff" : (val > 80 ? "#331100" : "#ffffff"); 
+                                mixerBtns[idx].style.fontWeight = "bold";
+                            }
+                        }
+                    });
+                }
+                if (window.refreshMidiEditorScore) window.refreshMidiEditorScore();
+            } else {
+                // Link OFF: Affect ONLY current Chord Staging/Preview
+                if (profile && window.chordVoiceOverwrites) {
+                    ['s','a','t','b'].forEach(vK => {
+                        const val = profile[vK];
+                        window.chordVoiceOverwrites[vK] = val;
+                        // Update Mixer buttons/displays UI
+                        const mRow = document.getElementById('chords-vertical-mixer');
+                        const mixerBtns = mRow ? mRow.querySelectorAll('[id^="chords-display-"]') : null;
+                        if (mixerBtns) {
+                            const vIdx = ['s', 'a', 't', 'b'].indexOf(vK);
+                            if (mixerBtns[vIdx]) {
+                                const dLabel = dynLabels.find(dl => dl.val === val)?.label || "--";
+                                mixerBtns[vIdx].textContent = vK.toUpperCase() + ": " + dLabel;
+                                mixerBtns[vIdx].style.background = getDisplayColor(val);
+                                mixerBtns[vIdx].style.color = (val === 80 || val === null) ? "#fff" : (val > 80 ? "#331100" : "#ffffff");
+                                mixerBtns[vIdx].style.fontWeight = "bold";
+                            }
+                        }
+                    });
+                }
+                // Trigger preview re-render
+                const staffCt = document.getElementById('chord-staff-container');
+                const staged = staffCt?.dataset.stagedChord;
+                if (staged && acordesNotas[staged]) {
+                    window.renderChordPreviewOnStaff(staged, acordesNotas[staged], staffCt);
+                }
+            }
+
+            sBtn.style.background = '#e3f2fd';
+            setTimeout(() => sBtn.style.background = '#fdfdfd', 200);
+        };
+        dynContainer.appendChild(sBtn);
+    });
+
+    // We'll append dynContainer to the headerContainer later
+    
+    // NEW: Vertical Balance Mixer (S, A, T, B offsets)
+    const mixerContainer = document.createElement('div');
+    mixerContainer.id = 'chords-vertical-mixer';
+    mixerContainer.style.cssText = 'display: flex; gap: 4px; padding: 4px 15px; border-bottom: 1px solid #ddd; background: inherit; align-items: center; justify-content: flex-start;';
+    // Siempre visible
+    mixerContainer.style.display = 'flex';
+
+    if (window.chordVoiceOverwrites === undefined) window.chordVoiceOverwrites = { s: 80, a: 80, t: 80, b: 80 };
+
+    // Order: 1. Dynamics Row (ppp..fff + shapes), then 2. Separator, then 3. Voice Displays
+    mixerContainer.appendChild(dynContainer);
+    
+    // Separator between global dynamics and individual mixer
+    const mixerSep = document.createElement('div');
+    mixerSep.style.cssText = 'width: 1px; height: 16px; background: #ddd; margin: 0 4px;';
+    mixerContainer.appendChild(mixerSep);
+    
+    const getDisplayColor = (vVal) => {
+         if (vVal === null || vVal === undefined) return "white";
+         if (vVal > 80) {
+              const ratio = (vVal - 80) / (127 - 80);
+              return `rgb(${Math.max(0, Math.min(255, Math.round(200 + ratio * 55)))}, ${Math.max(0, Math.min(255, Math.round(160 - ratio * 80)))}, 0)`;
+         } else if (vVal < 80) {
+               const ratio = (80 - vVal) / (80 - 16);
+               return `rgb(${Math.max(0, Math.min(255, Math.round(80 - ratio * 80)))}, ${Math.max(0, Math.min(255, Math.round(150 - ratio * 50)))}, 255)`;
+         } else return "#999";
+    };
+
+    ['s', 'a', 't', 'b'].forEach(vKey => {
+         const voiceDisplay = document.createElement('div');
+         voiceDisplay.id = `chords-display-${vKey}`;
+         const currentVal = window.chordVoiceOverwrites[vKey];
+         let displayText = "--";
+         let bgColor = "white";
+         let isBold = false;
+         
+         if (currentVal !== null) {
+              const currentDyn = dynLabels.find(d => d.val === currentVal);
+              displayText = currentDyn ? currentDyn.label : "--";
+              bgColor = "#e8f5e9";
+              isBold = true;
+         }
+
+         voiceDisplay.textContent = vKey.toUpperCase() + ": " + (displayText || "--");
+         const bC = getDisplayColor(currentVal);
+         const tC = (currentVal === 80 || currentVal === null) ? "#fff" : (currentVal > 80 ? "#331100" : "#ffffff");
+         voiceDisplay.style.cssText = `display: inline-flex; align-items: center; justify-content: center; padding: 2px 6px; font-size: 11px; border: 1px solid #bbb; border-radius: 4px; background: ${bC}; font-weight: bold; min-width: 45px; height: 22px; flex-shrink: 0; color: ${tC}; cursor: default; user-select: none; font-family: monospace; transition: all 0.2s ease; border-shadow: 0 1px 2px rgba(0,0,0,0.1);`;
+         
+         mixerContainer.appendChild(voiceDisplay);
+    });
+    
+    mainContainer.appendChild(mixerContainer);
     const insertContainer = document.createElement('label');
     insertContainer.style.cssText = 'display: inline-flex; align-items: center; cursor: pointer; font-size: 11px; margin-left: 10px; color: #333; font-family: sans-serif;';
     // Ocultar si está vinculado
@@ -19846,8 +20253,27 @@ window.initChordsPanel = function() {
         // Cambiar el color de fondo y de la cabecera para indicar visualmente la vinculación
         chordsPanel.style.setProperty('background', e.target.checked ? bodyColorLinked : bodyColorUnlinked, 'important');
         headerContainer.style.background = e.target.checked ? headerColorLinked : headerColorUnlinked;
+        
+        // MUSICOLI: La dinámica vertical se activa automáticamente al activar el Link
+        window.chordsVerticalDynamicsEnabled = e.target.checked;
+
         // Mostrar u ocultar el check de "Insert"
         insertContainer.style.display = e.target.checked ? 'none' : 'inline-flex';
+        // mixerContainer siempre visible
+        
+        // MUSICOLI: Hide/Show Preview Staff based on Link
+        const prevCol = document.getElementById('chord-preview-column');
+        if (prevCol) {
+            prevCol.style.display = e.target.checked ? 'none' : 'block';
+            // Trigger preview re-render when turning OFF to ensure colors are right
+            if (!e.target.checked) {
+                const staffCt = document.getElementById('chord-staff-container');
+                const staged = staffCt?.dataset.stagedChord;
+                if (staged && acordesNotas[staged]) {
+                    window.renderChordPreviewOnStaff(staged, acordesNotas[staged], staffCt);
+                }
+            }
+        }
 
         // Refrescar el editor MIDI para reflejar el cambio de modo Link
         if (window.refreshMidiEditorScore) window.refreshMidiEditorScore();
@@ -19858,6 +20284,7 @@ window.initChordsPanel = function() {
     headerContainer.appendChild(linkContainer);
     
     mainContainer.appendChild(headerContainer);
+    mainContainer.appendChild(mixerContainer); // Mezclador siempre bajo el header
     
     // Create Content Layout: Buttons Left, Preview Right
     const contentContainer = document.createElement('div');
@@ -19874,16 +20301,77 @@ window.initChordsPanel = function() {
     previewColumn.id = 'chord-preview-column';
     previewColumn.style.setProperty('width', '130px', 'important');
     previewColumn.style.setProperty('min-width', '130px', 'important');
+    previewColumn.style.display = window.chordsMidiLinkEnabled ? 'none' : 'block';
     
     const previewName = document.createElement('div');
     previewName.id = 'chord-preview-name';
-    previewName.textContent = 'Preview';
+    previewName.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 0 4px; box-sizing: border-box;';
     
+    const nameLabel = document.createElement('span');
+    nameLabel.id = 'chord-preview-name-label';
+    nameLabel.textContent = 'Preview';
+    nameLabel.style.flex = '1';
+    
+    // Pitch adjustment buttons
+    if (window.chordsSopranoRefMidi === undefined) {
+         const baseKey = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0;
+         window.chordsSopranoRefMidi = 72 + baseKey; 
+    }
+
     const staffContainer = document.createElement('div');
     staffContainer.id = 'chord-staff-container';
     staffContainer.style.cursor = 'pointer';
     staffContainer.style.width = '120px'; // Para que el SVG interior no desborde
-    staffContainer.title = window.chordInsertModeEnabled ? "Click to insert chord as NEW measure" : "Click to apply to ALL voices (SATB)";
+    staffContainer.title = (window.chordInsertModeEnabled ? "Click to insert chord as NEW measure" : "Click to apply to ALL voices (SATB)");
+
+    const pitchControls = document.createElement('div');
+    pitchControls.style.display = 'flex';
+    pitchControls.style.flexDirection = 'column';
+    pitchControls.style.gap = '1px';
+
+    const btnUp = document.createElement('button');
+    btnUp.textContent = '▲';
+    btnUp.style.cssText = 'width: 14px; height: 10px; font-size: 8px; border: none; background: #555; color: white; cursor: pointer; border-radius: 2px 2px 0 0; line-height: 1; padding: 0;';
+    btnUp.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.chordsSopranoRefMidi++;
+        
+        // Ensure preview reflects Soprano change: clear selection and force voice S
+        if (window.selectedNoteIndices) window.selectedNoteIndices = [];
+        const vSel = document.getElementById('voice-selector');
+        if (vSel) vSel.value = 's';
+        
+        const currentChord = staffContainer.dataset.stagedChord;
+        if (currentChord) {
+            window.renderChordPreviewOnStaff(currentChord, acordesNotas[currentChord], staffContainer);
+        }
+    };
+
+    const btnDown = document.createElement('button');
+    btnDown.textContent = '▼';
+    btnDown.style.cssText = 'width: 14px; height: 10px; font-size: 8px; border: none; background: #555; color: white; cursor: pointer; border-radius: 0 0 2px 2px; line-height: 1; padding: 0;';
+    btnDown.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.chordsSopranoRefMidi--;
+        
+        // Ensure preview reflects Soprano change: clear selection and force voice S
+        if (window.selectedNoteIndices) window.selectedNoteIndices = [];
+        const vSel = document.getElementById('voice-selector');
+        if (vSel) vSel.value = 's';
+
+        const currentChord = staffContainer.dataset.stagedChord;
+        if (currentChord) {
+            window.renderChordPreviewOnStaff(currentChord, acordesNotas[currentChord], staffContainer);
+        }
+    };
+
+    pitchControls.appendChild(btnUp);
+    pitchControls.appendChild(btnDown);
+
+    previewName.appendChild(nameLabel);
+    previewName.appendChild(pitchControls);
     
     previewColumn.appendChild(previewName);
     previewColumn.appendChild(staffContainer);
@@ -19930,14 +20418,17 @@ window.initChordsPanel = function() {
                     const satbResult = window.getSATBNotesForChord(rootMidi, intervals, activeVoiceCode);
                     const satb = satbResult.satb;
 
-                    // 2. Create the fresh SATB measure object (ONE Redonda per voice to cover measure)
+                    // 2. Create the fresh SATB measure object (FILL measure with ONE note)
+                    // Get the single-note pattern for the current time signature from trilipi matrix
+                    const defaultPattern = (window.trilipi && window.trilipi[1] && window.trilipi[1][0]) ? [...window.trilipi[1][0]] : [1];
+                    
                     // Apply varied dynamics here as well (S=92, A=64, T=76, B=104)
                     const newMeasure = {
                         voci: [
-                            { nami: 's', tipis: [1], nimidi: [satb.s], dinami: [92], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
-                            { nami: 'a', tipis: [1], nimidi: [satb.a], dinami: [64], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
-                            { nami: 't', tipis: [1], nimidi: [satb.t], dinami: [76], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
-                            { nami: 'b', tipis: [1], nimidi: [satb.b], dinami: [104], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" }
+                            { nami: 's', tipis: defaultPattern, nimidi: [satb.s], dinami: [92], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
+                            { nami: 'a', tipis: defaultPattern, nimidi: [satb.a], dinami: [64], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
+                            { nami: 't', tipis: defaultPattern, nimidi: [satb.t], dinami: [76], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" },
+                            { nami: 'b', tipis: defaultPattern, nimidi: [satb.b], dinami: [104], timis: [0], hexi: '#646464', coli: 'rgb(100,100,100)', tarari: "" }
                         ],
                         // MUSICOLI: Inherit arpeggio/stagger state from current editor selections
                         stagger: window.currentEditingStagger || 0,
@@ -19974,6 +20465,12 @@ window.initChordsPanel = function() {
         }
     };
 
+    // Initialize reference pitch if not set
+    if (window.chordsSopranoRefMidi === undefined) {
+        const baseKey = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0;
+        window.chordsSopranoRefMidi = 72 + baseKey; 
+    }
+
     // Populate buttons
     Object.keys(acordesNotas).forEach(name => {
         const btn = document.createElement('button');
@@ -19988,23 +20485,25 @@ window.initChordsPanel = function() {
             e.preventDefault();
             
             // 1. Get Context
-            let rootMidi = 72; // Default to C5 (72) for audition when empty
+            let rootMidi;
             const selectedIndices = window.selectedNoteIndices || [];
+            const voiceSelector = document.getElementById('voice-selector');
+            const activeVoiceCode = voiceSelector ? voiceSelector.value : 's';
 
             if (selectedIndices.length > 0 && window.currentFullMidiValues) {
                 rootMidi = Math.abs(window.currentFullMidiValues[selectedIndices[0]]) || 60;
             } else {
-                // Default to the current Key (tonalidad) in appropriate octaves per voice if no selection
-                const voiceSelector = document.getElementById('voice-selector');
-                const vCode = voiceSelector ? voiceSelector.value : 's';
+                // Return to previous logic: Use Key-based defaults but allow reference override
                 const baseKey = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0;
-                const defaults = { 's': 72 + baseKey, 'a': 60 + baseKey, 't': 60 + baseKey, 'b': 48 + baseKey };
-                rootMidi = defaults[vCode] || (72 + baseKey);
+                const defaults = { 
+                    's': window.chordsSopranoRefMidi, 
+                    'a': 60 + baseKey, 
+                    't': 60 + baseKey, 
+                    'b': 48 + baseKey 
+                };
+                rootMidi = defaults[activeVoiceCode] || window.chordsSopranoRefMidi;
             }
             
-            const voiceSelector = document.getElementById('voice-selector');
-            const activeVoiceCode = voiceSelector ? voiceSelector.value : 's';
-
             // 2. Play audition
             window.auditionSATBChord(rootMidi, intervals, activeVoiceCode);
 
@@ -20016,15 +20515,25 @@ window.initChordsPanel = function() {
             // Skip staging visual update if we are in insert mode, 
             // to avoid mutating the current measure while auditioning.
             if (!window.chordInsertModeEnabled) {
-                const result = window.getSATBNotesForChord(rootMidi, intervals, activeVoiceCode);
                 const singleInput = document.getElementById('midi-single-input');
                 if (singleInput && selectedIndices.length > 0) {
                     const currentVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v));
+                    
+                    // "Replicarlas": Parallel harmony starting from first note's relative structure
+                    const refPitch = Math.abs(window.currentFullMidiValues[selectedIndices[0]]) || 60;
+                    const refResult = window.getSATBNotesForChord(refPitch, intervals, activeVoiceCode);
+                    const refActivePitch = refResult.satb[activeVoiceCode];
+
                     selectedIndices.forEach(idx => {
                         if (idx < currentVals.length) {
                             // Preserving rest sign
                             const sign = currentVals[idx] >= 0 ? 1 : -1;
-                            currentVals[idx] = result.satb[activeVoiceCode] * sign;
+                            const currentNotePitch = Math.abs(currentVals[idx]) || 60;
+                            
+                            // Replicating intervals relative to First Note's anchor mapping
+                            // This ensures the active voice preserves its relative melody movement if possible
+                            const diff = currentNotePitch - refPitch;
+                            currentVals[idx] = (refActivePitch + diff) * sign;
                         }
                     });
                     singleInput.value = currentVals.join(' ');
@@ -20042,11 +20551,30 @@ window.initChordsPanel = function() {
         buttonsContainer.appendChild(btn);
     });
 
-    // Initial Preview
-    const firstChord = Object.keys(acordesNotas)[0];
-    if (firstChord) {
-        window.renderChordPreviewOnStaff(firstChord, acordesNotas[firstChord], staffContainer);
-        staffContainer.dataset.stagedChord = firstChord;
+    // Initial Preview: Select chord based on global scale mode
+    const scaleModeSelect = document.getElementById('scale-mode');
+    const scaleMode = scaleModeSelect ? scaleModeSelect.value : 'Major';
+    let defaultChord = (scaleMode === 'Major' || scaleMode === 'Lidio' || scaleMode === 'Mixolidio') ? 'Maj' : 'min';
+    
+    // Ensure the default chord actually exists in our list
+    if (!acordesNotas[defaultChord]) defaultChord = Object.keys(acordesNotas)[0];
+
+    if (defaultChord) {
+        // We ensure Soprano Reference is used for initial preview
+        const voiceSelector = document.getElementById('voice-selector');
+        const activeVoiceCode = voiceSelector ? voiceSelector.value : 's';
+        const baseKey = (typeof keyinselecti !== 'undefined') ? keyinselecti : 0;
+        
+        let rootMidi;
+        if (activeVoiceCode === 's') {
+            rootMidi = window.chordsSopranoRefMidi || (72 + baseKey);
+        } else {
+             const defaults = { 'a': 60+baseKey, 't': 60+baseKey, 'b': 48+baseKey };
+             rootMidi = defaults[activeVoiceCode] || 72;
+        }
+
+        window.renderChordPreviewOnStaff(defaultChord, acordesNotas[defaultChord], staffContainer);
+        staffContainer.dataset.stagedChord = defaultChord;
     }
 };
 
@@ -20118,10 +20646,39 @@ window.applyChordToSelectedNotes = function(chordType) {
                 const sign = v.nimidi[idx] >= 0 ? 1 : -1;
                 v.nimidi[idx] = targetPitch * sign;
                 
-                // Apply the specific dynamic for this voice
-                if (!v.dinami) v.dinami = new Array(v.nimidi.length).fill(80);
-                if (idx < v.dinami.length) {
-                    v.dinami[idx] = chordDynamics[v.nami] || 80;
+                // MUSICOLI: Apply Balanced Vertical Dynamics if enabled.
+                if (window.chordsVerticalDynamicsEnabled && currentMidiVals.length > idx) {
+                    // Ideal balance offsets
+                    const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                    
+                    // Priority: Individual Mixer Overwrite for this voice
+                    if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[v.nami] !== null) {
+                        const overwrite = window.chordVoiceOverwrites[v.nami];
+                        if (!v.dinami) v.dinami = new Array(v.nimidi.length).fill(80);
+                        
+                        if (typeof overwrite === 'string' && overwrite.startsWith("shape:")) {
+                            // If shape mode, we assume the button click already placed the values in v.dinami
+                            // (No action needed here to preserve the shape)
+                        } else {
+                            v.dinami[idx] = overwrite;
+                        }
+                    } else {
+                        const activeOffset = offsets[curVoiceCode] || 0;
+                        // The anchor note's dynamic (active voice)
+                        const activeDyn = (measure.voci.find(av => av.nami === curVoiceCode)?.dinami || [])[idx] || 80;
+                        // The 'column mean' derived from active voice
+                        const colMean = activeDyn - activeOffset;
+                        
+                        if (!v.dinami) v.dinami = new Array(v.nimidi.length).fill(80);
+                        // Standard target maintaining offset
+                        v.dinami[idx] = Math.max(16, Math.min(127, colMean + (offsets[v.nami] || 0)));
+                    }
+                } else {
+                    // Apply the specific dynamic for this voice
+                    if (!v.dinami) v.dinami = new Array(v.nimidi.length).fill(80);
+                    if (idx < v.dinami.length) {
+                        v.dinami[idx] = chordDynamics[v.nami] || 80;
+                    }
                 }
             }
         });
@@ -20173,6 +20730,25 @@ document.addEventListener('DOMContentLoaded', function () {
         window.initChordsPanel();
     }
 });
+
+/**
+ * MUSICOLI: MIDI STAFF VISIBILITY CONTROLLER (Global)
+ * Toggles the visibility of the midi-visualizer staff.
+ * @param {boolean} [visible] - Optional forced visibility state.
+ */
+window.toggleMidiStaff = function(visible) {
+    const staff = document.getElementById('staffi');
+    const toggle = document.getElementById('score-viz-toggle');
+    
+    if (staff) {
+        // If visible is not provided, toggle the current state
+        const targetVisible = (typeof visible === 'boolean') ? visible : (staff.style.display === 'none');
+        staff.style.display = targetVisible ? 'block' : 'none';
+        
+        // Always sync the check box if it exists
+        if (toggle) toggle.checked = targetVisible;
+    }
+};
 
 
 /* ============================================

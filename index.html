@@ -192,8 +192,6 @@
       display: flex;
       flex-direction: column;
       padding: 0 !important;
-      padding-right: 50px !important;
-      /* 50px trailing space so cursor can be placed after last measure */
       gap: 0 !important;
       /* No gap between rows */
     }
@@ -864,7 +862,7 @@
         <div id="tracks-scroll-viewport"
           style="flex: 1; overflow-x: auto; overflow-y: hidden; display: flex; flex-direction: column; padding: 0;">
           <div id="macoti-tracks-container"
-            style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px; padding-right: 50px;">
+            style="width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 0px;">
 
             <!-- Row S -->
             <div id="content-row-s" class="content-row"
@@ -926,6 +924,13 @@
                   style="border: none; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 12px;">
                   Loop OFF
                 </button>
+                <!-- SCORE VISIBILITY TOGGLE -->
+                <label style="display: flex; align-items: center; gap: 6px; color: #eee; font-family: monospace; font-size: 11px; cursor: pointer; user-select: none; margin-right: 5px;">
+                  <input type="checkbox" id="score-viz-toggle" checked 
+                         onclick="if(typeof toggleMidiStaff==='function') toggleMidiStaff(this.checked)"
+                         style="cursor: pointer; width: 14px; height: 14px;">
+                  Score
+                </label>
                 <span id="title-container" style="display:inline-flex; align-items: center; gap: 2px;">
                   <input id="title-input" type="text"
                     style="color:#bbb; font-family: monospace; font-size: 14px; padding: 2px 5px; border: 1px solid transparent; border-radius: 3px; background: rgba(0,0,0,0.2); width: 100px; outline: none; transition: border 0.2s;"
@@ -2147,7 +2152,7 @@
 
         <!-- RIGHT COLUMN: Tools & Composition -->
         <div id="right-column-wrapper"
-          style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+          style="width: 50%; min-width: 0; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 10px; align-self: flex-start; max-height: 95vh; overflow-y: auto; z-index: 100;">
 
           <!-- 7. COMPOSITION EDITOR (RIGHT PART: STRUCTURE GENERATOR) -->
           <div id="editor-composicion" class="mode-panel mode-editor editor-composicion"
@@ -2208,7 +2213,7 @@
 
           <!-- 9. MIDI EDITOR (In Right Column) -->
           <div id="modal-display-container" class="mode-panel mode-editor editor-tonalidad editor-ritmo"
-            style="display: none; background: #fff; padding: 0; border-radius: 0 8px 8px 8px; border: 1px solid #ddd; border-left: 1px solid #eee; box-shadow: 4px 4px 15px rgba(0,0,0,0.1); flex: 1; overflow: hidden; min-height: 400px; max-height: 600px; position: relative; z-index: 1;">
+            style="display: none; background: #fff; padding: 0; border: 1px solid #ccc; border-top: 3px solid #666; flex: 1; overflow: hidden; min-height: 400px; position: relative; z-index: 1;">
             <div id="midi-editor-content" style="display: flex; flex-direction: column; width: 100%;">
               <div
                 style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f5f5f5; border-bottom: 1px solid #ddd; border-radius: 0 8px 0 0; margin-bottom: 10px;">
@@ -2226,6 +2231,56 @@
                     style="display: none; background: #2196F3; color: white; border: none; padding: 8px 24px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Add</button>
                   <button id="midi-editor-accept"
                     style="display: none; visibility:hidden; background: #4CAF50; color: white; border: none; padding: 8px 24px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 10. TESSITURAS PANEL -->
+          <div id="editor-tessituras-panel" class="mode-panel mode-editor editor-tonalidad"
+            style="display: none; background: #333333; padding: 0; border-radius: 8px; border: 1px solid #555555; box-shadow: 4px 4px 15px rgba(0,0,0,0.3); margin-top: 10px; overflow: hidden;">
+            <div style="padding: 8px 12px; background: #444444; border-bottom: 1px solid #555555; display: flex; justify-content: space-between; align-items: center;">
+              <h3 class="mode-editor-title" data-i18n="Tessituras" style="font-size: 13px; margin: 0; color: #ffffff; font-family: monospace;">Tessituras</h3>
+            </div>
+            <div style="padding: 15px; display: flex; flex-direction: column; gap: 12px;">
+              <!-- Soprano -->
+              <div class="tessitura-row" style="display: flex; align-items: center; gap: 15px;">
+                <span style="width: 25px; font-weight: bold; color: #4dabf7; font-family: monospace; font-size: 14px;">S</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                  <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
+                  <input type="number" id="tessitura-min-s" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <input type="number" id="tessitura-max-s" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                </div>
+              </div>
+              <!-- Alto -->
+              <div class="tessitura-row" style="display: flex; align-items: center; gap: 15px;">
+                <span style="width: 25px; font-weight: bold; color: #69db7c; font-family: monospace; font-size: 14px;">A</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                  <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
+                  <input type="number" id="tessitura-min-a" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <input type="number" id="tessitura-max-a" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                </div>
+              </div>
+              <!-- Tenor -->
+              <div class="tessitura-row" style="display: flex; align-items: center; gap: 15px;">
+                <span style="width: 25px; font-weight: bold; color: #ffa94d; font-family: monospace; font-size: 14px;">T</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                  <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
+                  <input type="number" id="tessitura-min-t" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <input type="number" id="tessitura-max-t" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                </div>
+              </div>
+              <!-- Bass -->
+              <div class="tessitura-row" style="display: flex; align-items: center; gap: 15px;">
+                <span style="width: 25px; font-weight: bold; color: #ff8787; font-family: monospace; font-size: 14px;">B</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                  <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
+                  <input type="number" id="tessitura-min-b" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <input type="number" id="tessitura-max-b" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
                 </div>
               </div>
             </div>
