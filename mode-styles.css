@@ -403,13 +403,14 @@ body.app-mode-ritmo #editor-ritmo {
    RHYTHM-ONLY BUTTONS
    ============================================ */
 
-/* Hide rhythm-only buttons when not in rhythm mode */
-body:not(.app-mode-ritmo):not(.app-mode-composicion) .rhythm-only {
+/* Hide rhythm-only buttons when not in rhythm, composition, or tonalidad (melody) mode */
+body:not(.app-mode-ritmo):not(.app-mode-composicion):not(.app-mode-tonalidad) .rhythm-only {
   visibility: hidden;
 }
 
-/* MUSICOLI: Empezar button visible in Composicion mode */
-body.app-mode-composicion #empezar-btn {
+/* MUSICOLI: Empezar button visible in Composicion and Tonalidad modes */
+body.app-mode-composicion #empezar-btn,
+body.app-mode-tonalidad #empezar-btn {
   visibility: visible !important;
 }
 
@@ -613,6 +614,14 @@ body.voice-mode-independent #editor-chords-panel {
   transition: all 0.2s;
   min-width: 0 !important;
   text-align: center;
+}
+
+#editor-chords-panel .chord-btn.active {
+  background: #ffffff !important;
+  border-color: #333 !important;
+  color: #000 !important;
+  font-weight: bold;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2) !important;
 }
 
 #rhythm-color-info-div {

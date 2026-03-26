@@ -257,7 +257,7 @@ function restini(tri) {
 
 inimetri([4, 4]);
 
-function convernai(cadena, sonis, duribi, numero = 4) {
+function convernai(cadena, sonis, duribi, numero = 4, ligi = [], highNotes = [], tiedFromPrevious = false) {
     const mapa = {
         0: "&#xE1D2;&nbsp;&nbsp;&nbsp;", // Redonda
         1: "&#xE1D2;&nbsp;&nbsp;&nbsp;", // Redonda (si 1 es redonda en trilipi)
@@ -304,6 +304,20 @@ function convernai(cadena, sonis, duribi, numero = 4) {
     //console.log('D '+JSON.stringify(elementos))
     return elementos
         .map((num, idx, arr) => {
+            let res = "";
+            // MUSICOLI: Slur arc drawn with CSS (no font glyph dependency)
+            // tieStart = CSS arc attached AFTER the tied note (right side)
+            // tieEnd   = CSS arc attached BEFORE the note receiving the tie (left side)
+            const isStartOfTie = ligi && ligi[idx];
+            const isHighNote = highNotes && highNotes[idx];
+            const glyph = isHighNote ? '&#xE4BB;' : '&#xE4BA;';
+            const tieStart = (isStartOfTie && sonis[idx] === 1)
+                ? `<span style="position:absolute; display:inline-block; font-size:26px; color:white; top:${isHighNote ? '18px' : '-22px'}; left:20px; z-index:50;">${glyph}</span>`
+                : '';
+            const tieEnd = (idx === 0 && tiedFromPrevious && sonis[idx] === 1)
+                ? `<span style="position:absolute; display:inline-block; font-size:26px; color:white; top:${isHighNote ? '18px' : '-22px'}; left:-18px; z-index:50;">${glyph}</span>`
+                : '';
+            
             if (num === numero) {
                 // Determinamos si el número está solo
                 const anterior = arr[idx - 1];
@@ -313,42 +327,26 @@ function convernai(cadena, sonis, duribi, numero = 4) {
                     (anterior === undefined || anterior !== numero) && // No hay el número antes
                     (siguiente === undefined || siguiente !== numero) // No hay el número después
                 ) {
-                    if (silai[idx] == 0) {
-                        return ialti[idx] + altTres["a"] + "</span>";
-                    } else {
-                        return ialti[idx] + altTres["a"] + "</span>";
-                    }
+                    res = ialti[idx] + tieEnd + altTres["a"] + tieStart + "</span>";
                 } else if (
                     anterior !== numero && // No hay el número antes
                     siguiente === numero // Hay el número después
                 ) {
-                    //
-                    if (silai[idx] == 0) {
-                        return ialti[idx] + altTres["b"] + "</span>";
-                    } else {
-                        return ialti[idx] + altTres["b"] + "</span>";
-                    }
+                    res = ialti[idx] + tieEnd + altTres["b"] + tieStart + "</span>";
                 } else if (
                     anterior === numero && // Hay el número antes
                     (siguiente === undefined || siguiente !== numero) // No hay el número después
                 ) {
-                    if (silai[idx] == 0) {
-                        return ialti[idx] + altTres["d"] + "</span>";
-                    } else {
-                        return ialti[idx] + altTres["d"] + "</span>";
-                    }
+                    res = ialti[idx] + tieEnd + altTres["d"] + tieStart + "</span>";
                 } else {
-                    if (silai[idx] == 0) {
-                        return ialti[idx] + altTres["c"] + "</span>";
-                    } else {
-                        return ialti[idx] + altTres["c"] + "</span>";
-                    }
+                    res = ialti[idx] + tieEnd + altTres["c"] + tieStart + "</span>";
                 }
             } else if (mapa[num.toString()] !== undefined) {
-                return ialti[idx] + mapa[num.toString()] + "</span>";
+                res = ialti[idx] + tieEnd + mapa[num.toString()] + tieStart + "</span>";
             } else {
-                return ialti[idx] + num + "</span>"; // Si no coincide, se deja el número tal cual
+                res = ialti[idx] + tieEnd + num + tieStart + "</span>"; // Si no coincide, se deja el número tal cual
             }
+            return tieEnd + res;
         })
         .join("");
 }

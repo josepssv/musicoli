@@ -107,12 +107,14 @@
             panel.style.flexDirection = 'column';
             panel.style.gap = '5px';
             panel.style.padding = '8px';
-            panel.style.background = '#333333';
-            panel.style.borderRadius = '6px';
-            panel.style.boxShadow = '0 1px 4px rgba(0,0,0,0.5)';
-            panel.style.height = '100%';
+            panel.style.background = 'linear-gradient(135deg, #333333 0%, #222222 100%)';
+            panel.style.borderRadius = '8px';
+            panel.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
+            panel.style.height = 'auto';
             panel.style.border = '1px solid #555555';
-            panel.style.overflowY = 'auto';
+            panel.style.overflowY = 'visible';
+            panel.style.position = 'relative'; 
+            panel.style.zIndex = '10'; 
             container.prepend(panel);
         } else {
             // MUSICOLI: Si ya existe, no recargamos para no perder la imagen cargada por el usuario
