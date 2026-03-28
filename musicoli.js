@@ -6931,7 +6931,7 @@ function createRitmoEditor(containerId) {
 
     // Accept button for single rhythm selection
     const acceptBtn = document.createElement('button');
-    acceptBtn.textContent = 'Accept';
+    acceptBtn.textContent = (typeof t === 'function') ? t("Empezar") : 'Accept';
     acceptBtn.id = 'rhythm-notation-button';
     acceptBtn.style.padding = '4px 12px';
     acceptBtn.style.fontSize = '11px';
@@ -7240,21 +7240,28 @@ function createRitmoEditor(containerId) {
                 "chordi": false
             };
 
-            // NEW APPROACH: Use the centralized addMeasureWithMode function
-            // This ensures consistent behavior for harmony generation and data structure
+            // STANDARDIZED INSERTION LOGIC
+            // Use selectionRange if available, fallback to selectedMeasureIndex
+            const selectionRange = window.selectionRange || { start: -1, end: -1 };
+            const baseIndex = (selectionRange.start !== -1) 
+                ? selectionRange.start 
+                : (window.selectedMeasureIndex !== -1 ? window.selectedMeasureIndex : bdiRef.length);
+            
+            const selectedCount = (selectionRange.start !== -1 && selectionRange.end !== -1)
+                ? (selectionRange.end - selectionRange.start + 1)
+                : 1;
 
-            const cursorMeasureIndex = (typeof np6 !== 'undefined' && np6.getCursorMeasureIndex)
-                ? np6.getCursorMeasureIndex()
-                : bdiRef.length;
+            const cursorMeasureIndex = baseIndex;
 
             // Define selectedMatchCode based on selectedVoiceName
             const shortVoiceMap = { 'soprano': 's', 'contralto': 'a', 'tenor': 't', 'bajo': 'b' };
             const selectedMatchCode = shortVoiceMap[selectedVoiceName] || (['s', 'a', 't', 'b'].includes(selectedVoiceName) ? selectedVoiceName : 's');
 
-            // Multiplier logic
-            const multiplier = (typeof rhythmMultiplierSelect !== 'undefined') ? parseInt(rhythmMultiplierSelect.value) || 1 : 1;
+            // Multiplier logic: Use the larger of the selection count or the manual multiplier
+            const multiplierValue = (typeof rhythmMultiplierSelect !== 'undefined') ? parseInt(rhythmMultiplierSelect.value) || 1 : 1;
+            const finalCount = Math.max(multiplierValue, selectedCount);
 
-            for (let m = 0; m < multiplier; m++) {
+            for (let m = 0; m < finalCount; m++) {
                 const currentIterationIndex = cursorMeasureIndex + m;
 
                 if (typeof window.addMeasureWithMode === 'function') {
@@ -7264,20 +7271,8 @@ function createRitmoEditor(containerId) {
                     const voiceCode = selectedMatchCode || 's';
 
                     if (currentMode === 'independent') {
-                        // MODO INDEPENDIENTE: Llenar el patrón en TODAS las pistas audibles
-                        const playbackSelector = document.getElementById('playback-selector');
-                        const selectedVoicesStr = playbackSelector ? playbackSelector.value : 's,a,t,b';
-                        const audibleVoices = selectedVoicesStr.split(',').filter(v => ['s', 'a', 't', 'b'].includes(v));
-
-                        if (audibleVoices.length > 0) {
-                            audibleVoices.forEach(v => {
-                                // Aplicar el patrón a cada pista audible
-                                window.addMeasureWithMode({ ...measureData, nami: v }, v, currentIterationIndex);
-                            });
-                        } else {
-                            // Fallback por precaución
-                            window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
-                        }
+                        // MODO INDEPENDIENTE: Solo en la fila actual (pista activa)
+                        window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
                     } else {
                         // MODO DEPENDIENTE: Una sola llamada y addMeasureWithMode se encarga de armonizar las 4 pistas
                         window.addMeasureWithMode(measureData, voiceCode, currentIterationIndex);
@@ -7328,9 +7323,9 @@ function createRitmoEditor(containerId) {
 
                 // Restore and advance cursor
                 if (typeof window.selectedMeasureIndex !== 'undefined') {
-                    window.selectedMeasureIndex = cursorMeasureIndex + multiplier;
+                    window.selectedMeasureIndex = cursorMeasureIndex + finalCount;
                     if (window.np6) {
-                        window.np6.cursorPos = cursorMeasureIndex + multiplier;
+                        window.np6.cursorPos = cursorMeasureIndex + finalCount;
                         if (typeof np6._render === 'function') np6._render();
                         if (typeof np6.focus === 'function') np6.focus();
                         if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
@@ -7339,7 +7334,7 @@ function createRitmoEditor(containerId) {
             } else {
                 // Fallback: at least update cursor
                 if (typeof np6 !== 'undefined') {
-                    np6.cursorPos = cursorMeasureIndex + multiplier;
+                    np6.cursorPos = cursorMeasureIndex + finalCount;
                     np6._render();
                     if (typeof np6.focus === 'function') np6.focus();
                     if (typeof np6.scrollToCursor === 'function') np6.scrollToCursor();
@@ -8200,8 +8195,9 @@ function createRitmoEditor(containerId) {
                 // Update color preview
                 updateColorPreview(pattern);
 
-                // Show accept button
+                // Show accept button and multiplier
                 acceptBtn.style.display = 'block';
+                if (typeof rhythmMultiplierSelect !== 'undefined') rhythmMultiplierSelect.style.display = 'block';
 
                 // Update tarareo input with syllable representation
                 const tarareoInput = document.getElementById('tarareo-input');
@@ -12323,7 +12319,8 @@ ${notepadCss}
 
             // Visual feedback
             const originalText = empezarBtn.textContent;
-            empezarBtn.textContent = '¡Listo!';
+            const successText = (typeof currentLanguage !== 'undefined' && currentLanguage === 'es') ? '¡Vaciado!' : 'Emptied!';
+            empezarBtn.textContent = successText;
             empezarBtn.style.background = '#45a049';
             setTimeout(() => {
                 empezarBtn.textContent = originalText;
@@ -14099,42 +14096,72 @@ ${notepadCss}
                     });
                 }
 
-                if (isLinked && activeNote) {
+                if (isLinked) {
                     const stagedChordName = document.getElementById('chord-staff-container')?.dataset.stagedChord;
                     const intervals = stagedChordName ? acordesNotas[stagedChordName] : null;
-                    const selectedIndices = window.selectedNoteIndices || [];
-                    const isSelected = selectedIndices.includes(activeNote.index);
 
-                    if (intervals && selectedIndices.length > 0 && isSelected) {
-                        const harmony = window.getSATBNotesForChord(activeNote.midi, intervals, activeVoiceCode);
-                        
-                        // Sync active voice intensity from global overwrites if available
-                        const activeOverwrite = window.chordVoiceOverwrites?.[activeVoiceCode];
-                        if (activeOverwrite !== undefined && activeOverwrite !== null) {
-                            voiceNotesAtPosition[0].intensity = activeOverwrite;
-                        } else {
-                            voiceNotesAtPosition[0].intensity = chordDynamicsColors[activeVoiceCode] || voiceNotesAtPosition[0].intensity;
-                        }
-                        
-                        Object.keys(harmony.satb).forEach(vCode => {
-                            if (vCode !== activeVoiceCode) {
-                                const offsets = { s: 8, a: -20, t: -8, b: 20 };
-                                let intensityVal = chordDynamicsColors[vCode] || 80;
-                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[vCode] !== null) {
-                                    intensityVal = window.chordVoiceOverwrites[vCode];
-                                } else if (window.chordsVerticalDynamicsEnabled) {
-                                    const activeOffset = offsets[activeVoiceCode] || 0;
-                                    const columnMean = voiceNotesAtPosition[0].intensity - activeOffset;
-                                    intensityVal = Math.max(16, Math.min(127, columnMean + (offsets[vCode] || 0)));
-                                }
-                                voiceNotesAtPosition.push({
-                                    midi: Math.abs(harmony.satb[vCode]),
-                                    voice: vCode, isActive: false, isHarmonyPreview: true, intensity: intensityVal, rhythm: activeNote.duration
-                                });
+                    if (intervals) {
+                        // For each secondary voice, show its own notes at their own time positions
+                        // with the pitch updated to the chord note from the overlapping active-voice note.
+                        // This mirrors exactly the logic used by Apply (acceptBtn).
+                        Object.keys(otherVoicesData).forEach(vCode => {
+                            // Only show a note for this voice if it starts at currentTime
+                            const vNote = otherVoicesData[vCode].find(n => n.start === currentTime);
+                            if (!vNote) return;
+
+                            const isRest = vNote.midi < 0;
+
+                            // Find the active voice note that overlaps this secondary note's start time
+                            const overlappingActive = activeNotesData.find(n => {
+                                const adur = Math.abs(n.duration);
+                                return currentTime >= n.start && currentTime < n.start + adur;
+                            });
+
+                            let displayMidi;
+                            let isHarmonyPreview = false;
+                            if (overlappingActive && activeNote) {
+                                // Compute the chord note for this voice based on the overlapping active note
+                                const anchorMidi = Math.abs(overlappingActive.midi);
+                                const h = window.getSATBNotesForChord(anchorMidi, intervals, activeVoiceCode);
+                                displayMidi = isRest ? -h.satb[vCode] : h.satb[vCode];
+                                isHarmonyPreview = true;
+                            } else {
+                                // No active note overlaps → show current BDI pitch unchanged
+                                displayMidi = vNote.midi;
                             }
+
+                            const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                            let intensityVal = chordDynamicsColors[vCode] || 80;
+                            if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[vCode] !== null) {
+                                intensityVal = window.chordVoiceOverwrites[vCode];
+                            } else if (window.chordsVerticalDynamicsEnabled && activeNote) {
+                                const activeOffset = offsets[activeVoiceCode] || 0;
+                                const activeDynami = (window.currentEditingDynamicsValues && window.currentEditingDynamicsValues[activeNote.index]) || 80;
+                                const columnMean = activeDynami - activeOffset;
+                                intensityVal = Math.max(16, Math.min(127, columnMean + (offsets[vCode] || 0)));
+                            }
+
+                            voiceNotesAtPosition.push({
+                                midi: Math.abs(displayMidi),
+                                voice: vCode,
+                                isActive: false,
+                                isHarmonyPreview,
+                                intensity: intensityVal,
+                                rhythm: vNote.duration
+                            });
                         });
+
+                        // Also update active voice intensity display
+                        if (activeNote && voiceNotesAtPosition.length > 0) {
+                            const activeOverwrite = window.chordVoiceOverwrites?.[activeVoiceCode];
+                            if (activeOverwrite !== undefined && activeOverwrite !== null) {
+                                voiceNotesAtPosition[0].intensity = activeOverwrite;
+                            } else {
+                                voiceNotesAtPosition[0].intensity = chordDynamicsColors[activeVoiceCode] || voiceNotesAtPosition[0].intensity;
+                            }
+                        }
                     } else {
-                        // Fallback to BDI for other voices matched by time
+                        // Link ON but no chord selected → show BDI notes as-is
                         Object.keys(otherVoicesData).forEach(vCode => {
                             const vNote = otherVoicesData[vCode].find(n => n.start === currentTime);
                             if (vNote) {
@@ -14145,7 +14172,7 @@ ${notepadCss}
                         });
                     }
                 } else {
-                    // Not linked or no active note? Show all BDI notes starting at this time
+                    // Not linked → show all BDI notes starting at this time
                     Object.keys(otherVoicesData).forEach(vCode => {
                         const vNote = otherVoicesData[vCode].find(n => n.start === currentTime);
                         if (vNote) {
@@ -14237,7 +14264,7 @@ ${notepadCss}
                     }
 
                     let vNoteColor = vNote.isActive ? '#000' : '#666';
-                    let vNoteOpacity = (vNote.isActive || vNote.isHarmonyPreview) ? (isSelected ? '1' : '0.8') : '0.25';
+                    let vNoteOpacity = vNote.isActive ? (isSelected ? '1' : '0.8') : (vNote.isHarmonyPreview ? '0.4' : '0.15');
                     
                     const subRhythmSpan = document.createElement('span');
                     subRhythmSpan.innerHTML = rhythmChar;
@@ -15158,11 +15185,13 @@ ${notepadCss}
                     newTipis = new Array(newMidiValues.length).fill(4);
                 }
 
-                // Recalculate timis
+                // Recalculate timis (cumulative sum of durations)
                 let newTimis = [];
-                if (typeof restini === 'function') {
-                    newTimis = restini([newTipis])[0];
-                }
+                let currentPos = 0;
+                newTipis.forEach(t => {
+                    newTimis.push(currentPos);
+                    currentPos += Math.abs(t);
+                });
 
                 // Update active voice inside newMeasure
                 // Ensure voci array exists
@@ -15207,70 +15236,76 @@ ${notepadCss}
 
                         newMeasure.voci.forEach(v => {
                             if (v.nami !== voiceCode) {
-                                // MUSICOLI: Preserve rhythm if the voice already exists in source
                                 const exV = (sourceMeasure && sourceMeasure.voci) ? (Array.isArray(sourceMeasure.voci) ? sourceMeasure.voci.find(sv => sv.nami === v.nami) : sourceMeasure.voci[v.nami]) : null;
                                 
-                                if (exV && exV.tipis && exV.tipis.length > 0) {
-                                    v.tipis = [...exV.tipis];
-                                    v.timis = (exV.timis && Array.isArray(exV.timis)) ? [...exV.timis] : (typeof restini === 'function' ? restini([v.tipis])[0] : []);
-                                    v.nimidi = [...exV.nimidi];
-                                    v.dinami = exV.dinami ? [...exV.dinami] : new Array(exV.nimidi.length).fill(64);
-                                    // MUSICOLI: Preserve ligi (tie) data
-                                    v.ligi = exV.ligi ? [...exV.ligi] : new Array(exV.nimidi.length).fill(0);
-                                } else {
-                                    // Fallback: Sync rhythm from active voice if no existing voice found
-                                    v.tipis = [...activeVoice.tipis];
-                                    v.timis = (activeVoice.timis && Array.isArray(activeVoice.timis)) ? [...activeVoice.timis] : (typeof restini === 'function' ? restini([v.tipis])[0] : []);
-                                }
+                                // In dependent mode, sync rhythm (tipis/timis) and dynamics count from active voice
+                                v.tipis = (exV && exV.tipis && exV.tipis.length > 0) ? [...exV.tipis] : [...activeVoice.tipis];
+                                
+                                // Calculate correct cumulative timis for this voice
+                                let voiceTimis = [];
+                                let vPos = 0;
+                                v.tipis.forEach(t => {
+                                    voiceTimis.push(vPos);
+                                    vPos += Math.abs(t);
+                                });
+                                v.timis = voiceTimis;
+                                v.nimidi = (exV && exV.nimidi && exV.nimidi.length > 0) ? [...exV.nimidi] : new Array(v.tipis.length).fill(60);
+                                v.dinami = (exV && exV.dinami && exV.dinami.length === v.tipis.length) ? [...exV.dinami] : new Array(v.tipis.length).fill(64);
+                                v.ligi = (exV && exV.ligi && exV.ligi.length === v.tipis.length) ? [...exV.ligi] : new Array(v.tipis.length).fill(0);
+                                v.liri = (exV && exV.liri) ? [...exV.liri] : [];
 
                                 if (isChordLinked && chordIntervals) {
-                                    // Use Linked Chord Harmony based on time positions
-                                    const harmonyData = [];
-                                    v.nimidi.forEach((targetNote, vIdx) => {
-                                        const startTime = v.timis[vIdx];
-                                        // Overlap search to find active voice note at this time
+                                    // Linked Chord Harmony: Use each note's own timing to find the overlapping active voice note
+                                    v.nimidi = v.nimidi.map((targetNote, vi) => {
+                                        const startTime = v.timis[vi];
                                         const activeIdx = activeVoice.timis.findIndex((at, ai) => {
                                             const adur = Math.abs(activeVoice.tipis[ai]);
                                             return startTime >= at && startTime < at + adur;
                                         });
-                                        const anchorNote = (activeIdx !== -1) ? activeVoice.nimidi[activeIdx] : 60;
+                                        if (activeIdx === -1) return targetNote; 
+                                        const anchorNote = activeVoice.nimidi[activeIdx];
+                                        const isRest = targetNote < 0 || v.tipis[vi] < 0;
                                         const h = window.getSATBNotesForChord(Math.abs(anchorNote), chordIntervals, voiceCode);
-                                        harmonyData.push(h.satb[v.nami] * (targetNote >= 0 ? 1 : -1));
+                                        return isRest ? -h.satb[v.nami] : h.satb[v.nami];
                                     });
-                                    v.nimidi = harmonyData;
-                                } else if (typeof generateHarmonyForVoice === 'function') {
-                                    // Standard Scale-based Harmony (Time-aware)
-                                    // Note: If exV existed, we should iterate over it. If not, generateHarmonyForVoice legacy will occur
-                                    if (exV && exV.tipis && exV.tipis.length > 0) {
-                                        const harmonyData = [];
-                                        v.nimidi.forEach((targetNote, vIdx) => {
-                                             const startTime = v.timis[vIdx];
+
+                                    // Apply Vertical Dynamics if enabled
+                                    if (window.chordsVerticalDynamicsEnabled) {
+                                        const offsets = { s: 8, a: -20, t: -8, b: 20 };
+                                        const activeOffset = offsets[voiceCode] || 0;
+                                        v.dinami = v.nimidi.map((_, vi) => {
+                                             const startTime = v.timis[vi];
                                              const activeIdx = activeVoice.timis.findIndex((at, ai) => {
                                                  const adur = Math.abs(activeVoice.tipis[ai]);
-                                                 return startTime >= at && startTime < at + (adur || 1);
+                                                 return startTime >= at && startTime < at + adur;
                                              });
-                                             const anchorData = (activeIdx !== -1) ? {
-                                                 nimidi: [activeVoice.nimidi[activeIdx]],
-                                                 tipis: [activeVoice.tipis[activeIdx]],
-                                                 timis: [0],
-                                                 dinami: [activeVoice.dinami[activeIdx] || 80]
-                                             } : { nimidi: [60], tipis: [4], timis: [0], dinami: [80] };
-                                             const h = generateHarmonyForVoice(anchorData, v.nami, voiceCode);
-                                             harmonyData.push((h.nimidi[0] || 60) * (targetNote >= 0 ? 1 : -1));
+                                             const d = (activeIdx !== -1) ? (activeVoice.dinami[activeIdx] || 80) : 80;
+                                             const columnMean = d - activeOffset;
+                                             return Math.max(16, Math.min(127, columnMean + (offsets[v.nami] || 0)));
                                         });
-                                        v.nimidi = harmonyData;
-                                    } else {
-                                        const harmonyData = generateHarmonyForVoice({
-                                            nimidi: activeVoice.nimidi,
-                                            tipis: activeVoice.tipis,
-                                            timis: activeVoice.timis,
-                                            dinami: activeVoice.dinami
-                                        }, v.nami, voiceCode);
-                                        v.nimidi = harmonyData.nimidi;
-                                        v.dinami = new Array(v.nimidi.length).fill(64);
-                                        // MUSICOLI: Initialize ligi (tie) data
-                                        v.ligi = new Array(v.nimidi.length).fill(0);
                                     }
+                                } else if (typeof generateHarmonyForVoice === 'function') {
+                                    // Standard Scale-based Harmony (Time-aware)
+                                    const harmonyData = [];
+                                    v.nimidi.forEach((targetNote, vIdx) => {
+                                         const startTime = v.timis[vIdx];
+                                         const activeIdx = activeVoice.timis.findIndex((at, ai) => {
+                                             const adur = Math.abs(activeVoice.tipis[ai]);
+                                             return startTime >= at && startTime < at + (adur || 1);
+                                         });
+                                         const anchorData = (activeIdx !== -1) ? {
+                                             nimidi: [activeVoice.nimidi[activeIdx]],
+                                             tipis: [activeVoice.tipis[activeIdx]],
+                                             timis: [0],
+                                             dinami: [activeVoice.dinami[activeIdx] || 80]
+                                         } : { nimidi: [60], tipis: [4], timis: [0], dinami: [80] };
+                                         const h = generateHarmonyForVoice(anchorData, v.nami, voiceCode);
+                                         harmonyData.push((h.nimidi[0] || 60) * (targetNote >= 0 ? 1 : -1));
+                                    });
+                                    v.nimidi = harmonyData;
+                                } else {
+                                    // Fallback: Rests if nothing else
+                                    if (!exV) v.tipis = v.tipis.map(t => -Math.abs(t));
                                 }
                             }
                         });
@@ -15424,10 +15459,23 @@ ${notepadCss}
                         const absDur = Math.abs(dur);
                         return isRestArray[i] ? -absDur : absDur;
                     });
-                    if (typeof restini === 'function') newMeasure.timis = restini([newMeasure.tipis])[0];
+                    // Recalculate timis (cumulative sum of durations)
+                    let mTimis = [];
+                    let mPos = 0;
+                    newMeasure.tipis.forEach(t => {
+                        mTimis.push(mPos);
+                        mPos += Math.abs(t);
+                    });
+                    newMeasure.timis = mTimis;
                 } else {
                     newMeasure.tipis = new Array(newMidiValues.length).fill(4);
-                    if (typeof restini === 'function') newMeasure.timis = restini([newMeasure.tipis])[0];
+                    let mTimis = [];
+                    let mPos = 0;
+                    newMeasure.tipis.forEach(t => {
+                        mTimis.push(mPos);
+                        mPos += Math.abs(t);
+                    });
+                    newMeasure.timis = mTimis;
                 }
 
                 // Multi-voice support
@@ -15471,66 +15519,51 @@ ${notepadCss}
 
                     newMeasure.voci.forEach(v => {
                         if (v.nami !== voiceCode) {
-                            let isSilent = false;
                             const existingMeasureIdx = window.currentEditingMeasureIndex;
                             let exV = null;
                             if (existingMeasureIdx >= 0 && window.bdi.bar && window.bdi.bar[existingMeasureIdx]) {
                                 const existingMeasure = window.bdi.bar[existingMeasureIdx];
                                 if (existingMeasure.voci) {
                                     if (Array.isArray(existingMeasure.voci)) exV = existingMeasure.voci.find(ev => ev.nami === v.nami);
-                                    else exV = existingMeasure.voci[v.nami]; // Legacy obj support
-
-                                    if (exV && exV.tipis && exV.tipis.length > 0) {
-                                        isSilent = exV.tipis.every(t => t < 0);
-                                    }
+                                    else exV = existingMeasure.voci[v.nami];
                                 }
                             }
 
-                            // MUSICOLI: Preserve original rhythm if it exists
-                            if (exV && exV.tipis && exV.tipis.length > 0) {
-                                v.tipis = [...exV.tipis];
-                                v.timis = (exV.timis && Array.isArray(exV.timis)) ? [...exV.timis] : (typeof restini === 'function' ? restini([v.tipis])[0] : []);
-                                v.nimidi = [...exV.nimidi]; // Start with current pitches (to be harmonized)
-                                v.liri = (exV.liri && Array.isArray(exV.liri)) ? [...exV.liri] : [];
-                                v.ligi = (exV.ligi && Array.isArray(exV.ligi)) ? [...exV.ligi] : [];
-                            } else {
-                                // Fallback for new voices
-                                if (isSilent) {
-                                    v.tipis = activeVoice.tipis.map(t => -Math.abs(t));
-                                } else {
-                                    v.tipis = activeVoice.tipis.map(t => t);
-                                }
-                                v.timis = v.tipis.map(t => Math.abs(t));
-                            }
+                            v.tipis = (exV && exV.tipis && exV.tipis.length > 0) ? [...exV.tipis] : [...activeVoice.tipis];
+                            
+                            // Calculate correct cumulative timis for this voice
+                            let voiceTimis = [];
+                            let vPos = 0;
+                            v.tipis.forEach(t => {
+                                voiceTimis.push(vPos);
+                                vPos += Math.abs(t);
+                            });
+                            v.timis = voiceTimis;
+                            v.nimidi = (exV && exV.nimidi && exV.nimidi.length > 0) ? [...exV.nimidi] : new Array(v.tipis.length).fill(60);
+                            v.dinami = (exV && exV.dinami && exV.dinami.length === v.tipis.length) ? [...exV.dinami] : new Array(v.tipis.length).fill(64);
+                            v.ligi = (exV && exV.ligi && exV.ligi.length === v.tipis.length) ? [...exV.ligi] : new Array(v.tipis.length).fill(0);
+                            v.liri = (exV && exV.liri) ? [...exV.liri] : [];
 
                             if (isChordLinked && chordIntervals) {
-                                // Use Linked Chord Harmony based on time mapping
-                                const harmonyData = [];
-                                v.nimidi.forEach((targetNote, vIdx) => {
-                                    const startTime = v.timis[vIdx];
+                                // Linked Chord Harmony: Preserve rhythm, update pitches by mapping time
+                                v.nimidi = v.nimidi.map((targetNote, vi) => {
+                                    const startTime = v.timis[vi];
                                     const activeIdx = activeVoice.timis.findIndex((at, ai) => {
                                         const adur = Math.abs(activeVoice.tipis[ai]);
                                         return startTime >= at && startTime < at + adur;
                                     });
-                                    const anchorNote = (activeIdx !== -1) ? activeVoice.nimidi[activeIdx] : 60;
+                                    if (activeIdx === -1) return targetNote; 
+                                    const anchorNote = activeVoice.nimidi[activeIdx];
+                                    const isRest = targetNote < 0 || v.tipis[vi] < 0;
                                     const h = window.getSATBNotesForChord(Math.abs(anchorNote), chordIntervals, voiceCode);
-                                    harmonyData.push(h.satb[v.nami] * (targetNote >= 0 ? 1 : -1));
+                                    return isRest ? -h.satb[v.nami] : h.satb[v.nami];
                                 });
-                                v.nimidi = harmonyData;
 
-                                // MUSICOLI: Apply Dynamics with Overwrites, Shapes or Balance
-                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[v.nami] !== null) {
-                                    const overwrite = window.chordVoiceOverwrites[v.nami];
-                                    if (typeof overwrite === 'string' && overwrite.startsWith("shape:")) {
-                                        // Shape preserved
-                                    } else {
-                                        v.dinami = new Array(v.nimidi.length).fill(overwrite);
-                                    }
-                                } else if (window.chordsVerticalDynamicsEnabled && activeVoice.dinami) {
+                                // Apply Vertical Dynamics if enabled
+                                if (window.chordsVerticalDynamicsEnabled) {
                                     const offsets = { s: 8, a: -20, t: -8, b: 20 };
                                     const activeOffset = offsets[voiceCode] || 0;
                                     v.dinami = v.nimidi.map((_, vi) => {
-                                         // For each note in v, find matching activeVoice column mean
                                          const startTime = v.timis[vi];
                                          const activeIdx = activeVoice.timis.findIndex((at, ai) => {
                                              const adur = Math.abs(activeVoice.tipis[ai]);
@@ -15540,61 +15573,29 @@ ${notepadCss}
                                          const columnMean = d - activeOffset;
                                          return Math.max(16, Math.min(127, columnMean + (offsets[v.nami] || 0)));
                                     });
-                                } else {
-                                    v.dinami = new Array(v.nimidi.length).fill(64);
                                 }
                             } else if (typeof generateHarmonyForVoice === 'function') {
-                                // Standard Scale-based Harmony (Time-aligned)
-                                if (exV && exV.tipis && exV.tipis.length >= 0) {
-                                    const harmonyData = [];
-                                    v.nimidi.forEach((targetNote, vIdx) => {
-                                         const startTime = v.timis[vIdx];
-                                         const activeIdx = activeVoice.timis.findIndex((at, ai) => {
-                                             const adur = Math.abs(activeVoice.tipis[ai]);
-                                             return startTime >= at && startTime < at + (adur || 1);
-                                         });
-                                         const anchorData = (activeIdx !== -1) ? {
-                                             nimidi: [activeVoice.nimidi[activeIdx]],
-                                             tipis: [activeVoice.tipis[activeIdx]],
-                                             timis: [0],
-                                             dinami: [activeVoice.dinami[activeIdx] || 80]
-                                         } : { nimidi: [60], tipis: [4], timis: [0], dinami: [80] };
-                                         const h = generateHarmonyForVoice(anchorData, v.nami, voiceCode);
-                                         harmonyData.push((h.nimidi[0] || 60) * (targetNote >= 0 ? 1 : -1));
-                                    });
-                                    v.nimidi = harmonyData;
-                                } else {
-                                    const harmonyData = generateHarmonyForVoice({
-                                        nimidi: activeVoice.nimidi,
-                                        tipis: activeVoice.tipis,
-                                        timis: activeVoice.timis,
-                                        dinami: activeVoice.dinami
-                                    }, v.nami, voiceCode);
-                                    v.nimidi = harmonyData.nimidi;
-                                }
-
-                                // Apply Dynamics as above
-                                if (window.chordVoiceOverwrites && window.chordVoiceOverwrites[v.nami] !== null) {
-                                    const overwrite = window.chordVoiceOverwrites[v.nami];
-                                    if (!(typeof overwrite === 'string' && overwrite.startsWith("shape:"))) {
-                                        v.dinami = new Array(v.nimidi.length).fill(overwrite);
-                                    }
-                                } else if (window.chordsVerticalDynamicsEnabled && activeVoice.dinami) {
-                                    const offsets = { s: 8, a: -20, t: -8, b: 20 };
-                                    const activeOffset = offsets[voiceCode] || 0;
-                                    v.dinami = v.nimidi.map((_, vi) => {
-                                         const startTime = v.timis[vi];
-                                         const activeIdx = activeVoice.timis.findIndex((at, ai) => {
-                                             const adur = Math.abs(activeVoice.tipis[ai]);
-                                             return startTime >= at && startTime < at + adur;
-                                         });
-                                         const d = (activeIdx !== -1) ? (activeVoice.dinami[activeIdx] || 80) : 80;
-                                         const columnMean = d - activeOffset;
-                                         return Math.max(16, Math.min(127, columnMean + (offsets[v.nami] || 0)));
-                                    });
-                                } else {
-                                    v.dinami = new Array(v.nimidi.length).fill(64);
-                                }
+                                // Standard Scale-based Harmony (Time-aware)
+                                const harmonyData = [];
+                                v.nimidi.forEach((targetNote, vIdx) => {
+                                     const startTime = v.timis[vIdx];
+                                     const activeIdx = activeVoice.timis.findIndex((at, ai) => {
+                                         const adur = Math.abs(activeVoice.tipis[ai]);
+                                         return startTime >= at && startTime < at + (adur || 1);
+                                     });
+                                     const anchorData = (activeIdx !== -1) ? {
+                                         nimidi: [activeVoice.nimidi[activeIdx]],
+                                         tipis: [activeVoice.tipis[activeIdx]],
+                                         timis: [0],
+                                         dinami: [activeVoice.dinami[activeIdx] || 80]
+                                     } : { nimidi: [60], tipis: [4], timis: [0], dinami: [80] };
+                                     const h = generateHarmonyForVoice(anchorData, v.nami, voiceCode);
+                                     harmonyData.push((h.nimidi[0] || 60) * (targetNote >= 0 ? 1 : -1));
+                                });
+                                v.nimidi = harmonyData;
+                            } else {
+                                // Fallback: Rests
+                                if (!exV) v.tipis = v.tipis.map(t => -Math.abs(t));
                             }
                         }
                     });
@@ -17096,14 +17097,8 @@ ${notepadCss}
         }
 
         if (voiceEditMode === 'dependent') {
-            // MODO DEPENDIENTE: Generar armonias automaticas
-
-            // Check if we should EDIT or ADD
-            if (measureIndex < bdi.bar.length) {
-                // Measure already exists: EDIT it with automatic harmony
-                return editMeasureWithMode(measureIndex, measureData, voiceCode);
-            }
-
+            // MODO DEPENDIENTE: Inserción con desplazamiento y armonía automática
+            // Siempre inserta (splice) en el lugar indicado, desplazando lo existente
             const newMeasure = {
                 voci: [
                     { nami: 's', ...(voiceCode === 's' ? measureData : generateHarmonyForVoice(measureData, 's', voiceCode)) },
@@ -17113,31 +17108,19 @@ ${notepadCss}
                 ]
             };
 
-            // MUSICOLI: If we are adding based on an existing measure but shifted, we might want to preserve its structure
-            // However, addMeasureWithMode is usually for fresh insertions. 
-            // If targetIndex points to an existing measure that will be displaced, 
-            // we keep the new harmony based on Soprano.
+            // Asegurar etiquetas de voz
+            newMeasure.voci.forEach((v, idx) => v.nami = ['s', 'a', 't', 'b'][idx]);
 
-            // Ensure nami is set correctly
-            newMeasure.voci[0].nami = 's';
-            newMeasure.voci[1].nami = 'a';
-            newMeasure.voci[2].nami = 't';
-            newMeasure.voci[3].nami = 'b';
-
-            // Insert at index
+            // Insertar (splice)
             bdi.bar.splice(measureIndex, 0, newMeasure);
 
         } else {
-            // MODO INDEPENDIENTE: Solo anadir/modificar a la voz actual
-
+            // MODO INDEPENDIENTE: Sustitución en la pista actual, sin armonía
             const activeVoiceIdx = ['s', 'a', 't', 'b'].indexOf(voiceCode);
 
             if (measureIndex < bdi.bar.length) {
-                // No estamos al final: Sobrescribir solo la pista actual del compás existente
-                // y dejar las otras pistas "sin tocar"
+                // Existe el compás: Sustituir solo en la pista actual (como pidió el usuario)
                 const existingMeasure = bdi.bar[measureIndex];
-
-                // Asegurar que existe la estructura voci
                 if (!existingMeasure.voci) {
                     existingMeasure.voci = [
                         { nami: 's', ...createEmptyMeasure() },
@@ -17146,26 +17129,17 @@ ${notepadCss}
                         { nami: 'b', ...createEmptyMeasure() }
                     ];
                 }
-
-                if (Array.isArray(existingMeasure.voci)) {
-                    if (activeVoiceIdx >= 0) {
-                        existingMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
-                    }
-                } else {
-                    // Fallback para estructura de objeto
-                    existingMeasure.voci[voiceCode] = measureData;
+                
+                if (activeVoiceIdx >= 0) {
+                    existingMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
                 }
 
-                // IMPORTANTE: Sincronizar las variables raíz para que el renderizador (np6) no muestre silencio
+                // Sincronizar datos raíz para visualización
                 existingMeasure.nimidi = [...measureData.nimidi];
                 existingMeasure.tipis = [...measureData.tipis];
                 existingMeasure.timis = [...measureData.timis];
-                if (measureData.dinami) existingMeasure.dinami = [...measureData.dinami];
-                if (measureData.ligi) existingMeasure.ligi = [...measureData.ligi];
-
             } else {
-                // Estamos al final: Insertar un compás nuevo
-                // con la pista actual llena y las demás vacías/en silencio
+                // No existe (final de composición): Insertar con silencio en las otras pistas
                 const newMeasure = {
                     voci: [
                         { nami: 's', ...createEmptyMeasure() },
@@ -17175,11 +17149,8 @@ ${notepadCss}
                     ],
                     nimidi: [...measureData.nimidi],
                     tipis: [...measureData.tipis],
-                    timis: [...measureData.timis],
-                    ligi: measureData.ligi ? [...measureData.ligi] : new Array(measureData.tipis.length).fill(0)
+                    timis: [...measureData.timis]
                 };
-
-                if (measureData.dinami) newMeasure.dinami = [...measureData.dinami];
 
                 if (activeVoiceIdx >= 0) {
                     newMeasure.voci[activeVoiceIdx] = { nami: voiceCode, ...measureData };
@@ -17187,8 +17158,6 @@ ${notepadCss}
 
                 bdi.bar.splice(measureIndex, 0, newMeasure);
             }
-
-            // Sincronizar para asegurar que todas las voces tengan el mismo numero de compases
             syncMeasureCount();
         }
 
@@ -20015,18 +19984,20 @@ window.generateHarmonyForVoice = function (sourceData, voiceCode, selectedVoiceC
 
             let linkedNimidi = sourceNimidi.map((n, idx) => {
                 const isSelected = selectedIndices.includes(idx);
-                // If NO notes are selected or this note is not selected, skip chord mapping
-                if (selectedIndices.length === 0 || !isSelected) {
+                // If notes are selected but this one is NOT one of them, skip and use fallback
+                if (selectedIndices.length > 0 && !isSelected) {
                     return null; // Force fallback below
                 }
 
+                // Either no selection (apply to all) or this note is selected: compute chord note
                 if (typeof window.getSATBNotesForChord === 'function') {
                     const currentPitch = Math.abs(n) || 60;
-                    if (refSATB && refPitch !== null) {
+                    if (selectedIndices.length > 0 && refSATB && refPitch !== null) {
                         // Apply identical intervals relative to first selected note's voicing
                         const diff = currentPitch - refPitch;
                         return refSATB[voiceCode] + diff;
                     } else {
+                        // No selection: compute chord note fresh for each note
                         const satbResult = window.getSATBNotesForChord(currentPitch, intervals, selectedVoiceCode);
                         if (satbResult && satbResult.satb && satbResult.satb[voiceCode] !== undefined) {
                             return satbResult.satb[voiceCode];
@@ -20951,9 +20922,11 @@ window.applyChordToSelectedNotes = function(chordType) {
         : (measure.voci.find(v => v.nami === curVoiceCode)?.tipis || []);
 
     let activeVoiceTimis = [];
-    if (typeof restini === 'function') {
-        activeVoiceTimis = restini([activeVoiceRhythms])[0];
-    }
+    let curPos = 0;
+    activeVoiceRhythms.forEach(t => {
+        activeVoiceTimis.push(curPos);
+        curPos += Math.abs(t);
+    });
 
     // Apply the chord VERTICALLY but respecting the RELATIVE MELODY and TESSITURA
     // MUSICOLI: Overlap-based vertical harmonization to preserve melody intervals
@@ -20963,8 +20936,14 @@ window.applyChordToSelectedNotes = function(chordType) {
         if (v.nami === curVoiceCode) return; 
 
         // Ensure target voice has timis
-        if (!v.timis || v.timis.length === 0) {
-            if (typeof restini === 'function' && v.tipis) v.timis = restini([v.tipis])[0];
+        if (!v.timis || v.timis.length === 0 || v.timis.length !== v.tipis.length) {
+            let voiceTimis = [];
+            let vPos = 0;
+            v.tipis.forEach(t => {
+                voiceTimis.push(vPos);
+                vPos += Math.abs(t);
+            });
+            v.timis = voiceTimis;
         }
 
         v.nimidi.forEach((targetNote, vIdx) => {
