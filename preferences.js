@@ -34,23 +34,51 @@
 
         /** Load from localStorage. Returns true if prefs already existed. */
         load() {
+            let loaded = false;
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (raw) {
                     const saved = JSON.parse(raw);
                     this.values = Object.assign({}, DEFAULTS, saved);
-                    // Migrate: if language was previously saved as 'es' (old default),
-                    // reset to 'en' so English is now the application default
-                    if (this.values.language === 'es') {
-                        this.values.language = 'en';
-                    }
-                    return true;
+                    loaded = true;
                 }
             } catch (e) {
                 console.warn('[Prefs] Could not load preferences:', e);
             }
-            this.values = Object.assign({}, DEFAULTS);
-            return false;
+            if (!loaded) {
+                this.values = Object.assign({}, DEFAULTS);
+            }
+            
+            // Check URL parameters (?lang=es) or hash (#lang=es) for language override
+            try {
+                let langParam = null;
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('lang')) {
+                    langParam = urlParams.get('lang');
+                } else if (window.location.hash.includes('lang=')) {
+                    // Quick check for #lang=xx in hash
+                    const hashStr = window.location.hash.replace('?', '&');
+                    const hashParams = new URLSearchParams(hashStr.substring(1));
+                    if (hashParams.has('lang')) {
+                        langParam = hashParams.get('lang');
+                    }
+                }
+                
+                if (langParam === 'es' || langParam === 'en' || langParam === 'de') {
+                    this.values.language = langParam;
+                    // Auto-save the URL preference to become the new default
+                    this.save();
+                } else if (loaded && this.values.language === 'es' && !localStorage.getItem('lang_migrated_to_en')) {
+                    // Backwards compatibility migration ONLY if not explicitly requested via URL
+                    // reset to 'en' so English is now the application default
+                    this.values.language = 'en';
+                    localStorage.setItem('lang_migrated_to_en', 'true');
+                }
+            } catch (e) {
+                console.warn('[Prefs] Could not parse URL preferences:', e);
+            }
+            
+            return loaded;
         },
 
         /** Save current values to localStorage. */

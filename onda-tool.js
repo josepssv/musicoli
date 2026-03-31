@@ -61,13 +61,15 @@ window.applyOndaFromUI = function () {
     // 1. Identify Target Voices
     const targetVoiceKeys = getTargetVoiceKeys();
 
-    // DEFINE TESSITURA RANGES
-    const tessitura = {
-        's': { min: 60, max: 84 }, // C4 - C6
-        'a': { min: 53, max: 74 }, // F3 - D5
-        't': { min: 48, max: 69 }, // C3 - A4
-        'b': { min: 40, max: 62 }  // E2 - D4
-    };
+    // DEFINE TESSITURA RANGES (Dynamic from metadata)
+    const tessitura = (window.bdi && window.bdi.metadata && window.bdi.metadata.tessituras) ? 
+                      window.bdi.metadata.tessituras : 
+                      (window.globalTessituras || {
+        's': { min: 60, max: 84 },
+        'a': { min: 53, max: 74 },
+        't': { min: 48, max: 69 },
+        'b': { min: 40, max: 62 }
+    });
 
     // Basic Validation
     if (typeof window.bdi === 'undefined' || !window.bdi.bar || window.bdi.bar.length === 0) {

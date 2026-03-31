@@ -413,7 +413,7 @@
       </div>
       <div style="display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap;">
         <span data-i18n="BPM">BPM</span>:
-        <input type="number" id="bpm-custom-input" min="10" max="440" value="120"
+        <input type="number" id="bpm-custom-input" value="120"
           style="background: #444; color: white; border: 1px solid #666; padding: 4px 8px; border-radius: 3px; font-family: monospace; width: 60px;">
         <span><span data-i18n="Compás">Compás</span>: <select id="compas-select">
             <option value="[4,4]">4/4</option>
@@ -2237,8 +2237,8 @@
           </div>
           
           <!-- 10. TESSITURAS PANEL -->
-          <div id="editor-tessituras-panel" class="mode-panel mode-editor editor-tonalidad"
-            style="display: none; background: #333333; padding: 0; border-radius: 8px; border: 1px solid #555555; box-shadow: 4px 4px 15px rgba(0,0,0,0.3); margin-top: 10px; overflow: hidden;">
+          <div id="editor-tessituras-panel" class="mode-panel mode-editor editor-tonalidad is-visible-in-melodia"
+            style="display: none; background: #333333; padding: 0; border-radius: 8px; border: 2px solid #555555; box-shadow: 4px 4px 15px rgba(0,0,0,0.3); margin-top: 10px; overflow: hidden; flex-shrink: 0;">
             <div style="padding: 8px 12px; background: #444444; border-bottom: 1px solid #555555; display: flex; justify-content: space-between; align-items: center;">
               <h3 class="mode-editor-title" data-i18n="Tessituras" style="font-size: 13px; margin: 0; color: #ffffff; font-family: monospace;">Tessituras</h3>
             </div>
@@ -2249,8 +2249,11 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                   <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
                   <input type="number" id="tessitura-min-s" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
-                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <span id="tessitura-note-min-s" style="font-size: 11px; color: #4dabf7; font-family: monospace; min-width: 30px;">—</span>
+                  
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace; margin-left: 10px;">Max</span>
                   <input type="number" id="tessitura-max-s" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span id="tessitura-note-max-s" style="font-size: 11px; color: #4dabf7; font-family: monospace; min-width: 30px;">—</span>
                 </div>
               </div>
               <!-- Alto -->
@@ -2259,8 +2262,11 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                   <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
                   <input type="number" id="tessitura-min-a" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
-                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <span id="tessitura-note-min-a" style="font-size: 11px; color: #69db7c; font-family: monospace; min-width: 30px;">—</span>
+
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace; margin-left: 10px;">Max</span>
                   <input type="number" id="tessitura-max-a" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span id="tessitura-note-max-a" style="font-size: 11px; color: #69db7c; font-family: monospace; min-width: 30px;">—</span>
                 </div>
               </div>
               <!-- Tenor -->
@@ -2269,8 +2275,11 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                   <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
                   <input type="number" id="tessitura-min-t" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
-                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <span id="tessitura-note-min-t" style="font-size: 11px; color: #ffa94d; font-family: monospace; min-width: 30px;">—</span>
+
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace; margin-left: 10px;">Max</span>
                   <input type="number" id="tessitura-max-t" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span id="tessitura-note-max-t" style="font-size: 11px; color: #ffa94d; font-family: monospace; min-width: 30px;">—</span>
                 </div>
               </div>
               <!-- Bass -->
@@ -2279,11 +2288,27 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                   <span data-i18n="Min" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Min</span>
                   <input type="number" id="tessitura-min-b" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
-                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace;">Max</span>
+                  <span id="tessitura-note-min-b" style="font-size: 11px; color: #ff8787; font-family: monospace; min-width: 30px;">—</span>
+
+                  <span data-i18n="Max" style="font-size: 11px; color: #bbbbbb; font-family: monospace; margin-left: 10px;">Max</span>
                   <input type="number" id="tessitura-max-b" min="0" max="127" style="width: 55px; padding: 4px 6px; border: 1px solid #555555; border-radius: 4px; font-family: monospace; font-size: 12px; background: #222222; color: #ffffff;">
+                  <span id="tessitura-note-max-b" style="font-size: 11px; color: #ff8787; font-family: monospace; min-width: 30px;">—</span>
                 </div>
               </div>
             </div>
+            <!-- Apply button footer -->
+            <div style="padding: 10px 15px; background: #3a3a3a; border-top: 1px solid #555555; display: flex; justify-content: flex-end;">
+              <button id="tessituras-apply-btn" class="theme-btn" 
+                style="background: #2196F3; color: white; border: none; padding: 6px 16px; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; font-size: 11px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                Aplicar Rangos
+              </button>
+            </div>
+          </div>
+          
+          <!-- 11. ACTIVE RANGES STATUS DIV (User requested) -->
+          <div id="tessituras-active-status" class="is-visible-in-melodia"
+            style="padding: 10px; background: rgba(0,0,0,0.05); border: 1px dashed #ccc; border-radius: 6px; font-family: monospace; font-size: 11px; color: #666; margin-top: 5px; display: none;">
+            <strong>Rangos Activos:</strong> <span id="tessituras-status-text">Cargando...</span>
           </div>
 
         </div> <!-- END RIGHT COLUMN WRAPPER -->
@@ -2448,7 +2473,7 @@
           <div class="pref-section" style="flex: 0 0 auto; width: 80px; padding: 10px 10px;">
             <span class="pref-label" data-i18n="BPM"
               style="font-size: 10px; margin-bottom: 6px; white-space: nowrap;">⏱️ BPM</span>
-            <input type="number" id="pref-bpm" min="10" max="440" step="1"
+            <input type="number" id="pref-bpm" step="1"
               style="width: 100%; padding: 6px; font-size: 13px; border-radius: 6px; background: #2a2a3a; border: 1.5px solid rgba(255,255,255,0.25); color: #e8eaf6; font-family: inherit; cursor: pointer; box-sizing: border-box;">
           </div>
 
@@ -3134,6 +3159,21 @@
                       prefs.set('timeSignature', JSON.stringify(newMetadata.timeSignature));
                       const metricaEl = document.getElementById('pref-metrica');
                       if (metricaEl) metricaEl.value = JSON.stringify(newMetadata.timeSignature);
+                    }
+                    // Update global state and metadata
+                    window.globalTessituras = JSON.parse(JSON.stringify(window.bdi.metadata.tessituras));
+                    
+                    // Refresh UI and Tools
+                    if (typeof window.makeladi === 'function') window.makeladi();
+                    if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
+                    if (typeof window.updateColorDebugInfo === 'function') window.updateColorDebugInfo();
+                    if (typeof window.updateScoreIndicators === 'function') window.updateScoreIndicators();
+                    
+                    // Alert user
+                    const statusDiv = document.getElementById('tessituras-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<span style="color: #4CAF50;">✓ Aplicado y Refrescado</span>';
+                        setTimeout(() => { statusDiv.innerHTML = 'Activas: ' + JSON.stringify(window.globalTessituras); }, 3000);
                     }
                   }
                 }

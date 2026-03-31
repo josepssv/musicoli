@@ -144,13 +144,21 @@ window.selectedMeasureIndex = -1; // Global measure selection index
 let currentEditMode = 'composicion'; // 'ritmo', 'tonalidad', or 'lyrics'
 let voiceEditMode = 'dependent'; // 'dependent' | 'independent' - Mode for voice editing
 window.voiceEditMode = voiceEditMode;
-
 // Global Vocal Ranges (Tessituras)
-window.globalTessituras = {
+window.DEFAULT_TESSITURAS = {
     's': { min: 60, max: 81 },
-    'a': { min: 55, max: 76 },
+    'a': { min: 53, max: 74 },
     't': { min: 48, max: 69 },
     'b': { min: 40, max: 64 }
+};
+window.globalTessituras = (window.bdi && window.bdi.metadata && window.bdi.metadata.tessituras)
+    ? window.bdi.metadata.tessituras
+    : JSON.parse(JSON.stringify(window.DEFAULT_TESSITURAS));
+
+// Trigger UI Refresh
+window.refreshUI = function() {
+    if (typeof renderStaff === 'function') renderStaff();
+    if (typeof updateMidiEditingLevelVisibility === 'function') updateMidiEditingLevelVisibility();
 };
 
 // Check if trilipi is ready, otherwise default to a safe value
@@ -297,6 +305,24 @@ function midiToColor(midiInput) {
 
     return midiNotesToColor(validNotes);
 }
+
+/**
+ * Converts MIDI number to human-readable note name with octave.
+ * Respects window.appPrefs nomenclature (english/latin).
+ */
+window.midiToNoteName = function(midi) {
+    if (midi < 0 || midi > 127) return "—";
+    
+    const useLatin = window.appPrefs && window.appPrefs.get('nomenclature') === 'latin';
+    const names = useLatin ? 
+        ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"] :
+        ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+    const noteIndex = midi % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    
+    return `${names[noteIndex]}${octave}`;
+};
 
 /**
  * Converts MIDI notes to color based on melodic movement, pitch, and note count.
@@ -800,7 +826,7 @@ function getMeasureVoiceColor(measureIndex, voiceKey) {
     const tesituras = window.globalTessituras || {
         's': { min: 60, max: 81 },
         'a': { min: 55, max: 76 },
-        't': { min: 48, max: 69 },
+        't': { min: 48, max: 74 },
         'b': { min: 40, max: 64 }
     };
     const tesitura = tesituras[voiceKey] || { min: 36, max: 84 };
@@ -1341,12 +1367,7 @@ function renderVisualTracks() {
             });
 
             if (validNotesForColor.length > 0) {
-                const tesituras = window.globalTessituras || {
-                    's': { min: 60, max: 81 },
-                    'a': { min: 55, max: 76 },
-                    't': { min: 48, max: 69 },
-                    'b': { min: 40, max: 64 }
-                };
+                const tesituras = window.globalTessituras || window.DEFAULT_TESSITURAS;
                 const tesitura = tesituras[key] || { min: 36, max: 84 };
                 const validVelocities = validNotesIndices.map(idx => dinami[idx] || 64);
 
@@ -4576,13 +4597,18 @@ function getVocalRange() {
     const codeMap = { 's': 'soprano', 'a': 'contralto', 't': 'tenor', 'b': 'bajo' };
     if (codeMap[voice]) voice = codeMap[voice];
 
-    // Standard vocal ranges (MIDI notes)
+    // Standard vocal ranges (MIDI notes) - Use dynamic globalTessituras if available
+    const gt = window.globalTessituras || window.DEFAULT_TESSITURAS;
+
     const vocalRanges = {
-        soprano: { min: 60, max: 81 },    // C4 to A5
-        contralto: { min: 53, max: 76 },  // F3 to E5
-        tenor: { min: 48, max: 69 },      // C3 to A4
-        bajo: { min: 40, max: 64 },       // E2 to E4
-        todos: { min: 40, max: 81 }       // Combined range
+        soprano: gt.s,
+        contralto: gt.a,
+        tenor: gt.t,
+        bajo: gt.b,
+        todos: { 
+            min: Math.min(gt.s.min, gt.a.min, gt.t.min, gt.b.min), 
+            max: Math.max(gt.s.max, gt.a.max, gt.t.max, gt.b.max) 
+        }
     };
 
     return vocalRanges[voice] || vocalRanges.soprano;
@@ -9190,7 +9216,6 @@ async function tarareoAritmo() {
         const modalThirdOffset = (mode === 'Minor' || mode === 'Dorico' || mode === 'Frigio' || mode === 'Locrio')
             ? 3   // 3ª menor
             : 4;  // 3ª mayor (Major, Lidio, Mixolidio)
-
         // Base C Major (C4=60, E4=64, G4=67, C5=72)
         // SATB Defaults relative to C4+Offset
         let s = 72 + rootOffset;
@@ -9198,11 +9223,13 @@ async function tarareoAritmo() {
         let t = (60 + rootOffset) + modalThirdOffset; // 3ª modal correcta
         let b = 60 + rootOffset;
 
-        // Wrap Logic to keep in reasonable range
-        if (s > 77) s -= 12; // Keep S roughly C5-F5
-        if (a > 72) a -= 12; // Keep A roughly G4-C5
-        if (t > 69) t -= 12; // Keep T roughly E4-A4
-        if (b > 65) b -= 12; // Keep B roughly C4-F4
+        // Wrap Logic to keep in user-defined tessitura ranges
+        const tRange = window.globalTessituras || window.DEFAULT_TESSITURAS;
+
+        if (s > (tRange.s.max)) s -= 12; 
+        if (a > (tRange.a.max)) a -= 12; 
+        if (t > (tRange.t.max)) t -= 12; 
+        if (b > (tRange.b.max)) b -= 12; 
 
         const noteMap = { s, a, t, b };
 
@@ -9619,13 +9646,19 @@ function rgbToMidiInterval(r, g, b, notaBase = 36, voiceOverride = null) {
     const voiceSelector = document.getElementById('voice-selector');
     let voice = voiceOverride || (voiceSelector ? voiceSelector.value : 's');
 
-    // Rangos específicos por voz (SATB)
+    // Rangos específicos por voz (SATB) - Use dynamic globalTessituras if available
+    const gt = window.globalTessituras || window.DEFAULT_TESSITURAS;
+
     const voiceRanges = {
-        's': { min: 60, max: 81, base: 60 },   // Soprano
-        'a': { min: 53, max: 76, base: 55 },   // Contralto (Alto)
-        't': { min: 48, max: 69, base: 48 },   // Tenor
-        'b': { min: 40, max: 64, base: 40 },   // Bajo
-        'todos': { min: 36, max: 84, base: 36 }
+        's': { min: gt.s.min, max: gt.s.max, base: 60 },   // Soprano
+        'a': { min: gt.a.min, max: gt.a.max, base: 55 },   // Contralto (Alto)
+        't': { min: gt.t.min, max: gt.t.max, base: 48 },   // Tenor
+        'b': { min: gt.b.min, max: gt.b.max, base: 40 },   // Bajo
+        'todos': { 
+            min: Math.min(gt.s.min, gt.a.min, gt.t.min, gt.b.min), 
+            max: Math.max(gt.s.max, gt.a.max, gt.t.max, gt.b.max), 
+            base: 36 
+        }
     };
 
     const range = voiceRanges[voice] || voiceRanges['s'];
@@ -12700,8 +12733,8 @@ ${notepadCss}
         bpmCustomInputEl.addEventListener('input', (e) => {
             const newBpm = parseInt(e.target.value);
 
-            // Validate BPM range
-            if (!isNaN(newBpm) && newBpm >= 10 && newBpm <= 440) {
+            // Validate BPM range (limits removed by user request)
+            if (!isNaN(newBpm)) {
                 // Update BPM variables
                 bpmValue = newBpm;
                 tempi = newBpm;
@@ -12714,7 +12747,7 @@ ${notepadCss}
                     rebuildRecordi();
                 }
             } else {
-                alert('Por favor ingresa un BPM entre 10 y 440');
+                // If it's not a number, keep previous value but don't limit range
                 e.target.value = bpmValue || 120;
             }
         });
@@ -14086,7 +14119,7 @@ ${notepadCss}
                 const activeNote = activeNotesData.find(n => currentTime >= n.start && currentTime < n.start + Math.abs(n.duration));
                 const voiceNotesAtPosition = [];
                 
-                if (activeNote) {
+                if (activeNote && activeNote.start === currentTime) {
                     voiceNotesAtPosition.push({ 
                         midi: activeNote.midi, 
                         voice: activeVoiceCode, 
@@ -15787,9 +15820,21 @@ ${notepadCss}
 
             window.currentEditingRhythmValues = liveRhythmValues;
 
-            // Decide what to render: In Note Mode we want to see the FULL context (with highlight), 
-            // so we pass the full array. In Measure Mode, currentNotes IS the full array.
-            const valuesToRender = (window.midiEditingLevel === 'note') ? window.currentFullMidiValues : currentAbsNotes;
+            // Highlight notes out of range
+            const voiceSelector = document.getElementById('voice-selector');
+            const vCode = voiceSelector ? voiceSelector.value : 's';
+            const range = (window.globalTessituras && window.globalTessituras[vCode]) ? window.globalTessituras[vCode] : null;
+            
+            if (range) {
+                const outOfRange = currentAbsNotes.some(note => note !== 0 && (note < range.min || note > range.max));
+                if (outOfRange) {
+                    singleInput.style.backgroundColor = '#fff0f0'; // Subtle red for warning
+                    singleInput.style.borderColor = '#ff4444';
+                } else {
+                    singleInput.style.backgroundColor = '';
+                    singleInput.style.borderColor = '#ccc';
+                }
+            }
 
             renderMidiScorePreview(valuesToRender, liveRhythmValues, rhythmContainer);
 
@@ -18374,33 +18419,103 @@ ${notepadCss}
 // Tessituras Panel Initialization
 function initTessiturasPanel() {
     const voices = ['s', 'a', 't', 'b'];
+    const statusText = document.getElementById('tessituras-status-text');
+    const applyBtn = document.getElementById('tessituras-apply-btn');
+
+    // Ensure bdi.metadata.tessituras exists
+    if (!window.bdi) window.bdi = {};
+    if (!window.bdi.metadata) window.bdi.metadata = {};
+    if (!window.bdi.metadata.tessituras) {
+        // Default ranges if not set
+        window.bdi.metadata.tessituras = JSON.parse(JSON.stringify(window.DEFAULT_TESSITURAS));
+    }
+
+    // Sync globalTessituras for tools that use it
+    window.globalTessituras = window.bdi.metadata.tessituras;
+
+    const updateStatusDiv = () => {
+        if (!statusText) return;
+        const ranges = window.bdi.metadata.tessituras;
+        const parts = Object.keys(ranges).map(v => {
+            const minNote = window.midiToNoteName(ranges[v].min);
+            const maxNote = window.midiToNoteName(ranges[v].max);
+            return `<span style="color:#d0d0d0">[${v.toUpperCase()}: ${minNote}-${maxNote}]</span>`;
+        });
+        statusText.innerHTML = parts.join(' ');
+        
+        // Ensure status div container remains visible if we are in melody mode
+        const statusContainer = document.getElementById('tessituras-active-status');
+        if (statusContainer) {
+            statusContainer.style.display = 'block';
+        }
+    };
+
     voices.forEach(v => {
         const minInput = document.getElementById(`tessitura-min-${v}`);
         const maxInput = document.getElementById(`tessitura-max-${v}`);
+        const minNoteSpan = document.getElementById(`tessitura-note-min-${v}`);
+        const maxNoteSpan = document.getElementById(`tessitura-note-max-${v}`);
         
+        const updateNoteDisplay = () => {
+            if (minInput && minNoteSpan) minNoteSpan.textContent = window.midiToNoteName(parseInt(minInput.value));
+            if (maxInput && maxNoteSpan) maxNoteSpan.textContent = window.midiToNoteName(parseInt(maxInput.value));
+        };
+
         if (minInput && maxInput) {
-            // Initialize values
-            if (window.globalTessituras && window.globalTessituras[v]) {
-                minInput.value = window.globalTessituras[v].min;
-                maxInput.value = window.globalTessituras[v].max;
-            }
+            // Load from metadata
+            minInput.value = window.bdi.metadata.tessituras[v].min;
+            maxInput.value = window.bdi.metadata.tessituras[v].max;
             
-            // Add event listeners (real-time or on change)
+            // Initial update of note names
+            updateNoteDisplay();
+            
+            // Add event listeners for real-time validation and note display
             minInput.addEventListener('input', () => {
                 const val = parseInt(minInput.value);
-                if (!isNaN(val) && window.globalTessituras && window.globalTessituras[v]) {
-                    window.globalTessituras[v].min = val;
+                if (!isNaN(val)) {
+                    window.bdi.metadata.tessituras[v].min = val;
+                    updateNoteDisplay();
+                    updateStatusDiv();
                 }
             });
             
             maxInput.addEventListener('input', () => {
                 const val = parseInt(maxInput.value);
-                if (!isNaN(val) && window.globalTessituras && window.globalTessituras[v]) {
-                    window.globalTessituras[v].max = val;
+                if (!isNaN(val)) {
+                    window.bdi.metadata.tessituras[v].max = val;
+                    updateNoteDisplay();
+                    updateStatusDiv();
                 }
             });
         }
     });
+
+    // Initial status update
+    updateStatusDiv();
+
+    // Apply button logic
+    if (applyBtn) {
+        applyBtn.addEventListener('click', () => {
+            // Force a re-render of components that depend on ranges
+            if (typeof window.saveBdiState === 'function') window.saveBdiState();
+            
+            // Flash status div for feedback
+            const statusContainer = document.getElementById('tessituras-active-status');
+            if (statusContainer) {
+                statusContainer.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+                setTimeout(() => {
+                    statusContainer.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                }, 500);
+            }
+            
+            // Trigger a global rebuild if available
+            if (typeof window.rebuildRecordi === 'function') {
+                window.rebuildRecordi();
+            }
+            
+            console.log('Tessituras applied and saved to metadata.');
+        });
+    }
 }
 
 // ============================================
@@ -18663,7 +18778,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tessituras Panel: Only in Tonalidad (Melody) mode
         const tessiturasPanel = document.getElementById('editor-tessituras-panel');
         if (tessiturasPanel) {
-            tessiturasPanel.style.display = (mode === 'tonalidad') ? 'flex' : 'none';
+            if (mode === 'tonalidad') {
+                tessiturasPanel.style.setProperty('display', 'flex', 'important');
+            } else {
+                tessiturasPanel.style.display = 'none';
+            }
         }
 
         // Force refresh of makeladi (Tool Ladder) when switching modes
@@ -19552,15 +19671,6 @@ window.auditionSATBChord = function(rootMidi, intervals, activeVoiceCode) {
     }
 };
 
-/**
- * Standard vocal ranges (MIDI) used across the application.
- */
-window.globalTessituras = {
-    's': { min: 60, max: 81 }, // Soprano: C4 - A5
-    'a': { min: 53, max: 74 }, // Alto: F3 - D5
-    't': { min: 48, max: 69 }, // Tenor: C3 - A4
-    'b': { min: 40, max: 64 }  // Bass: E2 - E4
-};
 
 /**
  * Helper function to calculate vertical position based on MIDI note
@@ -19821,7 +19931,7 @@ window.updateColorDebugInfo = function () {
     const tesituras = window.globalTessituras || {
         's': { min: 60, max: 81 },
         'a': { min: 55, max: 76 },
-        't': { min: 48, max: 69 },
+        't': { min: 48, max: 74 },
         'b': { min: 40, max: 64 }
     };
 

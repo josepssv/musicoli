@@ -9,13 +9,17 @@
     let currentScale = 'mayor';
     let currentKey = 0; // C=0
 
-    // Tessitura Definitions (Standard SATB)
-    const TESSITURA = {
-        's': { min: 60, max: 84 }, // C4-C6
-        'a': { min: 53, max: 74 }, // F3-D5
-        't': { min: 48, max: 69 }, // C3-A4
-        'b': { min: 40, max: 62 }  // E2-D4
-    };
+    // Tessitura Definitions (Standard SATB) - Dynamic lookup
+    function getTessitura() {
+        return (window.bdi && window.bdi.metadata && window.bdi.metadata.tessituras)
+            ? window.bdi.metadata.tessituras
+            : (window.globalTessituras || {
+                's': { min: 60, max: 84 },
+                'a': { min: 53, max: 74 },
+                't': { min: 48, max: 69 },
+                'b': { min: 40, max: 62 }
+            });
+    }
 
     // Helper: Snap MIDI note to Scale
     function snapToScale(midi, scaleIntervals, keyIndex) {
@@ -725,7 +729,7 @@
                         prevL = l;
                     });
                     const avgL = sumL / (slice.length || 1);
-                    const range = TESSITURA[vk];
+                    const range = getTessitura()[vk];
                     const pitch = snapToScale(Math.round(range.min + (avgL / 255) * (range.max - range.min)), scaleIntervals, globalKeyIndex);
                     summaryNotes.push(pitch);
                 }
@@ -846,7 +850,7 @@
                     // Very Bright (White, > 230) -> Single Long Note
                     else if (avgLum > 230) {
                         const p = chunk[0];
-                        const range = TESSITURA[vKey];
+                        const range = getTessitura()[vKey];
                         const brightness = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b);
                         const norm = brightness / 255;
                         const rawPitch = range.min + (norm * (range.max - range.min));
@@ -879,7 +883,7 @@
                     }
 
                     // Pasar por la función inversa
-                    const range = TESSITURA[vKey];
+                    const range = getTessitura()[vKey];
                     // Recuperar las notas (se obtendrán N * 3 notas)
                     const literalMidiNotes = window.scaleColorsToMidiNotes(extractedColors, range.min, range.max, Math.round(PIXELS_PER_MEASURE * 4));
 
@@ -965,7 +969,7 @@
                             const p = chunk[Math.min(chunk.length - 1, centerPixelIdx)];
 
                             // Calculate Pitch from this pixel
-                            const range = TESSITURA[vKey];
+                            const range = getTessitura()[vKey];
                             const brightness = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b);
                             const norm = brightness / 255;
                             const rawPitch = range.min + (norm * (range.max - range.min));
@@ -1008,7 +1012,7 @@
                     const intSlider = document.getElementById('img-silence-threshold');
                     const intervalSteps = intSlider ? parseInt(intSlider.value) : 3;
 
-                    const range = TESSITURA[vKey];
+                    const range = getTessitura()[vKey];
 
                     // --- VOICES S and T: generate own arpegio ladder ---
                     if (vKey === 's' || vKey === 't') {
@@ -1271,7 +1275,7 @@
 
                     // Helper for Pitch Calculation
                     const getPitch = (p, vKey, lastState) => {
-                        const range = TESSITURA[vKey];
+                        const range = getTessitura()[vKey];
                         const brightness = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b);
                         const norm = brightness / 255;
 
@@ -1514,7 +1518,7 @@
                     // Fallback Mode / End of song padding
                     // Or if chunk is smaller than PIXELS_PER_MEASURE (end of song), we behave uniformly 
                     chunk.forEach(p => {
-                        const range = TESSITURA[vKey];
+                        const range = getTessitura()[vKey];
                         const brightness = (0.299 * p.r + 0.587 * p.g + 0.114 * p.b);
                         const norm = brightness / 255;
                         const rawPitch = range.min + (norm * (range.max - range.min));

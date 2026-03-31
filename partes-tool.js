@@ -36,13 +36,17 @@
         ['s', 'a', 'b'], ['s', 'a', 't']
     ];
 
-    // Voice tessitura (MIDI range)
-    var TESSITURA = {
-        s: { min: 60, max: 84 },   // C4 – C6
-        a: { min: 53, max: 74 },   // F3 – D5
-        t: { min: 48, max: 69 },   // C3 – A4
-        b: { min: 40, max: 62 }    // E2 – D4
-    };
+    // Voice tessitura (MIDI range) - Dynamic lookup
+    function getTessitura() {
+        return (window.bdi && window.bdi.metadata && window.bdi.metadata.tessituras)
+            ? window.bdi.metadata.tessituras
+            : (window.globalTessituras || {
+                s: { min: 60, max: 84 },
+                a: { min: 53, max: 74 },
+                t: { min: 48, max: 69 },
+                b: { min: 40, max: 62 }
+            });
+    }
 
     function partLabel(i) { return String.fromCharCode(65 + (i % 26)); }
 
@@ -105,7 +109,7 @@
      * centre that matches the target degree (mod 12).
      */
     function getCharacteristicPitch(voiceCode, partIndex, scaleNotes) {
-        var range = TESSITURA[voiceCode] || { min: 55, max: 79 };
+        var range = getTessitura()[voiceCode] || { min: 55, max: 79 };
         var center = Math.round((range.min + range.max) / 2);
 
         // Get scale intervals for current scale
@@ -268,7 +272,7 @@
      * @param scaleNotes  full sorted list of valid MIDI notes for current scale
      */
     function buildNoteSequence(voiceCode, partIndex, measureIndex, noteCount, scaleNotes, colorMode) {
-        var range = TESSITURA[voiceCode] || { min: 55, max: 79 };
+        var range = getTessitura()[voiceCode] || { min: 55, max: 79 };
 
         if (colorMode === 'ritmo') {
             // Find the tonic in this voice's range. If none, pick the middle note.
