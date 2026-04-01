@@ -44,6 +44,7 @@
   <script src="tarareo-melodic.js"></script> <!-- Melodic Tarareo Logic -->
   <script src="preferences.js?v=3"></script>
   <script src="musicoli.js?v=3"></script>
+  <script src="improvisacion.js"></script>
 
 
 
@@ -422,6 +423,8 @@
           style="padding: 3px 8px; font-size: 11px;">Instrumentación</button>
         <button id="mode-composicion" class="mode-btn mode-btn-composicion" data-i18n="Composición"
           style="padding: 3px 8px; font-size: 11px;">Composición</button>
+        <button id="mode-improvisacion" class="mode-btn mode-btn-improvisacion" data-i18n="Improvisation"
+          style="padding: 3px 8px; font-size: 11px;">Improvisation</button>
 
       </div>
       <div style="display: flex; gap: 6px; align-items: center; font-size: 12px; flex-wrap: wrap;">
@@ -990,6 +993,42 @@
 
               <!-- SHARED: LADDER COMPONENT (Scales) -->
               <div id="editor-tonalidad-ladder" style="display: none;"></div>
+
+              <!-- IMPROVISACIÓN SECTION -->
+              <div id="editor-improvisacion" class="mode-panel mode-editor editor-improvisacion" style="display: none; padding: 20px; border-radius: 8px; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                  <h3 style="margin: 0; font-family: monospace;" data-i18n="Improvisation">Improvisation</h3>
+                  <button id="impro-start-stop-btn" style="padding: 10px 25px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; background: #4CAF50; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s;">
+                    <span id="impro-btn-icon">▶</span> <span id="impro-btn-text">START</span>
+                  </button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                  <!-- Left Hand Info -->
+                  <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <h4 style="margin: 0 0 10px 0;">Mano Izquierda / Left Hand (T+B)</h4>
+                    <div style="font-family: monospace; font-size: 12px; line-height: 1.6;">
+                      <div id="impro-left-status">Queued: None</div>
+                      <div style="margin-top: 10px; opacity: 0.7;">Keys: <span style="background: #333; padding: 2px 4px; border-radius: 3px;">Q, W, E, R, A, S, D, F, Z, X, C, V</span></div>
+                    </div>
+                  </div>
+                  
+                  <!-- Right Hand Info -->
+                  <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <h4 style="margin: 0 0 10px 0;">Mano Derecha / Right Hand (S+A)</h4>
+                    <div style="font-family: monospace; font-size: 12px; line-height: 1.6;">
+                      <div id="impro-right-status">Queued: None</div>
+                      <div style="margin-top: 10px; opacity: 0.7;">Keys: <span style="background: #333; padding: 2px 4px; border-radius: 3px;">O, P, [, L, ;, ', ., /, ...</span></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Common Controls -->
+                <div style="margin-top: 20px; text-align: center; font-family: monospace; font-size: 11px; opacity: 0.8;">
+                   Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala<br>
+                   Numbers: Notes | Uppercase: Pattern | Lowercase: Scale
+                </div>
+              </div>
 
               <!-- 1. RHYTHM CONTROLS -->
               <div id="rhythm-controls-container" class="mode-panel"

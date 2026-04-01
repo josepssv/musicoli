@@ -62,7 +62,7 @@
 
   /* COMPOSICIÓN - Gris paso 6 (el más claro, pero con contraste suficiente) */
   --composicion-primary: #727272;
-  --composicion-secondary: #8e8e8e;
+  --composicion-secondary: #8e24aa;
   --composicion-bg: #5e5e5e;
   --composicion-bg-light: #626262;
   --composicion-text: #f0f0f0;
@@ -70,6 +70,17 @@
   --composicion-border: #838383;
   --composicion-accent: #989898;
   --composicion-hover: #7e7e7e;
+
+  /* IMPROVISACIÓN - Purple/Violet */
+  --improvisacion-primary: #4a148c;
+  --improvisacion-secondary: #7b1fa2;
+  --improvisacion-bg: #1a1a1a;
+  --improvisacion-bg-light: #2a2a2a;
+  --improvisacion-text: #e1bee7;
+  --improvisacion-text-dark: #ffffff;
+  --improvisacion-border: #9c27b0;
+  --improvisacion-accent: #ba68c8;
+  --improvisacion-hover: #8e24aa;
 }
 
 /* ============================================
@@ -146,6 +157,18 @@ body.app-mode-composicion {
   --theme-border: var(--composicion-border);
   --theme-accent: var(--composicion-accent);
   --theme-hover: var(--composicion-hover);
+}
+
+body.app-mode-improvisacion {
+  --theme-primary: var(--improvisacion-primary);
+  --theme-secondary: var(--improvisacion-secondary);
+  --theme-bg: var(--improvisacion-bg);
+  --theme-bg-light: var(--improvisacion-bg-light);
+  --theme-text: var(--improvisacion-text);
+  --theme-text-inverse: #ffffff;
+  --theme-border: var(--improvisacion-border);
+  --theme-accent: var(--improvisacion-accent);
+  --theme-hover: var(--improvisacion-hover);
 }
 
 /* ============================================
@@ -254,6 +277,13 @@ body.app-mode-composicion {
   color: #fff !important;
   border-color: var(--composicion-accent) !important;
   box-shadow: 0 0 0 2px rgba(142, 142, 142, 0.35);
+}
+
+.mode-btn-improvisacion.active {
+  background: var(--improvisacion-secondary) !important;
+  color: #fff !important;
+  border-color: var(--improvisacion-accent) !important;
+  box-shadow: 0 0 0 2px rgba(123, 31, 162, 0.35);
 }
 
 /* ============================================
@@ -376,6 +406,17 @@ body.app-mode-ritmo #editor-ritmo {
 
 .editor-composicion .mode-editor-title {
   color: var(--composicion-text-dark);
+}
+
+/* Editor de Improvisación */
+.editor-improvisacion {
+  background: var(--improvisacion-bg) !important;
+  border-color: var(--improvisacion-border) !important;
+  color: var(--improvisacion-text) !important;
+}
+
+.editor-improvisacion h3, .editor-improvisacion h4 {
+  color: var(--improvisacion-text-dark) !important;
 }
 
 /* ============================================

@@ -158,6 +158,7 @@ window.globalTessituras = (window.bdi && window.bdi.metadata && window.bdi.metad
 // Trigger UI Refresh
 window.refreshUI = function() {
     if (typeof renderStaff === 'function') renderStaff();
+    if (typeof renderVisualTracks === 'function') renderVisualTracks();
     if (typeof updateMidiEditingLevelVisibility === 'function') updateMidiEditingLevelVisibility();
 };
 
@@ -2185,16 +2186,18 @@ async function createTonalidadEditor(notepadInstance, containerId) {
     container.appendChild(grid);
 
     // Update all color values when mode changes
-    modeSelector.addEventListener('change', () => {
-        const allValueLabels = container.querySelectorAll('.color-value-label');
-        const allInputs = container.querySelectorAll('input[type="color"]');
-        allInputs.forEach((input, index) => {
-            const rgb = hexToRgb(input.value);
-            if (rgb) {
-                allValueLabels[index].textContent = formatColorValue(rgb.r, rgb.g, rgb.b, modeSelector.value);
-            }
+    if (typeof modeSelector !== 'undefined') {
+        modeSelector.addEventListener('change', () => {
+            const allValueLabels = container.querySelectorAll('.color-value-label');
+            const allInputs = container.querySelectorAll('input[type="color"]');
+            allInputs.forEach((input, index) => {
+                const rgb = hexToRgb(input.value);
+                if (rgb) {
+                    allValueLabels[index].textContent = formatColorValue(rgb.r, rgb.g, rgb.b, modeSelector.value);
+                }
+            });
         });
-    });
+    }
 }
 // Helper: Convert RGB to HSL
 function rgbToHsl(r, g, b) {
@@ -15994,7 +15997,13 @@ ${notepadCss}
                 // Call with override
                 window.playMeasureFast(0, basi[0]);
             }
+
+            // IMPRO HOOK: Notify improvisation mode of the updated note values
+            if (typeof window.imProNotifyEdit === 'function') {
+                window.imProNotifyEdit();
+            }
         };
+
 
         const getCurrentNotes = () => {
             const singleInput = document.getElementById('midi-single-input');
@@ -18530,7 +18539,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'mode-lyrics': 'lyrics',
         'mode-dinamica': 'dinamica',
         'mode-instrumentacion': 'instrumentacion',
-        'mode-composicion': 'composicion'
+        'mode-composicion': 'composicion',
+        'mode-improvisacion': 'improvisacion'
     };
 
     // Editor element IDs
@@ -18541,7 +18551,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'dinamica': 'editor-dinamica',
         'instrumentacion': 'panel-modo-instrumentacion', // Updated ID
         'composicion': 'editor-composicion',
-        'tarareo': 'editor-tarareo' // Added Tarareo just in case
+        'tarareo': 'editor-tarareo',
+        'improvisacion': 'editor-improvisacion'
     };
 
     // Initialize Tessituras Panel
@@ -18550,7 +18561,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to switch mode
     function switchMode(mode) {
 
-        document.body.classList.remove('app-mode-ritmo', 'app-mode-tonalidad', 'app-mode-lyrics', 'app-mode-dinamica', 'app-mode-instrumentacion', 'app-mode-composicion');
+        document.body.classList.remove('app-mode-ritmo', 'app-mode-tonalidad', 'app-mode-lyrics', 'app-mode-dinamica', 'app-mode-instrumentacion', 'app-mode-composicion', 'app-mode-improvisacion');
         document.body.classList.add('app-mode-' + mode);
 
         // MUSICOLI: Hide silence variations column if not in rhythm mode
@@ -18573,7 +18584,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (modalDisplay) {
             // Keep visible if in appropriate modes, or if it was manually opened (if we want that behavior)
-            if (mode === 'ritmo' || mode === 'tonalidad') {
+            if (mode === 'ritmo' || mode === 'tonalidad' || mode === 'improvisacion') {
                 modalDisplay.style.display = 'flex';
                 if (lowerRow) lowerRow.style.display = 'flex';
                 if (rightColumn) rightColumn.style.display = 'flex';
