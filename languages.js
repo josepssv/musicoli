@@ -286,6 +286,9 @@ const LANGUAGES = {
         "PeakMidi": "cima",
         "ValleyMidi": "valle",
         "DeshacerCambios": "Deshacer cambios en este compás",
+        "RandomizePositions": "Randomizar posiciones",
+        "SortLowHigh": "Ordenar de menor a mayor",
+        "SortHighLow": "Ordenar de mayor a menor",
         "SaveLyrics": "Guardar Letra",
         "UpdateDBI": "Actualizar",
         "Limitador de Volumen": "Limitador de Volumen",
@@ -308,7 +311,15 @@ const LANGUAGES = {
         "Apply chord to selected notes": "Aplicar acorde a las notas seleccionadas",
         "Tessituras": "Tesituras",
         "Min": "Min",
-        "Max": "Max"
+        "Max": "Max",
+        "Improvisation": "Improvisación",
+        "Teclado (Improvisación)": "Teclado (Improvisación)",
+        "Teclas:": "Teclas:",
+        "Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala": "Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala",
+        "Límite:": "Límite:",
+        "Compases": "Compases",
+        "Segundos": "Segundos",
+        "Infinito": "Infinito"
     },
     en: {
         "Escalas": "Scales",
@@ -558,6 +569,9 @@ const LANGUAGES = {
         "PeakMidi": "peak",
         "ValleyMidi": "valley",
         "DeshacerCambios": "Undo changes in this measure",
+        "RandomizePositions": "Randomize Positions",
+        "SortLowHigh": "Sort Low to High",
+        "SortHighLow": "Sort High to Low",
         "SaveLyrics": "Save Lyrics",
         "UpdateDBI": "Update",
         "Limitador de Volumen": "Volume Limiter",
@@ -580,7 +594,15 @@ const LANGUAGES = {
         "Apply chord to selected notes": "Apply chord to selected notes",
         "Tessituras": "Tessituras",
         "Min": "Min",
-        "Max": "Max"
+        "Max": "Max",
+        "Improvisation": "Improvisation",
+        "Teclado (Improvisación)": "Keyboard (Improvisation)",
+        "Teclas:": "Keys:",
+        "Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala": "Numbers: Notes | Uppercase: Pattern | Lowercase: Scale",
+        "Límite:": "Limit:",
+        "Compases": "Measures",
+        "Segundos": "Seconds",
+        "Infinito": "Infinite"
     },
     de: {
         "Ritmo": "Rhythmus",
@@ -790,7 +812,15 @@ const LANGUAGES = {
         "Arpeggio": "Arpeggio",
         "Tessituras": "Tonumfänge",
         "Min": "Min",
-        "Max": "Max"
+        "Max": "Max",
+        "Improvisation": "Improvisation",
+        "Teclado (Improvisación)": "Tastatur (Improvisation)",
+        "Teclas:": "Tasten:",
+        "Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala": "Zahlen: Noten | Großbuchstaben: Muster | Kleinbuchstaben: Tonleiter",
+        "Límite:": "Limit:",
+        "Compases": "Takte",
+        "Segundos": "Sekunden",
+        "Infinito": "Unendlich"
     }
 };
 

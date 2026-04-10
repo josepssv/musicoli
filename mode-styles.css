@@ -309,10 +309,13 @@ body.app-mode-improvisacion {
   color: var(--ritmo-text);
 }
 
-/* MUSICOLI: editor-ritmo is always empty in ritmo mode (content goes to rhythm-patterns-slot) */
-body.app-mode-ritmo #editor-ritmo {
+/* MUSICOLI: En modo ritmo/impro liberamos el contenedor principal para que el panel único sea visible */
+/* 
+body.app-mode-ritmo #editor-ritmo,
+body.app-mode-improvisacion #editor-ritmo {
   display: none !important;
 }
+*/
 
 
 /* MUSICOLI: rhythm-patterns-slot - no overflow by default */
@@ -444,14 +447,15 @@ body.app-mode-ritmo #editor-ritmo {
    RHYTHM-ONLY BUTTONS
    ============================================ */
 
-/* Hide rhythm-only buttons when not in rhythm, composition, or tonalidad (melody) mode */
-body:not(.app-mode-ritmo):not(.app-mode-composicion):not(.app-mode-tonalidad) .rhythm-only {
+/* Hide rhythm-only buttons when not in rhythm, composition, tonalidad (melody), or improvisation mode */
+body:not(.app-mode-ritmo):not(.app-mode-composicion):not(.app-mode-tonalidad):not(.app-mode-improvisacion) .rhythm-only {
   visibility: hidden;
 }
 
-/* MUSICOLI: Empezar button visible in Composicion and Tonalidad modes */
+/* MUSICOLI: Empezar button visible in Composicion, Tonalidad and Improvisacion modes */
 body.app-mode-composicion #empezar-btn,
-body.app-mode-tonalidad #empezar-btn {
+body.app-mode-tonalidad #empezar-btn,
+body.app-mode-improvisacion #empezar-btn {
   visibility: visible !important;
 }
 
@@ -579,9 +583,29 @@ body.app-mode-tonalidad #editor-tonalidad-ladder {
   pointer-events: none;
 }
 
-/* Show in Tonalidad Mode ONLY */
-body.app-mode-tonalidad #editor-chords-panel {
+/* Show in Tonalidad Mode and Improvisation */
+body.app-mode-tonalidad #editor-chords-panel,
+body.app-mode-improvisacion #editor-chords-panel {
   display: flex !important;
+}
+
+/* ── Improvisation compact toolbar ── */
+body.app-mode-improvisacion #editor-improvisacion {
+  /* Thin single-line bar */
+  padding: 4px 10px !important;
+  background: #2a2a2a !important;
+  border-radius: 6px !important;
+  border: 1px solid #444 !important;
+  margin-bottom: 6px !important;
+  /* Keep it above the chords panel in the flex column */
+  order: -1 !important;
+  flex-shrink: 0;
+}
+
+/* When running, highlight the bar */
+body.app-mode-improvisacion #editor-improvisacion:has(#impro-start-stop-btn.active) {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.4) !important;
 }
 
 /* Show in Tonalidad Mode ONLY */
@@ -671,8 +695,7 @@ body.voice-mode-independent #editor-chords-panel {
 }
 
 #rhythm-color-info-div {
-  order: 9999 !important; /* Force to bottom of flex container */
-  margin-top: 10px !important;
+  margin-top: 5px !important;
   margin-bottom: 5px !important;
 }
 
@@ -812,4 +835,35 @@ body.app-mode-ritmo input:checked+.slider {
 
 .panel-scroll-top-btn:active {
   transform: translateY(0);
+}
+
+/* ============================================
+   IMPROVISACIÓN: LAYOUT FIX
+   The track timeline is sticky by default (z-index:100).
+   In Improvisation mode the MIDI editor must sit BELOW the track matrix,
+   not be covered by it, so we disable sticky behaviour.
+   ============================================ */
+body.app-mode-improvisacion #timeline-split-view {
+  position: relative !important;
+  top: auto !important;
+  z-index: 1 !important;
+}
+
+/* Ensure the MIDI editor panel is above normal flow in impro */
+body.app-mode-improvisacion #modal-display-container {
+  position: relative !important;
+  z-index: 10 !important;
+}
+/* ============================================
+   PANEL PATRONES — visible en Improvisación
+   Muestra el rhythm-controls-container existente (editor-ritmo + botonera)
+   debajo del panel de acordes, sin crear nada nuevo.
+   ============================================ */
+body.app-mode-improvisacion #rhythm-controls-container {
+  display: flex !important;
+}
+
+/* En Impro, oculta las secciones de ritmo que no aplican (onda-ritmo, etc.) */
+body.app-mode-improvisacion #ritmo-onda-ritmo-section {
+  display: none !important;
 }

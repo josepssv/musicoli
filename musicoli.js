@@ -2362,7 +2362,20 @@ function addMonochromaticIntervalsToLadder() {
 
         selectorContainer.appendChild(btnS);
     }
-    ladder.appendChild(selectorContainer);
+    const patroni = document.getElementById('patroni');
+    const selectorSlot = document.getElementById('note-count-selector-slot');
+    if (selectorSlot) {
+        // Remove existing if any to avoid duplicates
+        const oldSelector = document.getElementById('note-count-selector');
+        if (oldSelector) oldSelector.remove();
+        selectorSlot.appendChild(selectorContainer);
+    } else if (patroni) { // Fallback if slot not found
+        const oldSelector = document.getElementById('note-count-selector');
+        if (oldSelector) oldSelector.remove();
+        patroni.appendChild(selectorContainer);
+    } else {
+        ladder.appendChild(selectorContainer);
+    }
 
     // Button 0 (Negative/Rest)
     const btnZero = document.createElement('span');
@@ -2439,7 +2452,11 @@ function addMonochromaticIntervalsToLadder() {
             }
         }
     };
-    ladder.appendChild(btnZero);
+    if (patroni) {
+        patroni.appendChild(btnZero);
+    } else {
+        ladder.appendChild(btnZero);
+    }
 
     // Interval 0: Only Ascending (monochromatic single notes)
     addScaleWithInterval3(scaleNotesInRange, vocalRange, scaleName, 0, 'ascending', null, false);
@@ -4464,7 +4481,18 @@ function makeladi(hexi = '#ff0000') {
     const mode = (typeof window.currentEditMode !== 'undefined') ? window.currentEditMode :
         (typeof currentEditMode !== 'undefined' ? currentEditMode : 'ritmo');
 
-    if (mode !== 'tonalidad') {
+    const patroni = document.getElementById('patroni');
+    const selectorSlot = document.getElementById('note-count-selector-slot');
+    if (mode !== 'tonalidad' && selectorSlot) {
+        // Remove existing to avoid duplicates when makeladi is recalled
+        const oldSelector = document.getElementById('note-count-selector');
+        if (oldSelector) oldSelector.remove();
+        selectorSlot.appendChild(selectorContainer);
+    } else if (mode !== 'tonalidad' && patroni) {
+        const oldSelector = document.getElementById('note-count-selector');
+        if (oldSelector) oldSelector.remove();
+        patroni.appendChild(selectorContainer);
+    } else if (mode !== 'tonalidad') {
         ladderElement.appendChild(selectorContainer);
     }
 
@@ -4481,13 +4509,33 @@ function makeladi(hexi = '#ff0000') {
     if (window.rhythmEditorContent) {
         rhythmSlot.appendChild(window.rhythmEditorContent);
     }
+    const patternsSlotContainer = document.getElementById('rhythm-patterns-slot-container');
     if (mode !== 'tonalidad') {
-        ladderElement.appendChild(rhythmSlot);
-        // MUSICOLI: Persistence for the Send Panel when ladder is cleared
-        if (window.rhythmSendPanel) {
-            ladderElement.appendChild(window.rhythmSendPanel);
-            window.rhythmSendPanel.style.marginLeft = '15px';
-            window.rhythmSendPanel.style.marginTop = '8px';
+        if (patternsSlotContainer) {
+            // Remove existing to avoid duplicates
+            const oldSlot = document.getElementById('rhythm-patterns-slot');
+            if (oldSlot) oldSlot.remove();
+            patternsSlotContainer.appendChild(rhythmSlot);
+        } else if (patroni) {
+            // Remove existing to avoid duplicates
+            const oldSlot = document.getElementById('rhythm-patterns-slot');
+            if (oldSlot) oldSlot.remove();
+            patroni.appendChild(rhythmSlot);
+        } else {
+            ladderElement.appendChild(rhythmSlot);
+        }
+        // MUSICOLI: Persistence for the Send Panel moved to patroni in HTML/CSS
+        // We no longer hijack window.rhythmSendPanel here as it lives in #rhythm-color-info-div
+    }
+    
+    // Ensure rhythmSendPanel is correctly placed in its slot in patroni if it was misplaced
+    if (window.rhythmSendPanel && (window.rhythmSendPanel.parentNode === null || window.rhythmSendPanel.parentNode.id !== 'rhythm-color-info-row2-slot')) {
+        const row2Slot = document.getElementById('rhythm-color-info-row2-slot');
+        const infoDiv = document.getElementById('rhythm-color-info-div');
+        if (row2Slot) {
+            row2Slot.appendChild(window.rhythmSendPanel);
+        } else if (infoDiv) {
+            infoDiv.appendChild(window.rhythmSendPanel);
         }
     }
 
@@ -6193,8 +6241,14 @@ function createRitmoEditor(containerId) {
     colorInfoRow1.appendChild(rhythmColorPreview);
     colorInfoRow1.appendChild(colorMelodi);
     colorInfoDiv.appendChild(colorInfoRow1);
-    // Row 2 might be relocated later in the function, but for now it's still part of the info div as fallback
-    colorInfoDiv.appendChild(colorInfoRow2);
+    
+    // MUSICOLI: Put Row 2 (Send Panel) into dedicated slot at the top of #patroni if available
+    const row2Slot = document.getElementById('rhythm-color-info-row2-slot');
+    if (row2Slot) {
+        row2Slot.appendChild(colorInfoRow2);
+    } else {
+        colorInfoDiv.appendChild(colorInfoRow2);
+    }
 
     // Global function to update visibility
     window.updateRhythmColorInfoVisibility = function () {
@@ -6214,7 +6268,7 @@ function createRitmoEditor(containerId) {
                 if (percToggle) percToggle.style.display = 'none';
                 if (aplicarRitmo) aplicarRitmo.style.display = 'none';
                 if (row2) row2.style.display = 'none';
-            } else if (currentEditMode === 'ritmo') { // Ritmo
+            } else if (currentEditMode === 'ritmo' || currentEditMode === 'improvisacion') { // Ritmo e Improvisación
                 if (preview) preview.style.display = 'none';
                 if (melodi) melodi.style.display = 'none';
                 if (displiritmi) displiritmi.style.display = 'inline-flex';
@@ -6223,6 +6277,20 @@ function createRitmoEditor(containerId) {
                 const isPercChecked = document.getElementById('global-percussion-checkbox')?.checked;
                 if (aplicarRitmo) aplicarRitmo.style.display = isPercChecked ? 'inline-flex' : 'none';
                 if (row2) row2.style.display = 'flex';
+                
+                // Asegurar que los botones de grupo (selector 1-8) sean visibles y tengan fondo oscuro
+                const groupSelector = document.getElementById('ritmo-group-selector') || window.rhythmGroupSelector;
+                if (groupSelector) {
+                    groupSelector.style.display = 'flex';
+                    // Forzar que los botones internos se vean bien sobre fondo oscuro
+                    Array.from(groupSelector.children).forEach(btn => {
+                        if (btn.style.background === 'rgb(255, 255, 255)' || btn.style.background === 'white') {
+                             btn.style.background = '#444';
+                             btn.style.color = '#fff';
+                             btn.style.borderColor = '#666';
+                        }
+                    });
+                }
             } else {
                 // Hide both in other modes
                 if (preview) preview.style.display = 'none';
@@ -6863,9 +6931,11 @@ function createRitmoEditor(containerId) {
     controlRow.style.flexWrap = 'wrap';
 
     const groupSelector = document.createElement('div');
+    groupSelector.id = 'ritmo-group-selector';
     groupSelector.style.display = 'flex';
     groupSelector.style.gap = '4px';
     groupSelector.style.flexWrap = 'wrap';
+    window.rhythmGroupSelector = groupSelector; // Expose for Impro mode panel
 
     // Container for notation display and accept button
     const notationContainer = document.createElement('div');
@@ -7711,29 +7781,9 @@ function createRitmoEditor(containerId) {
     // MUSICOLI: Expose content globally for re-attachment
     window.rhythmEditorContent = content;
 
-    // MUSICOLI: Relocate content to the dedicated slot below buttons if available
-    const rhythmSlot = document.getElementById('rhythm-patterns-slot');
-    if (rhythmSlot) {
-        // Ensure content is strictly relative
-        content.style.position = 'relative';
-        content.style.marginLeft = '15px';   // align with selector
-        rhythmSlot.innerHTML = ''; // Clear previous content if any
-        rhythmSlot.appendChild(content);
-
-        // MUSICOLI: Relocate colorInfoRow2 (Apply Rhythm Panel) under the patterns
-        // This ensures the send panel is right below the generated patterns
-        rhythmSlot.parentNode.appendChild(colorInfoRow2);
-        colorInfoRow2.style.marginLeft = '15px'; // align with patterns
-        colorInfoRow2.style.marginTop = '8px';
-    } else {
-        // Fallback: regular append to editor container
-        container.appendChild(content);
-        container.appendChild(colorInfoRow2);
-    }
-
-    // Legacy append check removed to prevent duplication
-    // container.appendChild(content);
-
+    // MUSICOLI: Elements are now relocated via makeladi() using dedicated slots in #patroni.
+    // This allows for a more stable and predictable UI layout across mode changes.
+    
     // State
     window.rhythmEditorState = window.rhythmEditorState || {};
     window.rhythmEditorState.currentGroupIndex = 0;
@@ -11118,6 +11168,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     window.playMeasureFast = function (nc, measureOverride = null, forceVoices = null) {
+        // Prevent preview interruptions during Improvisation mode unless it's the actual track loop
+        if (window.currentEditMode === 'improvisacion' && !window.isImprovisacionLoopPlayback) {
+            return;
+        }
+
         if (hiddenPlayerState.fastPlayTimeout) {
             clearTimeout(hiddenPlayerState.fastPlayTimeout);
         }
@@ -11999,6 +12054,10 @@ ${notepadCss}
             if (editorRitmo) editorRitmo.style.display = 'none';
             if (editorLyrics) editorLyrics.style.display = 'none';
             if (editorTarareo) editorTarareo.style.display = 'none';
+            
+            const patroni = document.getElementById('patroni');
+            if (patroni) patroni.style.display = 'none';
+
             const rhythmColorInfo = document.getElementById('rhythm-color-info-div');
             if (rhythmColorInfo) rhythmColorInfo.style.display = 'none';
             const tonalidadLadder = document.getElementById('editor-tonalidad-ladder');
@@ -12093,6 +12152,11 @@ ${notepadCss}
             if (editorRitmo) {
                 editorRitmo.style.display = 'block';
                 editorRitmo.style.opacity = '1';
+            }
+            const patroni = document.getElementById('patroni');
+            if (patroni) {
+                patroni.style.display = 'flex';
+                patroni.style.opacity = '1';
             }
             const tonalidadLadder = document.getElementById('editor-tonalidad-ladder');
             if (tonalidadLadder) tonalidadLadder.style.display = 'block';
@@ -12734,14 +12798,19 @@ ${notepadCss}
     if (bpmCustomInputEl) {
         // Update BPM when user enters custom value
         bpmCustomInputEl.addEventListener('input', (e) => {
-            const newBpm = parseInt(e.target.value);
+            const val = e.target.value;
+            if (val === '') return; // Allow staying empty while typing
+
+            const newBpm = parseInt(val);
 
             // Validate BPM range (limits removed by user request)
             if (!isNaN(newBpm)) {
                 // Update BPM variables
                 bpmValue = newBpm;
+                window.bpmValue = newBpm;
                 tempi = newBpm;
-                if (bdi.metadata) {
+                window.tempi = newBpm;
+                if (bdi && bdi.metadata) {
                     bdi.metadata.bpm = newBpm;
                 }
 
@@ -12749,8 +12818,12 @@ ${notepadCss}
                 if (typeof rebuildRecordi === 'function') {
                     rebuildRecordi();
                 }
-            } else {
-                // If it's not a number, keep previous value but don't limit range
+            }
+        });
+
+        // Restore valid BPM on blur if input is empty
+        bpmCustomInputEl.addEventListener('blur', (e) => {
+            if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
                 e.target.value = bpmValue || 120;
             }
         });
@@ -12758,7 +12831,7 @@ ${notepadCss}
         // Also update on Enter key
         bpmCustomInputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.target.blur(); // Trigger change event
+                e.target.blur(); // Trigger blur and ensure change
             }
         });
     }
@@ -14226,6 +14299,7 @@ ${notepadCss}
                 const intensity = mainNote.intensity || 80;
                 
                 let bgColor = 'rgba(240, 240, 240, 0.5)';
+                
                 if (intensity > 80) {
                     const ratio = (intensity - 80) / (127 - 80);
                     bgColor = `rgba(255, ${255 - (ratio * 50)}, ${200 - (ratio * 150)}, 0.4)`;
@@ -15016,6 +15090,170 @@ ${notepadCss}
         unifiedControls.appendChild(x2Btn);
         unifiedControls.appendChild(div2Btn);
         unifiedControls.appendChild(rotateBtn);
+        
+        // Randomize Button (R)
+        const shuffleBtn = document.createElement('button');
+        shuffleBtn.textContent = 'R';
+        shuffleBtn.title = (typeof t === 'function') ? (t("RandomizePositions") || "Randomizar posiciones") : "Randomizar posiciones";
+        shuffleBtn.style.cssText = 'background: #9C27B0; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 14px; font-weight: bold; height: 24px; margin-right: 4px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;';
+
+        shuffleBtn.onclick = () => {
+            const singleInput = document.getElementById('midi-single-input');
+            if (!singleInput) return;
+
+            let fullMidi = window.currentFullMidiValues ? [...window.currentFullMidiValues] : [];
+            let fullRhythm = window.currentEditingRhythmValues ? [...window.currentEditingRhythmValues] : [];
+            let fullDynamics = window.currentEditingDynamicsValues ? [...window.currentEditingDynamicsValues] : [];
+
+            // Determine indices to shuffle
+            let indices = [];
+            if (window.selectedNoteIndices && window.selectedNoteIndices.length > 0) {
+                indices = [...window.selectedNoteIndices].sort((a, b) => a - b);
+            } else {
+                indices = fullMidi.map((_, i) => i);
+            }
+
+            if (indices.length < 2) return;
+
+            // Extract the parts to shuffle
+            const sourceMidi = indices.map(i => fullMidi[i]);
+            const sourceRhythm = indices.map(i => fullRhythm[i]);
+            const sourceDynamics = indices.map(i => fullDynamics[i]);
+
+            // Fisher-Yates shuffle
+            for (let i = sourceMidi.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [sourceMidi[i], sourceMidi[j]] = [sourceMidi[j], sourceMidi[i]];
+                [sourceRhythm[i], sourceRhythm[j]] = [sourceRhythm[j], sourceRhythm[i]];
+                [sourceDynamics[i], sourceDynamics[j]] = [sourceDynamics[j], sourceDynamics[i]];
+            }
+
+            // Apply Back
+            indices.forEach((origIdx, i) => {
+                fullMidi[origIdx] = sourceMidi[i];
+                fullRhythm[origIdx] = sourceRhythm[i];
+                fullDynamics[origIdx] = sourceDynamics[i];
+            });
+
+            // Update Globals
+            window.currentFullMidiValues = fullMidi;
+            window.currentEditingRhythmValues = fullRhythm;
+            window.currentEditingDynamicsValues = fullDynamics;
+
+            // Construct Signed Notes for updateInputAndRecalc
+            const newSignedNotes = fullMidi.map((m, i) => {
+                const r = fullRhythm[i];
+                return (r < 0) ? -Math.abs(m) : Math.abs(m);
+            });
+
+            if (typeof updateInputAndRecalc === 'function') {
+                updateInputAndRecalc(newSignedNotes);
+            }
+
+            // Preview playback
+            if (typeof window.playMeasureFast === 'function') {
+                const pMidi = window.currentFullMidiValues || [];
+                const pRhythm = window.currentEditingRhythmValues || [];
+                const pDinami = window.currentEditingDynamicsValues || new Array(pMidi.length).fill(80);
+                const basi = [{ nimidi: pMidi, tipis: pRhythm, dinami: pDinami }];
+                window.playMeasureFast(0, basi[0]);
+            }
+        };
+        unifiedControls.appendChild(shuffleBtn);
+
+        // Sort Ascending Button (Low to High)
+        const sortAscBtn = document.createElement('button');
+        sortAscBtn.textContent = '↑';
+        sortAscBtn.title = (typeof t === 'function') ? (t("SortLowHigh") || "Ordenar de menor a mayor") : "Ordenar de menor a mayor";
+        sortAscBtn.style.cssText = 'background: #00BCD4; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 14px; font-weight: bold; height: 24px; margin-right: 4px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;';
+
+        sortAscBtn.onclick = () => {
+            const singleInput = document.getElementById('midi-single-input');
+            if (!singleInput) return;
+
+            let fullMidi = window.currentFullMidiValues ? [...window.currentFullMidiValues] : [];
+            let fullRhythm = window.currentEditingRhythmValues ? [...window.currentEditingRhythmValues] : [];
+            let fullDynamics = window.currentEditingDynamicsValues ? [...window.currentEditingDynamicsValues] : [];
+
+            let indices = [];
+            if (window.selectedNoteIndices && window.selectedNoteIndices.length > 0) {
+                indices = [...window.selectedNoteIndices].sort((a, b) => a - b);
+            } else {
+                indices = fullMidi.map((_, i) => i);
+            }
+
+            if (indices.length < 2) return;
+
+            const notes = indices.map(i => ({
+                midi: fullMidi[i],
+                rhythm: fullRhythm[i],
+                dynamics: fullDynamics[i]
+            }));
+
+            // Sort Low to High
+            notes.sort((a, b) => Math.abs(a.midi) - Math.abs(b.midi));
+
+            indices.forEach((origIdx, i) => {
+                fullMidi[origIdx] = notes[i].midi;
+                fullRhythm[origIdx] = notes[i].rhythm;
+                fullDynamics[origIdx] = notes[i].dynamics;
+            });
+
+            window.currentFullMidiValues = fullMidi;
+            window.currentEditingRhythmValues = fullRhythm;
+            window.currentEditingDynamicsValues = fullDynamics;
+
+            const newSignedNotes = fullMidi.map((m, i) => (fullRhythm[i] < 0) ? -Math.abs(m) : Math.abs(m));
+            if (typeof updateInputAndRecalc === 'function') updateInputAndRecalc(newSignedNotes);
+        };
+        unifiedControls.appendChild(sortAscBtn);
+
+        // Sort Descending Button (High to Low)
+        const sortDescBtn = document.createElement('button');
+        sortDescBtn.textContent = '↓';
+        sortDescBtn.title = (typeof t === 'function') ? (t("SortHighLow") || "Ordenar de mayor a menor") : "Ordenar de mayor a menor";
+        sortDescBtn.style.cssText = 'background: #00BCD4; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-family: monospace; cursor: pointer; font-size: 14px; font-weight: bold; height: 24px; margin-right: 4px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;';
+
+        sortDescBtn.onclick = () => {
+            const singleInput = document.getElementById('midi-single-input');
+            if (!singleInput) return;
+
+            let fullMidi = window.currentFullMidiValues ? [...window.currentFullMidiValues] : [];
+            let fullRhythm = window.currentEditingRhythmValues ? [...window.currentEditingRhythmValues] : [];
+            let fullDynamics = window.currentEditingDynamicsValues ? [...window.currentEditingDynamicsValues] : [];
+
+            let indices = [];
+            if (window.selectedNoteIndices && window.selectedNoteIndices.length > 0) {
+                indices = [...window.selectedNoteIndices].sort((a, b) => a - b);
+            } else {
+                indices = fullMidi.map((_, i) => i);
+            }
+
+            if (indices.length < 2) return;
+
+            const notes = indices.map(i => ({
+                midi: fullMidi[i],
+                rhythm: fullRhythm[i],
+                dynamics: fullDynamics[i]
+            }));
+
+            // Sort High to Low
+            notes.sort((a, b) => Math.abs(b.midi) - Math.abs(a.midi));
+
+            indices.forEach((origIdx, i) => {
+                fullMidi[origIdx] = notes[i].midi;
+                fullRhythm[origIdx] = notes[i].rhythm;
+                fullDynamics[origIdx] = notes[i].dynamics;
+            });
+
+            window.currentFullMidiValues = fullMidi;
+            window.currentEditingRhythmValues = fullRhythm;
+            window.currentEditingDynamicsValues = fullDynamics;
+
+            const newSignedNotes = fullMidi.map((m, i) => (fullRhythm[i] < 0) ? -Math.abs(m) : Math.abs(m));
+            if (typeof updateInputAndRecalc === 'function') updateInputAndRecalc(newSignedNotes);
+        };
+        unifiedControls.appendChild(sortDescBtn);
         
         // --- ROW B: Main Actions -- RIGHT ALIGNED (Revert, Add, Apply) ---
         const rightGroup = document.createElement('div');
@@ -18599,6 +18837,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalDisplay.style.display = 'none';
             }
         }
+        
+        // Ensure Link is ON immediately upon entering Improvisation mode
+        if (mode === 'improvisacion') {
+            window.chordsMidiLinkEnabled = true;
+            window.chordInsertModeEnabled = false;
+            
+            const linkCheckbox = document.getElementById('chords-midi-link-checkbox');
+            if (linkCheckbox && !linkCheckbox.checked) {
+                linkCheckbox.checked = true;
+                linkCheckbox.dispatchEvent(new Event('change'));
+            }
+
+            // Forzar actualización de visibilidad de componentes rítmicos (solo visibilidad, no movimiento)
+            if (typeof window.updateRhythmColorInfoVisibility === 'function') {
+                window.updateRhythmColorInfoVisibility();
+            }
+            if (typeof makeladi === 'function') makeladi();
+        }
 
         // Manage Image Melody Panel (Composition Mode)
         if (mode === 'composicion') {
@@ -19640,6 +19896,8 @@ window.populateSilenceVariationsColumn = function () {
  * Audition a chord via Soundfont instrument.
  */
 window.auditionSATBChord = function(rootMidi, intervals, activeVoiceCode) {
+    if (window.currentEditMode === 'improvisacion') return;
+    
     const result = window.getSATBNotesForChord(rootMidi, intervals, activeVoiceCode);
     if (!result || !result.satb) return;
     
@@ -20314,6 +20572,21 @@ window.initChordsPanel = function() {
         }
         updateStrumBrush();
         
+        // MUSICOLI: Master Sync - Link ON for Strum/Retardos
+        if (window.chordsMidiLinkEnabled && window.bdi && window.bdi.bar) {
+            const measureIndex = window.currentEditingMeasureIndex;
+            if (measureIndex >= 0 && window.bdi.bar[measureIndex]) {
+                const m = window.bdi.bar[measureIndex];
+                m.stagger = window.currentEditingStagger;
+                m.staggerDir = window.currentEditingStaggerDir;
+                m.staggerNotes = window.currentEditingStaggerNotes ? JSON.parse(JSON.stringify(window.currentEditingStaggerNotes)) : {};
+                
+                // Commit visually and mechanically
+                if (typeof window.rebuildRecordi === 'function') window.rebuildRecordi();
+                if (typeof window.refreshMidiEditorScore === 'function') window.refreshMidiEditorScore();
+            }
+        }
+
         // Trigger preview
         if (typeof window.playMeasureFast === 'function') {
             const currentInput = document.getElementById('midi-single-input');
@@ -20381,10 +20654,12 @@ window.initChordsPanel = function() {
     headerContainer.appendChild(strumGroup);
     
     // Checkbox para vincular al MIDI Editor - REDESIGNED as SLIDER
-    const linkContainer = document.createElement('label');
-    linkContainer.className = 'switch';
+    const linkContainer = document.createElement('div');
+    linkContainer.style.display = 'flex';
+    linkContainer.style.alignItems = 'center';
     linkContainer.style.marginLeft = '12px';
     linkContainer.style.gap = '6px';
+    linkContainer.style.cursor = 'pointer';
     linkContainer.title = (typeof t === 'function' ? t("Al hacer Apply o Add en el Editor MIDI, usar el acorde seleccionado en vez de la escala") : "When clicking Apply or Add in the MIDI Editor, use the selected chord instead of the scale");
 
     const linkLabelText = document.createElement('span');
@@ -20392,8 +20667,8 @@ window.initChordsPanel = function() {
     linkLabelText.textContent = (typeof t === 'function' ? t('Link') : 'Link');
     if (window.chordsMidiLinkEnabled) linkLabelText.style.color = '#2e7d32';
 
-    const linkSwitchControl = document.createElement('div');
-    linkSwitchControl.className = 'switch-control';
+    const linkSwitchControl = document.createElement('label');
+    linkSwitchControl.className = 'switch';
     
     const linkCheckbox = document.createElement('input');
     linkCheckbox.type = 'checkbox';
@@ -20624,34 +20899,11 @@ window.initChordsPanel = function() {
     });
     
     mainContainer.appendChild(mixerContainer);
-    const insertContainer = document.createElement('label');
-    insertContainer.style.cssText = 'display: inline-flex; align-items: center; cursor: pointer; font-size: 11px; margin-left: 10px; color: #333; font-family: sans-serif;';
-    // Ocultar si está vinculado
-    insertContainer.style.display = window.chordsMidiLinkEnabled ? 'none' : 'inline-flex';
-    
-    const insertModeCheckbox = document.createElement('input');
-    insertModeCheckbox.type = 'checkbox';
-    insertModeCheckbox.id = 'chord-insert-mode';
-    insertModeCheckbox.style.marginRight = '4px';
-    if (window.chordInsertModeEnabled === undefined) window.chordInsertModeEnabled = true;
-    insertModeCheckbox.checked = window.chordInsertModeEnabled;
-
-    insertModeCheckbox.onchange = (e) => {
-        window.chordInsertModeEnabled = e.target.checked;
-        const staffCt = document.getElementById('chord-staff-container');
-        if(staffCt) staffCt.title = e.target.checked ? "Click to insert chord as NEW measure" : "Click to apply to ALL voices (SATB)";
-    };
-    
-    insertContainer.appendChild(insertModeCheckbox);
-    insertContainer.appendChild(document.createTextNode((typeof t === 'function' ? t("Insert") : "Insert")));
-    
     linkCheckbox.onchange = (e) => {
         window.chordsMidiLinkEnabled = e.target.checked;
         
-        // Al activar el Link, forzar la desactivación de Insert
         if (e.target.checked) {
             window.chordInsertModeEnabled = false;
-            insertModeCheckbox.checked = false;
             const staffCt = document.getElementById('chord-staff-container');
             if(staffCt) staffCt.title = "Click to apply to ALL voices (SATB)";
             linkLabelText.style.color = '#2e7d32';
@@ -20668,8 +20920,6 @@ window.initChordsPanel = function() {
         // MUSICOLI: La dinámica vertical se activa automáticamente al activar el Link
         window.chordsVerticalDynamicsEnabled = e.target.checked;
 
-        // Mostrar u ocultar el check de "Insert"
-        insertContainer.style.display = e.target.checked ? 'none' : 'inline-flex';
         // mixerContainer siempre visible
         
         // MUSICOLI: Hide/Show Preview Staff based on Link
@@ -20691,7 +20941,6 @@ window.initChordsPanel = function() {
     };
     
     // Colocar los controles en la cabecera
-    headerContainer.appendChild(insertContainer);
     headerContainer.appendChild(linkContainer);
     
     mainContainer.appendChild(headerContainer);
@@ -20933,40 +21182,48 @@ window.initChordsPanel = function() {
             window.renderChordPreviewOnStaff(name, intervals, staffContainer);
             staffContainer.dataset.stagedChord = name;
 
-            // 4. Update MIDI Editor (Staging - only active voice)
-            // Skip staging visual update if we are in insert mode, 
-            // to avoid mutating the current measure while auditioning.
-            if (!window.chordInsertModeEnabled) {
-                const singleInput = document.getElementById('midi-single-input');
-                if (singleInput && selectedIndices.length > 0) {
-                    const currentVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v));
-                    
-                    // "Replicarlas": Parallel harmony starting from first note's relative structure
-                    const refPitch = Math.abs(window.currentFullMidiValues[selectedIndices[0]]) || 60;
-                    const refResult = window.getSATBNotesForChord(refPitch, intervals, activeVoiceCode);
-                    const refActivePitch = refResult.satb[activeVoiceCode];
+            // 4. Update MIDI Editor
+            const singleInput = document.getElementById('midi-single-input');
+            let effSelected = selectedIndices;
+            
+            // In Improvisation Mode (or Linked), apply to whole active voice if nothing is explicitly selected
+            if (effSelected.length === 0 && window.currentFullMidiValues) {
+                effSelected = Array.from({length: window.currentFullMidiValues.length}, (_, i) => i);
+            }
 
-                    selectedIndices.forEach(idx => {
-                        if (idx < currentVals.length) {
-                            // Preserving rest sign
-                            const sign = currentVals[idx] >= 0 ? 1 : -1;
-                            const currentNotePitch = Math.abs(currentVals[idx]) || 60;
-                            
-                            // Replicating intervals relative to First Note's anchor mapping
-                            // This ensures the active voice preserves its relative melody movement if possible
-                            const diff = currentNotePitch - refPitch;
-                            currentVals[idx] = (refActivePitch + diff) * sign;
-                        }
-                    });
-                    singleInput.value = currentVals.join(' ');
-                    
-                    // Fire input event to refresh the MIDI editor's notation/preview
-                    singleInput.dispatchEvent(new Event('input', { bubbles: true }));
+            if (!window.chordInsertModeEnabled && singleInput && effSelected.length > 0) {
+                const currentVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v));
+                
+                // "Replicarlas": Parallel harmony starting from first note's relative structure
+                const refPitch = Math.abs(window.currentFullMidiValues[effSelected[0]]) || 60;
+                const refResult = window.getSATBNotesForChord(refPitch, intervals, activeVoiceCode);
+                const refActivePitch = refResult.satb[activeVoiceCode];
+
+                effSelected.forEach(idx => {
+                    if (idx < currentVals.length) {
+                        const sign = currentVals[idx] >= 0 ? 1 : -1;
+                        const currentNotePitch = Math.abs(currentVals[idx]) || 60;
+                        const diff = currentNotePitch - refPitch;
+                        currentVals[idx] = (refActivePitch + diff) * sign;
+                    }
+                });
+                singleInput.value = currentVals.join(' ');
+                
+                // Fire input event to refresh the MIDI editor's notation/preview synchronously
+                singleInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            if (window.chordsMidiLinkEnabled) {
+                // If Linked Mode is ON, apply instantly to all voices
+                const oldSel = window.selectedNoteIndices;
+                if (effSelected.length > 0) window.selectedNoteIndices = effSelected;
+                
+                if (typeof window.applyChordToSelectedNotes === 'function') {
+                    window.applyChordToSelectedNotes(name);
                 }
-            } else if (window.chordsMidiLinkEnabled) {
-                // If linked even in insert mode audition, we trigger a refresh of the MIDI editor score
-                // to show the potential harmony change if the user clicks Apply.
-                if (window.refreshMidiEditorScore) window.refreshMidiEditorScore();
+                
+                // Restore selection state
+                window.selectedNoteIndices = oldSel;
             }
         };
         
@@ -21201,5 +21458,93 @@ window.addEventListener('scroll', () => {
             arrow.classList.remove('visible');
         }
     });
-}, { passive: true });
+});
+
+/* ============================================
+   SCALE DEGREE SHIFT — GLOBAL HELPER
+   Called by keyboard shortcuts (ArrowUp / ArrowDown) in Improvisation mode
+   and usable from any context.
+   direction: +1 = up one scale step, -1 = down one scale step
+   ============================================ */
+window.shiftScaleDegree = function(direction) {
+    if (typeof ininoti !== 'function') {
+        console.warn('shiftScaleDegree: ininoti not available');
+        return;
+    }
+
+    // Resolve current MIDI values from the editor input
+    const singleInput = document.getElementById('midi-single-input');
+    if (!singleInput) return;
+
+    const rawVals = singleInput.value.trim().split(/\s+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+    if (rawVals.length === 0) return;
+
+    // Build scale MIDI array
+    const { scaleNotesInRange } = ininoti();
+    const scaleMidis = scaleNotesInRange.map(n => n.midi);
+    if (!scaleMidis || scaleMidis.length === 0) return;
+
+    // Decide which indices to shift:
+    // If notes are selected in the editor use them; otherwise shift ALL notes
+    let indices = (window.selectedNoteIndices && window.selectedNoteIndices.length > 0)
+        ? [...window.selectedNoteIndices]
+        : rawVals.map((_, i) => i);
+
+    const newVals = [...rawVals];
+
+    indices.forEach(idx => {
+        if (idx >= newVals.length) return;
+        const note = newVals[idx];
+        const isRest = note < 0;
+        const absNote = Math.abs(note);
+
+        let newAbs = absNote;
+        const midIdx = scaleMidis.indexOf(absNote);
+
+        if (direction > 0) {
+            // Up one scale degree
+            if (midIdx !== -1) {
+                if (midIdx < scaleMidis.length - 1) newAbs = scaleMidis[midIdx + 1];
+                else newAbs = absNote + 12; // above range: jump an octave
+            } else {
+                const next = scaleMidis.find(n => n > absNote);
+                newAbs = next !== undefined ? next : absNote + 1;
+            }
+        } else {
+            // Down one scale degree
+            if (midIdx !== -1) {
+                if (midIdx > 0) newAbs = scaleMidis[midIdx - 1];
+                // else at bottom, stay
+            } else {
+                let found = null;
+                for (let i = scaleMidis.length - 1; i >= 0; i--) {
+                    if (scaleMidis[i] < absNote) { found = scaleMidis[i]; break; }
+                }
+                if (found !== null) newAbs = found;
+            }
+        }
+
+        newVals[idx] = isRest ? -Math.abs(newAbs) : Math.abs(newAbs);
+    });
+
+    // Write back to the input and trigger editor refresh
+    singleInput.value = newVals.join(' ');
+    singleInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Also commit to BDI active voice so the change persists after a bar cycle
+    const measureIndex = window.currentEditingMeasureIndex;
+    const voiceCode = document.getElementById('voice-selector')?.value || 's';
+    if (measureIndex >= 0 && window.bdi && window.bdi.bar && window.bdi.bar[measureIndex]) {
+        const m = window.bdi.bar[measureIndex];
+        const vData = m.voci ? m.voci.find(v => v.nami === voiceCode) : null;
+        if (vData) {
+            vData.nimidi = newVals.map(v => Math.abs(v));
+            // Restore rest signs from rhythm
+            if (vData.tipis) {
+                vData.nimidi = vData.nimidi.map((n, i) => (vData.tipis[i] < 0 ? -n : n));
+            }
+        }
+    }
+};
+
 

@@ -43,7 +43,7 @@
     </script>
   <script src="tarareo-melodic.js"></script> <!-- Melodic Tarareo Logic -->
   <script src="preferences.js?v=3"></script>
-  <script src="musicoli.js?v=3"></script>
+  <script src="musicoli.js?v=4"></script>
   <script src="improvisacion.js"></script>
 
 
@@ -994,47 +994,126 @@
               <!-- SHARED: LADDER COMPONENT (Scales) -->
               <div id="editor-tonalidad-ladder" style="display: none;"></div>
 
-              <!-- IMPROVISACIÓN SECTION -->
-              <div id="editor-improvisacion" class="mode-panel mode-editor editor-improvisacion" style="display: none; padding: 20px; border-radius: 8px; margin-bottom: 5px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                  <h3 style="margin: 0; font-family: monospace;" data-i18n="Improvisation">Improvisation</h3>
-                  <button id="impro-start-stop-btn" style="padding: 10px 25px; font-size: 16px; font-weight: bold; border-radius: 8px; border: none; background: #4CAF50; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s;">
+              <!-- IMPROVISACIÓN SECTION — compact toolbar -->
+              <div id="editor-improvisacion" class="mode-panel mode-editor editor-improvisacion"
+                style="display: none;">
+                <!-- All controls in a single flex row -->
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+
+                  <!-- Title badge -->
+                  <span style="font-family: monospace; font-size: 11px; font-weight: bold;
+                    color: #fff; background: #444; padding: 2px 8px; border-radius: 4px;
+                    white-space: nowrap; letter-spacing: 0.5px;" data-i18n="IMPRO">IMPRO</span>
+
+                  <!-- Status text (updated by JS) -->
+                  <span id="impro-status-text"
+                    style="font-family: monospace; font-size: 11px; color: #ccc; flex: 1;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+
+                  <!-- Limit controls -->
+                  <label style="font-family: monospace; font-size: 11px; color: #bbb;
+                    white-space: nowrap;" data-i18n="Límite:">Límite:</label>
+                  <input type="number" id="impro-limit-input" value="16" min="1" max="999"
+                    style="width: 44px; font-family: monospace; font-size: 11px; padding: 2px 4px;
+                    border: 1px solid #555; border-radius: 3px; background: #222; color: #eee;
+                    text-align: center;">
+                  <select id="impro-limit-type"
+                    style="font-family: monospace; font-size: 11px; padding: 2px 4px;
+                    border: 1px solid #555; border-radius: 3px; background: #333; color: #eee;">
+                    <option value="measures" data-i18n="Compases">Compases</option>
+                    <option value="seconds" data-i18n="Segundos">Segundos</option>
+                  </select>
+
+
+                  <!-- Info button with tooltip -->
+                  <div id="impro-info-btn-wrap" style="position: relative; display: inline-flex; align-items: center;">
+                    <button id="impro-info-btn"
+                      style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #555;
+                      background: #333; color: #aaa; font-size: 11px; font-weight: bold;
+                      cursor: pointer; display: flex; align-items: center; justify-content: center;
+                      line-height: 1; padding: 0; flex-shrink: 0;"
+                      onclick="(function(btn){
+                        const tt = document.getElementById('impro-tooltip');
+                        if (!tt) return;
+                        const vis = tt.style.display !== 'none';
+                        tt.style.display = vis ? 'none' : 'block';
+                        btn.style.background = vis ? '#333' : '#555';
+                      })(this)">ℹ</button>
+
+                    <!-- Tooltip panel -->
+                    <div id="impro-tooltip"
+                      style="display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+                      transform: translateX(-50%); background: #1a1a1a; border: 1px solid #555;
+                      border-radius: 6px; padding: 8px 12px; min-width: 220px; z-index: 9999;
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-family: monospace; font-size: 11px;
+                      color: #ccc; line-height: 1.7; white-space: nowrap;">
+                      <div style="font-weight:bold; color:#fff; margin-bottom:4px; border-bottom:1px solid #444; padding-bottom:3px;"
+                        data-i18n="Atajos de teclado">Atajos de teclado</div>
+                      <div><span style="color:#7ec8e3;">↑ / ↓</span> &nbsp;Subir / bajar nota en escala</div>
+                      <div><span style="color:#7ec8e3;">0–9</span> &nbsp;&nbsp;&nbsp;Densidad rítmica</div>
+                      <div><span style="color:#7ec8e3;">A–Z</span> &nbsp;&nbsp;&nbsp;Variante de patrón</div>
+                      <div><span style="color:#7ec8e3;">m n p d f l x a</span> &nbsp;Escala</div>
+                      <div><span style="color:#7ec8e3;">Espacio</span> &nbsp;Capturar escala del editor</div>
+                      <div style="border-top:1px solid #444; margin-top:4px; padding-top:4px; color:#aaa;">
+                        <span data-i18n="Compases grabados">Compases grabados</span>:
+                        <b id="totalMeasures" style="color:#fff;">0</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- START / STOP button -->
+                  <button id="impro-start-stop-btn"
+                    style="padding: 3px 14px; font-size: 12px; font-weight: bold;
+                    border-radius: 4px; border: none; background: #4CAF50; color: white;
+                    cursor: pointer; white-space: nowrap; transition: background 0.2s;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
                     <span id="impro-btn-icon">▶</span> <span id="impro-btn-text">START</span>
                   </button>
                 </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                  <!-- Left Hand Info -->
-                  <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <h4 style="margin: 0 0 10px 0;">Mano Izquierda / Left Hand (T+B)</h4>
-                    <div style="font-family: monospace; font-size: 12px; line-height: 1.6;">
-                      <div id="impro-left-status">Queued: None</div>
-                      <div style="margin-top: 10px; opacity: 0.7;">Keys: <span style="background: #333; padding: 2px 4px; border-radius: 3px;">Q, W, E, R, A, S, D, F, Z, X, C, V</span></div>
-                    </div>
-                  </div>
-                  
-                  <!-- Right Hand Info -->
-                  <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <h4 style="margin: 0 0 10px 0;">Mano Derecha / Right Hand (S+A)</h4>
-                    <div style="font-family: monospace; font-size: 12px; line-height: 1.6;">
-                      <div id="impro-right-status">Queued: None</div>
-                      <div style="margin-top: 10px; opacity: 0.7;">Keys: <span style="background: #333; padding: 2px 4px; border-radius: 3px;">O, P, [, L, ;, ', ., /, ...</span></div>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Common Controls -->
-                <div style="margin-top: 20px; text-align: center; font-family: monospace; font-size: 11px; opacity: 0.8;">
-                   Números: Notas | Mayúsculas: Patrón | Minúsculas: Escala<br>
-                   Numbers: Notes | Uppercase: Pattern | Lowercase: Scale
-                </div>
               </div>
+
 
               <!-- 1. RHYTHM CONTROLS -->
               <div id="rhythm-controls-container" class="mode-panel"
                 style="display: flex; flex-direction: column; gap: 5px;">
 
-                <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;"></div>
+                 <div id="patroni" class="patroni-panel"
+                  style="display: none; flex-direction: column; gap: 10px; padding: 10px; background: #222; border: 2px solid #555; border-radius: 8px;">
+
+                  <!-- 1. RHYTHM SEND PANEL (Row 2 - Top as per user request) -->
+                  <div id="rhythm-color-info-row2-slot" style="width: 100%;">
+                    <!-- #rhythm-color-info-row2 (Send Panel) will be here -->
+                  </div>
+
+                  <!-- 1.1 COLOR INFO (Row 1 - Other mode items) -->
+                  <div id="rhythm-color-info-div"
+                    style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11px; font-family: monospace; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); width: 100%; align-self: flex-start;">
+                    <!-- rhythm-color-info-row1 will be here -->
+                  </div>
+
+                  <!-- 2. NOTE COUNT SELECTOR -->
+                  <div id="note-count-selector-slot" style="width: 100%;">
+                    <!-- #note-count-selector will be appended here by makeladi -->
+                  </div>
+
+                  <!-- 3. RHYTHM PATTERNS SLOT (The list of A, A1, B...) -->
+                  <div id="rhythm-patterns-slot-container" style="width: 100%;">
+                    <!-- #rhythm-patterns-slot will be appended here by makeladi -->
+                  </div>
+
+                  <!-- 4. SILENCE VARIATIONS (Toggleable) -->
+                  <div id="silence-variations-column"
+                    style="width: 100%; background: #333; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 200px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); border: 1px solid #555;">
+                    <h4
+                      style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #aaa; font-weight: bold;">
+                      Variations</h4>
+                    <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                  </div>
+
+                  <!-- 5. RHYTHM EDITOR (Main Score area) -->
+                  <div id="editor-ritmo" class="mode-editor editor-ritmo" style="display: block; opacity: 1;"></div>
+
+                </div> <!-- END PATRONI -->
 
                 <!-- ONDA RITMO SECTION FOR RHYTHM MODE -->
                 <div id="ritmo-onda-ritmo-section"
@@ -1087,7 +1166,9 @@
                     </button>
                   </div>
                 </div>
+
               </div>
+
 
 
               <!-- PARTES SECTION (Composicion mode) -->
@@ -2186,20 +2267,9 @@
 
             </div> <!-- END MAIN EDITORS CONTAINER -->
 
-            <!-- SILENCE VARIATIONS (MOVED NEXT TO EDITOR) -->
-            <div id="silence-variations-column"
-              style="width: 90px; background: #f5f5f5; border-radius: 8px; padding: 10px 5px; display: none; flex-direction: column; gap: 5px; overflow-y: auto; max-height: 600px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-              <h4
-                style="margin: 0 0 10px 0; font-size: 11px; text-align: center; font-family: monospace; color: #666; font-weight: bold;">
-                Variations</h4>
-              <div id="silence-variations-content" style="display: flex; flex-direction: column; gap: 5px;"></div>
-            </div>
-
             </div> <!-- END EDITORS AND VARIATIONS ROW -->
 
-            <div id="rhythm-color-info-div"
-              style="display: flex; align-items: center; gap: 4px; margin-top: 15px; font-size: 11px; font-family: monospace; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); width: fit-content; align-self: flex-start;">
-            </div>
+
           </div> <!-- END LEFT COLUMN WRAPPER -->
 
         <!-- RIGHT COLUMN: Tools & Composition -->
@@ -3302,6 +3372,20 @@
         init();
       }
     })();
+  </script>
+
+  <script>
+    // Close impro tooltip when clicking outside
+    document.addEventListener('click', function(e) {
+      var wrap = document.getElementById('impro-info-btn-wrap');
+      var tt   = document.getElementById('impro-tooltip');
+      var btn  = document.getElementById('impro-info-btn');
+      if (!wrap || !tt) return;
+      if (!wrap.contains(e.target)) {
+        tt.style.display = 'none';
+        if (btn) btn.style.background = '#333';
+      }
+    });
   </script>
 
 </body>

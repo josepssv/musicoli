@@ -19,6 +19,9 @@
         timer: null,
         bpm: 120,
         bufferIndex: -1,
+        
+        recordedMeasures: 0,
+        startTime: null,
 
         // Snapshot of user edits made via MIDI editor buttons or text input.
         // Populated by window.imProNotifyEdit(), consumed by applyUserEditsToCurrentMeasure().
@@ -89,7 +92,25 @@
 
         state.isRunning = true;
         state.userEdits = null;
+        state.recordedMeasures = 1;
+        state.startTime = Date.now();
+        
+        // Determine start index (from selection or end)
+        if (typeof window.selectedMeasureIndex !== 'undefined' && window.selectedMeasureIndex >= 0) {
+            state.bufferIndex = window.selectedMeasureIndex;
+            console.log('Impro: Starting at selected measure', state.bufferIndex);
+        } else {
+            state.bufferIndex = -1; // Standard behavior (append at end)
+        }
+
         updateUI();
+
+        // Ensure Link mode is ON when starting improvisation
+        const linkCheckbox = document.getElementById('chords-midi-link-checkbox');
+        if (linkCheckbox && !linkCheckbox.checked) {
+            linkCheckbox.checked = true;
+            linkCheckbox.dispatchEvent(new Event('change'));
+        }
 
         if (window.currentEditMode !== 'improvisacion') {
             const btn = document.getElementById('mode-improvisacion');
@@ -124,14 +145,29 @@
         const measure = window.bdi.bar[state.bufferIndex];
         const { voiceCode, nimidi, tipis, dinami } = state.userEdits;
 
+        // Get audible voices from playback-selector
+        const playbackSelector = document.getElementById('playback-selector');
+        const audibleVoices = playbackSelector ? playbackSelector.value.split(',') : ['s', 'a', 't', 'b'];
+
         const vIdx = measure.voci ? measure.voci.findIndex(v => v.nami === voiceCode) : -1;
         if (vIdx !== -1) {
             const v = measure.voci[vIdx];
-            v.nimidi = [...nimidi];
-            v.tipis = [...tipis];
-            if (dinami && dinami.length === nimidi.length) {
-                v.dinami = [...dinami];
+            
+            // Only apply edits if the voice is audible
+            if (audibleVoices.includes(voiceCode)) {
+                v.nimidi = [...nimidi];
+                v.tipis = [...tipis];
+                if (dinami && dinami.length === nimidi.length) {
+                    v.dinami = [...dinami];
+                }
+            } else {
+                // If not audible, ensure it stays silent
+                v.nimidi = [0];
+                v.tipis = [-1]; // Whole rest
+                v.dinami = [0];
+                console.log('Impro: Voice', voiceCode, 'is not audible. Keeping silent.');
             }
+
             // Keep root measure properties in sync
             if (voiceCode === 's' || measure.nimidi) {
                 measure.nimidi = [...v.nimidi];
@@ -157,16 +193,58 @@
         applyUserEditsToCurrentMeasure();
 
         let measureData;
-        if (state.bufferIndex !== -1 && window.bdi.bar[state.bufferIndex]) {
-            measureData = JSON.parse(JSON.stringify(window.bdi.bar[state.bufferIndex]));
-            console.log('Impro: Cloned bar', state.bufferIndex, '→', window.bdi.bar.length);
+        const currentIdx = state.bufferIndex;
+        const isIndependent = (window.voiceEditMode === 'independent');
+        const hasNextMeasure = (currentIdx !== -1 && window.bdi.bar[currentIdx + 1]);
+
+        if (isIndependent && hasNextMeasure) {
+            // OVERWRITE MODE: Use existing next measure but update audible tracks
+            state.bufferIndex = currentIdx + 1;
+            const nextMeasure = window.bdi.bar[state.bufferIndex];
+
+            // Get audible voices from playback-selector
+            const playbackSelector = document.getElementById('playback-selector');
+            const audibleVoices = playbackSelector ? playbackSelector.value.split(',') : ['s', 'a', 't', 'b'];
+
+            // We generate new data but only apply it to audible voices in the EXISTING next measure
+            const newData = generateMeasureDataFromSettings();
+            
+            if (nextMeasure.voci && newData.voci) {
+                audibleVoices.forEach(vKey => {
+                    const vIdx = nextMeasure.voci.findIndex(v => v.nami === vKey);
+                    const newVIdx = newData.voci.findIndex(v => v.nami === vKey);
+                    if (vIdx !== -1 && newVIdx !== -1) {
+                        nextMeasure.voci[vIdx] = JSON.parse(JSON.stringify(newData.voci[newVIdx]));
+                    }
+                });
+                
+                // Sync root properties if soprano is audible
+                if (audibleVoices.includes('s')) {
+                    const sVoice = nextMeasure.voci.find(v => v.nami === 's');
+                    if (sVoice) {
+                        nextMeasure.nimidi = [...sVoice.nimidi];
+                        nextMeasure.tipis = [...sVoice.tipis];
+                        nextMeasure.dinami = [...sVoice.dinami];
+                    }
+                }
+            }
+            console.log('Impro (Independent): Overwrote audible voices in existing bar', state.bufferIndex);
+        }
+        else if (currentIdx !== -1 && window.bdi.bar[currentIdx]) {
+            // INSERTION MODE: Clone and splice
+            measureData = JSON.parse(JSON.stringify(window.bdi.bar[currentIdx]));
+            console.log('Impro: Inserting new cloned bar at', currentIdx + 1);
+            
+            window.bdi.bar.splice(currentIdx + 1, 0, measureData);
+            state.bufferIndex = currentIdx + 1;
         } else {
+            // APPEND MODE: First bar or end of track
             measureData = generateMeasureDataFromSettings();
-            console.log('Impro: Generated first bar.');
+            console.log('Impro: Appending new bar at end.');
+            window.bdi.bar.push(measureData);
+            state.bufferIndex = window.bdi.bar.length - 1;
         }
 
-        window.bdi.bar.push(measureData);
-        state.bufferIndex = window.bdi.bar.length - 1;
         window.selectedMeasureIndex = state.bufferIndex;
 
         // Open editor AFTER updating state.bufferIndex so imProNotifyEdit guards work correctly
@@ -208,10 +286,49 @@
 
         const measureToPlay = window.bdi.bar[state.bufferIndex];
         if (measureToPlay && measureToPlay.voci && typeof window.playMeasureFast === 'function') {
-            try { window.playMeasureFast(0, measureToPlay); }
-            catch (pErr) { console.warn('Impro: Playback error:', pErr); }
+            try { 
+                window.isImprovisacionLoopPlayback = true;
+                
+                // Get audible voices to ensure playback matches recording
+                const playbackSelector = document.getElementById('playback-selector');
+                const audibleVoices = playbackSelector ? playbackSelector.value.split(',') : ['s', 'a', 't', 'b'];
+                
+                window.playMeasureFast(0, measureToPlay, audibleVoices); 
+                window.isImprovisacionLoopPlayback = false;
+            }
+            catch (pErr) { 
+                window.isImprovisacionLoopPlayback = false;
+                console.warn('Impro: Playback error:', pErr); 
+            }
         }
 
+        const limitTypeObj = document.getElementById('impro-limit-type');
+        const limitInputObj = document.getElementById('impro-limit-input');
+        
+        if (limitTypeObj && limitInputObj) {
+            const limitType = limitTypeObj.value;
+            const limitValue = parseInt(limitInputObj.value) || 0;
+            let shouldStop = false;
+            
+            if (limitType === 'measures') {
+                if (state.recordedMeasures >= limitValue) {
+                    shouldStop = true;
+                }
+            } else if (limitType === 'seconds') {
+                const elapsed = (Date.now() - state.startTime) / 1000;
+                if (elapsed >= limitValue) {
+                    shouldStop = true;
+                }
+            }
+            
+            if (shouldStop) {
+                console.log('Impro: Recording limit reached. Stopping.');
+                stopImpro();
+                return;
+            }
+        }
+
+        state.recordedMeasures++;
         createNewWorkingBar();
 
         const scroller = document.getElementById('tracks-scroll-viewport');
@@ -235,11 +352,16 @@
         }
 
         const roots = s.voiceRoots || { s: 72, a: 60, t: 48, b: 36 };
+        
+        // Get audible voices from playback-selector
+        const playbackSelector = document.getElementById('playback-selector');
+        const audibleVoices = playbackSelector ? playbackSelector.value.split(',') : ['s', 'a', 't', 'b'];
+
         const voci = [
-            generateVoiceFromPattern(patternArr, scale, roots.s || 72, 's'),
-            generateVoiceFromPattern(patternArr, scale, roots.a || 60, 'a'),
-            generateVoiceFromPattern(patternArr, scale, roots.t || 48, 't'),
-            generateVoiceFromPattern(patternArr, scale, roots.b || 36, 'b')
+            audibleVoices.includes('s') ? generateVoiceFromPattern(patternArr, scale, roots.s || 72, 's') : { nami: 's', nimidi: [0], tipis: [-1], dinami: [0] },
+            audibleVoices.includes('a') ? generateVoiceFromPattern(patternArr, scale, roots.a || 60, 'a') : { nami: 'a', nimidi: [0], tipis: [-1], dinami: [0] },
+            audibleVoices.includes('t') ? generateVoiceFromPattern(patternArr, scale, roots.t || 48, 't') : { nami: 't', nimidi: [0], tipis: [-1], dinami: [0] },
+            audibleVoices.includes('b') ? generateVoiceFromPattern(patternArr, scale, roots.b || 36, 'b') : { nami: 'b', nimidi: [0], tipis: [-1], dinami: [0] }
         ];
 
         return {
@@ -332,8 +454,20 @@
 
         const measure = window.bdi.bar[state.bufferIndex];
 
+        // Get audible voices from playback-selector
+        const playbackSelector = document.getElementById('playback-selector');
+        const audibleVoices = playbackSelector ? playbackSelector.value.split(',') : ['s', 'a', 't', 'b'];
+
         // Apply new rhythm to each voice, keeping existing pitches (cycling/truncating as needed)
         (measure.voci || []).forEach(v => {
+            if (!audibleVoices.includes(v.nami)) {
+                // If not audible, ensure it is silent
+                v.nimidi = [0];
+                v.tipis = [-1];
+                v.dinami = [0];
+                return;
+            }
+
             const oldMidi = v.nimidi ? [...v.nimidi] : [];
             const oldDyn  = v.dinami  ? [...v.dinami]  : [];
             const baseDyn = state.settings.lastMeanDyn || 80;
@@ -366,6 +500,24 @@
         const key = e.key;
         let changed = false;
         let rhythmOnly = false; // True = change rhythm but keep pitches from editor
+
+        // ── Arrow keys: shift selected (or all) notes by one scale degree ──
+        if (key === 'ArrowUp' || key === 'ArrowDown') {
+            e.preventDefault(); // Prevent page scroll
+            if (typeof window.shiftScaleDegree === 'function') {
+                window.shiftScaleDegree(key === 'ArrowUp' ? +1 : -1);
+                // Bake immediately so the cycle loop captures the change
+                if (state.bufferIndex !== -1) {
+                    applyUserEditsToCurrentMeasure();
+                    if (typeof window.openMidiEditor === 'function') window.openMidiEditor(state.bufferIndex);
+                    setTimeout(() => {
+                        const focused = document.activeElement;
+                        if (focused && focused.tagName === 'INPUT' && focused.id !== 'bpm-custom-input') focused.blur();
+                    }, 50);
+                }
+            }
+            return;
+        }
 
         if (/^[0-9]$/.test(key)) {
             state.settings.density = parseInt(key);
